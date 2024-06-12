@@ -13,7 +13,8 @@ Alpha version - early code for further development
 
 ## install
 
-- provision Debian 12 64-bit on a [lunanode (with affiliate link)](https://www.lunanode.com/?r=9026) m1s VM ($3.50 per month in June 2024, they accept bitcoin and are lighting enabled for payments)
+- provision an m1s VM on [lunanode (with affiliate link)](https://www.lunanode.com/?r=9026) using the `Debian 12 64-bit` template  
+  ($3.50 per month in June 2024, they accept bitcoin and are lighting enabled for payments)
 - log in to the machine using SSH (Linux) or Putty (Windows)
 - [install docker](https://docs.docker.com/engine/install/debian/)
 - [enable managing docker as a non root user](https://docs.docker.com/engine/install/linux-postinstall/)
@@ -39,22 +40,20 @@ $ docker compose up
 - note that the first sats you send will appear as 'fee credit' rather than 'balance' until there is enough to open a channel
 - this behaviour is described [on the Phoenix Server website under Auto Liquidity](https://phoenix.acinq.co/server/auto-liquidity)
 
-- to keep the service running
+### to keep the service running
 
 ```bash
 docker compose up -d
 ```
 
-- to get the phoenix server seed words
+### to get the phoenix server seed words
 
 ```bash
 $ sudo su -
-
 # cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat
-
 ```
 
-- to delete the database
+### to delete the database
 
 ```bash
 $ sudo su -
