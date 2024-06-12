@@ -1,0 +1,45 @@
+services:
+  phoenix:
+    container_name: phoenix
+    build: ./docker/phoenix
+    image: boltcard/phoenix:latest
+    volumes:
+      - phoenix_data:/root/.phoenix
+    networks:
+      - hubnet
+  card:
+    container_name: card
+    build: ./docker/card
+    image: boltcard/card:latest
+    depends_on:
+      - phoenix
+    volumes:
+      - type: volume
+        source: phoenix_data
+        target: /root/.phoenix
+        read_only: true
+      - type: volume
+        source: card_data
+        target: /card_data
+    networks:
+      - hubnet
+  webproxy:
+    image: caddy
+    container_name: webproxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ${PWD}/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - hubnet
+networks:
+  hubnet:
+volumes:
+  phoenix_data:
+  caddy_data:
+  caddy_config:
+  card_data:
