@@ -12,7 +12,6 @@ $ docker volume create caddy_config
 $ docker volume create card_data
 $ git clone https://github.com/boltcard/hub
 $ cd hub
-$ chmod +x docker_init.sh
 $ ./docker_init.sh
     on lunanode the domain name could be your Hostname from the rDNS tab
     the GroundControl URL could be "gc.boltcardwallet.com"
@@ -20,17 +19,28 @@ $ docker compose build
 $ docker compose up
     monitor the logs
 
-    access the web interface at https://domain-name-from-init/
-
+    - access the web interface at https://domain-name-from-init/
+    - the admin web page will auto update every few seconds
+    - use the QR code to connect a BoltCardWallet account
+    - note that the first sats you send will appear as 'fee credit' rather than 'balance' until there is enough to open a channel
+    - this behaviour is described [on the Phoenix Server website under Auto Liquidity](https://phoenix.acinq.co/server/auto-liquidity)
 ```
 
-# TODO before commit
-- test documented install
+- to keep the service running
+```
+$ docker compose up -d
+```
+
+- to delete the database
+```
+$ sudo su -
+# cd /var/lib/docker/volumes/hub_card_data/_data/
+```
 
 # TODO
 - 2FA code for admin login
+- show the phoenix server seed words for the admin
 - rate limit API & website
-- QR code for adding funds, used for opening first channel
 - optionally take a fee when topping up funds on cards
 - use an optional invite_secret when creating a card (in co-ordination with BoltCardWallet)
 - gather a refund address when creating a card
