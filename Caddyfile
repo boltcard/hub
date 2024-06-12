@@ -1,0 +1,13 @@
+domainname
+{
+	header {
+		Access-Control-Allow-Origin *
+		Access-Control-Allow-Credentials true
+		Access-Control-Allow-Methods *
+		Access-Control-Allow-Headers *
+	}
+
+	handle {
+		reverse_proxy card:8000
+	}
+}
