@@ -1,4 +1,4 @@
-domainname
+domain_name
 {
 	header {
 		Access-Control-Allow-Origin *
