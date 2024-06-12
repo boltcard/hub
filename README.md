@@ -4,12 +4,12 @@ Alpha version - early code for further development
 
 ## features
 
-- will host accounts for the Bolt Card Wallet app
-- lightweight - to run on a low cost server (lunanode $3.50 per month)
-- Phoenix Server - so a LND / CLN node is not needed - further reducing cost and complexity
+- host accounts for the Bolt Card Wallet app
+- lightweight
+- Phoenix Server
 - SQLite database
 - docker deployment
-- web based admin interface
+- web admin
 
 ## install
 
