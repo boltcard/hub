@@ -50,7 +50,7 @@ docker compose up -d
 ### to get the phoenix server seed words
 
 ```bash
-sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat
+sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat ; echo
 ```
 
 ### to delete the database
