@@ -29,7 +29,7 @@ cd hub
 ./docker_init.sh
 ```
 
-- on lunanode the domain name could be your Hostname from the rDNS tab
+- on lunanode the domain name could be `your Hostname from the rDNS tab`
 - the GroundControl URL could be `gc.boltcardwallet.com`
 
 ```bash
@@ -39,10 +39,7 @@ docker compose up
 
 - monitor the logs
 - access the web interface at <https://domain-name-from-init/>
-- the admin web page will auto update every few seconds
-- use the QR code to connect a BoltCardWallet account
-- note that the first sats you send will appear as 'fee credit' rather than 'balance' until there is enough to open a channel
-- this behaviour is described [on the Phoenix Server website under Auto Liquidity](https://phoenix.acinq.co/server/auto-liquidity)
+- note that the first sats you send will appear as 'fee credit' rather than 'balance' until there is enough available to open a channel, as described [on the Phoenix Server website under Auto Liquidity](https://phoenix.acinq.co/server/auto-liquidity)
 
 ### to keep the service running
 
