@@ -20,20 +20,24 @@ Alpha version - early code for further development
 - [enable managing docker as a non root user](https://docs.docker.com/engine/install/linux-postinstall/)
 
 ```bash
-$ docker volume create phoenix_data
-$ docker volume create caddy_data
-$ docker volume create caddy_config
-$ docker volume create card_data
-$ git clone https://github.com/boltcard/hub
-$ cd hub
-$ ./docker_init.sh
-    # on lunanode the domain name could be your Hostname from the rDNS tab
-    # the GroundControl URL could be "gc.boltcardwallet.com"
-$ docker compose build
-$ docker compose up
-    # monitor the logs
+docker volume create phoenix_data
+docker volume create caddy_data
+docker volume create caddy_config
+docker volume create card_data
+git clone https://github.com/boltcard/hub
+cd hub
+./docker_init.sh
 ```
 
+- on lunanode the domain name could be your Hostname from the rDNS tab
+- the GroundControl URL could be `gc.boltcardwallet.com`
+
+```bash
+docker compose build
+docker compose up
+```
+
+- monitor the logs
 - access the web interface at <https://domain-name-from-init/>
 - the admin web page will auto update every few seconds
 - use the QR code to connect a BoltCardWallet account
