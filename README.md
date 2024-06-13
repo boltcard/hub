@@ -61,12 +61,3 @@ sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat
 ```bash
 sudo rm /var/lib/docker/volumes/hub_card_data/_data/cards.db
 ```
-
-## TODO
-
-- 2FA code for admin login
-- show the phoenix server seed words for the admin
-- rate limit API & website
-- optionally take a fee when topping up funds on cards
-- use an optional invite_secret when creating a card (in co-ordination with BoltCardWallet)
-- gather a refund address when creating a card
