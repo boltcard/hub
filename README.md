@@ -31,7 +31,7 @@ $ ./docker_init.sh
     # the GroundControl URL could be "gc.boltcardwallet.com"
 $ docker compose build
 $ docker compose up
-    #monitor the logs
+    # monitor the logs
 ```
 
 - access the web interface at <https://domain-name-from-init/>
@@ -49,15 +49,13 @@ docker compose up -d
 ### to get the phoenix server seed words
 
 ```bash
-$ sudo su -
-# cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat
+sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat
 ```
 
 ### to delete the database
 
 ```bash
-$ sudo su -
-# cd /var/lib/docker/volumes/hub_card_data/_data/
+sudo rm /var/lib/docker/volumes/hub_card_data/_data/cards.db
 ```
 
 ## TODO
