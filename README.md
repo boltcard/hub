@@ -29,7 +29,7 @@ cd hub
 ./docker_init.sh
 ```
 
-- on lunanode the domain name could be `your Hostname from the rDNS tab`
+- the domain name could be `your Hostname from the lunanode VM rDNS tab`
 - the GroundControl URL could be `gc.boltcardwallet.com`
 
 ```bash
