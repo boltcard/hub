@@ -1,2 +1,5 @@
+# will be overwritten by docker_init.sh
 Caddyfile
 docker/card/Dockerfile
+# test builds
+docker/card/card
