@@ -24,38 +24,7 @@ func dumpRequest(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func getInfoBolt(w http.ResponseWriter, r *http.Request) {
-	log.Info("getInfoBolt request received")
-	w.Write([]byte(""))
-}
-
-func getBtc(w http.ResponseWriter, r *http.Request) {
-	log.Info("getBtc request received")
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	jsonData := []byte(`[{ ""}]`)
-	w.Write(jsonData)
-}
-
-func getPending(w http.ResponseWriter, r *http.Request) {
-	log.Info("getPending request received")
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	jsonData := []byte(`[]`) // array
-	w.Write(jsonData)
-}
-
-func favIcon(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte(""))
-}
-
 func main() {
-
-	// ensure a database is available
-	db.Db_init()
-
-	// load the web templates into memory
-	web.InitTemplates()
 
 	log.Info("card service started")
 
@@ -64,24 +33,35 @@ func main() {
 		log.Info("log level is set to debug")
 	}
 
+	// ensure a database is available
+	log.Info("init database")
+	db.Db_init()
+
+	// load the web templates into memory
+	log.Info("init templates")
+	web.InitTemplates()
+
 	var router = mux.NewRouter()
 
 	// QR code for connecting BoltCardWallet
 
 	// web pages
-	router.Path("/").Methods("GET").HandlerFunc(web.HomePage)
-	router.Path("/favicon.ico").Methods("GET").HandlerFunc(favIcon)
-	router.Path("/admin/").HandlerFunc(web.DashboardPage)
+	router.Path("/").Methods("GET").HandlerFunc(web.Blank)
+	router.Path("/favicon.ico").Methods("GET").HandlerFunc(web.Blank)
+
+	// admin dashboard
+	router.PathPrefix("/admin/").HandlerFunc(web.Admin)
+	router.PathPrefix("/dist/").HandlerFunc(web.Admin)
 
 	// BoltCardHub API
 	// LNDHUB API reference https://github.com/BlueWallet/LndHub/blob/master/doc/Send-requirements.md
-	router.Path("/getinfobolt").Methods("GET").HandlerFunc(getInfoBolt)
+	router.Path("/getinfobolt").Methods("GET").HandlerFunc(wallet_api.GetInfoBolt)
 	router.Path("/create").Methods("POST").HandlerFunc(wallet_api.Create)
 	router.Path("/auth").Methods("POST").HandlerFunc(wallet_api.Auth)
-	router.Path("/getbtc").Methods("GET").HandlerFunc(getBtc) // Get user's BTC address to top-up his account
+	router.Path("/getbtc").Methods("GET").HandlerFunc(wallet_api.GetBtc) // Get user's BTC address to top-up his account
 	router.Path("/balance").Methods("GET").HandlerFunc(wallet_api.Balance)
-	router.Path("/gettxs").Methods("GET").HandlerFunc(wallet_api.GetTxs) // /gettxs?limit=10&offset=0 (onchain & lightning)
-	router.Path("/getpending").Methods("GET").HandlerFunc(getPending)    // for onchain txs only
+	router.Path("/gettxs").Methods("GET").HandlerFunc(wallet_api.GetTxs)         // /gettxs?limit=10&offset=0 (onchain & lightning)
+	router.Path("/getpending").Methods("GET").HandlerFunc(wallet_api.GetPending) // for onchain txs only
 	router.Path("/getuserinvoices").Methods("GET").HandlerFunc(wallet_api.GetUserInvoices)
 	router.Path("/getcardkeys").Methods("POST").HandlerFunc(wallet_api.GetCardKeys) // creating a new card
 	router.Path("/addinvoice").Methods("POST").HandlerFunc(wallet_api.AddInvoice)

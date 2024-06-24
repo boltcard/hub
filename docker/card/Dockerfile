@@ -9,7 +9,7 @@ FROM ubuntu:22.04
 RUN mkdir /app
 WORKDIR /app
 COPY --from=builder /app/app .
-COPY --from=builder /app/web-content/* /web-content/.
-ENV HOST_DOMAIN=domain_name
-ENV GC_URL=gc_url
+COPY --from=builder /app/web-content/ /web-content/
+ENV HOST_DOMAIN=t.boltcard.ninja
+ENV GC_URL=
 ENTRYPOINT ["./app"]

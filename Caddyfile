@@ -1,4 +1,4 @@
-domain_name
+https://t.boltcard.ninja
 {
 	header {
 		Access-Control-Allow-Origin *
@@ -8,6 +8,7 @@ domain_name
 	}
 
 	handle {
+		encode zstd gzip
 		reverse_proxy card:8000
 	}
 }
