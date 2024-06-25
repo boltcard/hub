@@ -5,6 +5,7 @@ read domain_name
 echo Enter the GroundControl URL excluding the protocol
 read gc_url
 
+cp Caddyfile.template Caddyfile
 cp docker/card/Dockerfile.template docker/card/Dockerfile
 
 echo writing the domain name as $domain_name ..

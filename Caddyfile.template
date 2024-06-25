@@ -1,0 +1,13 @@
+domain_name {
+	header {
+		Access-Control-Allow-Origin *
+		Access-Control-Allow-Credentials true
+		Access-Control-Allow-Methods *
+		Access-Control-Allow-Headers *
+	}
+
+	handle {
+		encode zstd gzip
+		reverse_proxy card:8000
+	}
+}
