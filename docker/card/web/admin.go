@@ -59,6 +59,8 @@ func renderContent(w http.ResponseWriter, r *http.Request) {
 func Admin(w http.ResponseWriter, r *http.Request) {
 	request := r.RequestURI
 
+	log.Info("request : ", request)
+
 	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
 	w.Header().Add("Cache-Control", "no-cache")
 
@@ -77,7 +79,7 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 				Value:   "",
 				Expires: time.Now(),
 			})
-			renderContent(w, r)
+			Register(w, r)
 			return
 		} else {
 			// https://freshman.tech/snippets/go/http-redirect/
@@ -93,7 +95,7 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 			Value:   "",
 			Expires: time.Now(),
 		})
-		renderContent(w, r)
+		Login(w, r)
 		return
 	}
 
@@ -105,7 +107,7 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 			return
 		}
-		log.Info("session_token error : " + err.Error())
+		log.Info("session_token error : ", err.Error())
 		Blank(w, r)
 		return
 	}
