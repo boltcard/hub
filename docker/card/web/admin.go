@@ -1,19 +1,18 @@
 package web
 
 import (
+	"card/db"
 	"io"
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
 
-func Admin(w http.ResponseWriter, r *http.Request) {
+func renderContent(w http.ResponseWriter, r *http.Request) {
 	request := r.RequestURI
-
-	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
-	w.Header().Add("Cache-Control", "no-cache")
 
 	// default to index.html
 	if strings.HasSuffix(request, "/") {
@@ -29,12 +28,12 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Info("non page : ", request)
-
+	// everything except .html
 	content, err := os.Open("/web-content" + request)
 
 	if err != nil {
 		log.Info(err.Error())
+		Blank(w, r)
 		return
 	}
 
@@ -55,4 +54,76 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	io.Copy(w, content)
+}
+
+func Admin(w http.ResponseWriter, r *http.Request) {
+	request := r.RequestURI
+
+	// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+	w.Header().Add("Cache-Control", "no-cache")
+
+	// items to return without an authenticated session
+	if strings.HasSuffix(request, ".js") || strings.HasSuffix(request, ".css") ||
+		strings.HasSuffix(request, ".png") || strings.HasSuffix(request, ".jpg") {
+		renderContent(w, r)
+		return
+	}
+
+	// detect if an admin password has been set
+	if db.Db_get_setting("admin_password_hash") == "" {
+		if request == "/admin/register/" {
+			http.SetCookie(w, &http.Cookie{
+				Name:    "session_token",
+				Value:   "",
+				Expires: time.Now(),
+			})
+			renderContent(w, r)
+			return
+		} else {
+			// https://freshman.tech/snippets/go/http-redirect/
+			//redirect to "register" page
+			http.Redirect(w, r, "/admin/register/", http.StatusSeeOther)
+			return
+		}
+	}
+
+	if request == "/admin/login/" {
+		http.SetCookie(w, &http.Cookie{
+			Name:    "session_token",
+			Value:   "",
+			Expires: time.Now(),
+		})
+		renderContent(w, r)
+		return
+	}
+
+	// detect if a session cookie exists
+	c, err := r.Cookie("session_token")
+	if err != nil {
+		if err == http.ErrNoCookie {
+			//redirect to "login" page
+			http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
+			return
+		}
+		log.Info("session_token error : " + err.Error())
+		Blank(w, r)
+		return
+	}
+
+	// validate the session cookie
+	sessionToken := c.Value
+	adminSessionToken := db.Db_get_setting("session_token")
+
+	if sessionToken != adminSessionToken {
+		http.SetCookie(w, &http.Cookie{
+			Name:    "session_token",
+			Value:   "",
+			Expires: time.Now(),
+		})
+		//redirect to "login" page
+		http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
+		return
+	}
+
+	renderContent(w, r)
 }
