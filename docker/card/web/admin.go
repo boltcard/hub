@@ -29,6 +29,8 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Info("non page : ", request)
+
 	content, err := os.Open("/web-content" + request)
 
 	if err != nil {
