@@ -4,7 +4,6 @@ import (
 	"card/db"
 	"net/http"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -59,11 +58,7 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 	adminSessionToken := db.Db_get_setting("session_token")
 
 	if sessionToken != adminSessionToken {
-		http.SetCookie(w, &http.Cookie{
-			Name:    "session_token",
-			Value:   "",
-			Expires: time.Now(),
-		})
+		clearSessionToken(w)
 		//redirect to "login" page
 		http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 		return

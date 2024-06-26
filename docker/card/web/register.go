@@ -3,19 +3,13 @@ package web
 import (
 	"card/db"
 	"net/http"
-	"time"
 )
 
 func Register(w http.ResponseWriter, r *http.Request) {
 
 	request := r.RequestURI
 
-	http.SetCookie(w, &http.Cookie{
-		Name:    "session_token",
-		Value:   "",
-		Path:    "/admin/",
-		Expires: time.Now(),
-	})
+	clearSessionToken(w)
 
 	// this protects from setting a new admin_password_hash when it has already been set
 	if db.Db_get_setting("admin_password_hash") != "" {

@@ -37,9 +37,8 @@ docker compose build
 docker compose up
 ```
 
-- monitor the logs
-- access the web interface at <https://domain-name-from-init/>
-- note that the first sats you send will appear as 'fee credit' rather than 'balance' until there is enough available to open a channel, as described [on the Phoenix Server website under Auto Liquidity](https://phoenix.acinq.co/server/auto-liquidity)
+- set an admin password at https://domain-name/admin/login/
+- access the web interface at https://domain-name-from-init/admin/
 
 ### to keep the service running
 

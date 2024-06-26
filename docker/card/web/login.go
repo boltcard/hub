@@ -12,12 +12,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 	request := r.RequestURI
 
-	http.SetCookie(w, &http.Cookie{
-		Name:    "session_token",
-		Value:   "",
-		Path:    "/admin/",
-		Expires: time.Now(),
-	})
+	clearSessionToken(w)
 
 	// handle postback
 	if r.Method == "POST" {

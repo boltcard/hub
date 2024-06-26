@@ -8,9 +8,19 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
+
+func clearSessionToken(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:    "session_token",
+		Value:   "",
+		Path:    "/admin/",
+		Expires: time.Now(),
+	})
+}
 
 func getPwHash(passwordStr string) (passwordHashStr string) {
 	passwordSalt := db.Db_get_setting("admin_password_salt")
@@ -28,12 +38,12 @@ func renderContent(w http.ResponseWriter, request string) {
 
 	// default to index.html
 	if strings.HasSuffix(request, "/") {
+		log.Info("page : ", request)
 		request = request + "index.html"
 	}
 
 	// only log page requests
 	if strings.HasSuffix(request, ".html") {
-		log.Info("page : ", request)
 		template_path := strings.Replace(request, "/admin/", "/dist/pages/admin/", 1)
 		w.Header().Add("Content-Type", "text/html")
 		renderTemplate(w, template_path, nil)
