@@ -2,24 +2,27 @@ package web
 
 import (
 	"card/db"
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
+	"time"
 )
 
-func getPwHash(passwordStr string) (passwordHashStr string) {
-	passwordSalt := db.Db_get_setting("admin_password_salt")
-
-	hasher := sha256.New()
-	hasher.Write([]byte(passwordSalt))
-	hasher.Write([]byte(passwordStr))
-	passwordHash := hasher.Sum(nil)
-	passwordHashStr = hex.EncodeToString(passwordHash)
-
-	return passwordHashStr
-}
-
 func Register(w http.ResponseWriter, r *http.Request) {
+
+	request := r.RequestURI
+
+	http.SetCookie(w, &http.Cookie{
+		Name:    "session_token",
+		Value:   "",
+		Path:    "/admin/",
+		Expires: time.Now(),
+	})
+
+	// this protects from setting a new admin_password_hash when it has already been set
+	if db.Db_get_setting("admin_password_hash") != "" {
+		//redirect to "login" page
+		http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
+		return
+	}
 
 	// handle postback
 	if r.Method == "POST" {
@@ -28,10 +31,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		passwordStr := r.Form.Get("password")
 		passwordHashStr := getPwHash(passwordStr)
 
-		// double check that we are not overwriting an admin_password_hash
-		if db.Db_get_setting("admin_password_hash") == "" {
-			db.Db_set_setting("admin_password_hash", passwordHashStr)
-		}
+		db.Db_set_setting("admin_password_hash", passwordHashStr)
 
 		// TODO: redirect to 2FA setup
 
@@ -41,5 +41,5 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to set an admin password
-	renderContent(w, r)
+	renderContent(w, request)
 }
