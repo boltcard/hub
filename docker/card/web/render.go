@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
@@ -113,6 +114,25 @@ func renderContent(w http.ResponseWriter, request string) {
 			}
 
 			renderTemplate(w, template_path, data)
+			return
+		}
+
+		// HACK: to test template data injection
+		if request == "/admin/payments/index.html" {
+
+			in_pmt_list, err := phoenix.ListIncomingPayments(4, 1)
+			if err != nil {
+				log.Warn("phoenix error: ", err.Error())
+			}
+
+			log.Info("len(in_pmt_list) : ", len(in_pmt_list))
+
+			for _, pmt := range in_pmt_list {
+				tm := time.Unix(0, pmt.CreatedAt*int64(time.Millisecond))
+				log.Info("pmt : ", tm.Format("2006-01-02 03:04:05"))
+			}
+
+			renderTemplate(w, template_path, nil)
 			return
 		}
 

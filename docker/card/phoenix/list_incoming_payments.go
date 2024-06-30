@@ -2,6 +2,7 @@ package phoenix
 
 import (
 	"card/util"
+	"strconv"
 
 	"encoding/json"
 	"errors"
@@ -26,7 +27,7 @@ type IncomingPayments []struct {
 	CreatedAt   int64  `json:"createdAt"`
 }
 
-func ListIncomingPayments(ExternalId string) (IncomingPayments, error) {
+func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 	log.Info("listIncomingPayments")
 
 	var incomingPayments IncomingPayments
@@ -44,7 +45,8 @@ func ListIncomingPayments(ExternalId string) (IncomingPayments, error) {
 	}
 
 	q := req.URL.Query()
-	q.Add("externalId", ExternalId)
+	q.Add("limit", strconv.Itoa(limit))
+	q.Add("offset", strconv.Itoa(offset))
 	req.URL.RawQuery = q.Encode()
 
 	req.SetBasicAuth("", hp)
