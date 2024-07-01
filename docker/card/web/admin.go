@@ -64,5 +64,14 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	renderContent(w, request)
+	// if request == "/admin/" {
+	// 	Dashboard(w, r)
+	// }
+
+	if request == "/admin/payments/" {
+		Payments(w, r)
+	}
+
+	Blank(w, r)
+	//renderContent(w, request)
 }

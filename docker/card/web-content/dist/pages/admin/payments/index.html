@@ -85,42 +85,17 @@
                 <div class="container-fluid">
                     <h4 class="mb-2">Incoming Payments</h4> <!--begin::Row-->
                     <div class="row g-4 mb-4">
+                        {{range $c := .}}
                         <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card card-success collapsed-card">
+                            <div class="card {{$c.CardStyle}} collapsed-card"><!-- card-success card-warning -->
                                 <div class="card-header">
-                                    <h3 class="card-title">Paid</h3>
+                                    <h3 class="card-title">{{$c.CardHeaderText}}</h3>
                                     <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
                                 </div> <!-- /.card-header -->
-                                <div class="card-body">Details of the payment</div> <!-- /.card-body -->
-                            </div> <!-- /.card --> <!-- /.col -->
-                        </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card card-success collapsed-card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Paid</h3>
-                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
-                                </div> <!-- /.card-header -->
-                                <div class="card-body">Details of the payment</div> <!-- /.card-body -->
+                                <div class="card-body">{{$c.CardBodyText}}</div> <!-- /.card-body -->
                             </div> <!-- /.card -->
                         </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card card-warning collapsed-card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Unpaid</h3>
-                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
-                                </div> <!-- /.card-header -->
-                                <div class="card-body">Details of the payment</div> <!-- /.card-body -->
-                            </div> <!-- /.card -->
-                        </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card card-warning collapsed-card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Unpaid</h3>
-                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
-                                </div> <!-- /.card-header -->
-                                <div class="card-body">Details of the payment</div> <!-- /.card-body -->
-                            </div> <!-- /.card -->
-                        </div>
+                        {{end}}
                     </div> <!--end::Row-->
                     <h4 class="mb-2">Outgoing Payments</h4> <!--begin::Row-->
                     <div class="row g-4 mb-4">

@@ -47,6 +47,7 @@ func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 	q := req.URL.Query()
 	q.Add("limit", strconv.Itoa(limit))
 	q.Add("offset", strconv.Itoa(offset))
+	q.Add("all", "true") // include unpaid invoices
 	req.URL.RawQuery = q.Encode()
 
 	req.SetBasicAuth("", hp)
