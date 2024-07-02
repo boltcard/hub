@@ -1,7 +1,6 @@
 package web
 
 import (
-	"card/phoenix"
 	"card/util"
 	"html/template"
 	"io"
@@ -10,9 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -46,7 +42,9 @@ func visit(path string, di fs.DirEntry, err error) error {
 	return nil
 }
 
-func renderTemplate(w http.ResponseWriter, template_full_name string, data interface{}) {
+func renderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, data interface{}) {
+
+	w.Header().Add("Content-Type", "text/html")
 
 	t, ok := templates[template_full_name]
 	if !ok {
@@ -61,66 +59,8 @@ func renderTemplate(w http.ResponseWriter, template_full_name string, data inter
 	util.Check(err)
 }
 
-func renderContent(w http.ResponseWriter, request string) {
+func renderStaticContent(w http.ResponseWriter, request string) {
 
-	// default to index.html
-	if strings.HasSuffix(request, "/") {
-		log.Info("page : ", request)
-		request = request + "index.html"
-	}
-
-	// only log page requests
-	if strings.HasSuffix(request, ".html") {
-		template_path := strings.Replace(request, "/admin/", "/dist/pages/admin/", 1)
-		w.Header().Add("Content-Type", "text/html")
-
-		// HACK: to test template data injection
-		if request == "/admin/index.html" {
-
-			balance, err := phoenix.GetBalance()
-			if err != nil {
-				log.Warn("phoenix error: ", err.Error())
-			}
-
-			info, err := phoenix.GetInfo()
-			if err != nil {
-				log.Warn("phoenix error: ", err.Error())
-			}
-
-			totalInboundSats := 0
-			for _, channel := range info.Channels {
-				totalInboundSats += channel.InboundLiquiditySat
-			}
-
-			// https://gosamples.dev/print-number-thousands-separator/
-			// https://stackoverflow.com/questions/11123865/format-a-go-string-without-printing
-			p := message.NewPrinter(language.English)
-			FeeCreditSatStr := p.Sprintf("%d sats", balance.FeeCreditSat)
-			BalanceSatStr := p.Sprintf("%d sats", balance.BalanceSat)
-			ChannelsStr := p.Sprintf("%d", len(info.Channels))
-			TotalInboundSatsStr := p.Sprintf("%d sats", totalInboundSats)
-
-			data := struct {
-				FeeCredit string
-				Balance   string
-				Channels  string
-				Inbound   string
-			}{
-				FeeCredit: FeeCreditSatStr,
-				Balance:   BalanceSatStr,
-				Channels:  ChannelsStr,
-				Inbound:   TotalInboundSatsStr,
-			}
-
-			renderTemplate(w, template_path, data)
-			return
-		}
-
-		renderTemplate(w, template_path, nil)
-		return
-	}
-
-	// everything except .html
 	content, err := os.Open("/web-content" + request)
 
 	if err != nil {

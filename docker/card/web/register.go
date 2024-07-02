@@ -35,5 +35,5 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to set an admin password
-	renderContent(w, request)
+	renderStaticContent(w, request)
 }

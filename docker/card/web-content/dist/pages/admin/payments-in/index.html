@@ -61,13 +61,13 @@
                             </ul>
                         </li>
                         <li class="nav-header">PHOENIX SERVER</li>
-                        <li class="nav-item"> <a href="/admin/payments-in/" class="nav-link"> <i class="nav-icon bi bi-box-arrow-in-right"></i>
+                        <li class="nav-item"> <a href="/admin/payments-in/" class="nav-link active"> <i class="nav-icon bi bi-box-arrow-in-right"></i>
                                 <p>Payments In</p>
                             </a> </li>
                         <li class="nav-item"> <a href="/admin/payments-out/" class="nav-link"> <i class="nav-icon bi bi-box-arrow-right"></i>
                                 <p>Payments Out</p>
                             </a> </li>
-                        <li class="nav-item"> <a href="/admin/layout/" class="nav-link active"> <i class="nav-icon bi bi-grip-horizontal"></i>
+                        <li class="nav-item"> <a href="/admin/layout/" class="nav-link"> <i class="nav-icon bi bi-grip-horizontal"></i>
                                 <p>Layout</p>
                             </a> </li>
                     </ul> <!--end::Sidebar Menu-->
@@ -79,78 +79,31 @@
                 <div class="container-fluid"> <!--begin::Row-->
                     <div class="row">
                         <div>
-                            <h3 class="mb-0">Layout</h3>
+                            <h3 class="mb-0">Payments In</h3>
                         </div>
                     </div> <!--end::Row-->
                 </div> <!--end::Container-->
             </div> <!--end::App Content Header--> <!--begin::App Content-->
-            <div class="app-content">
-                <div class="container-fluid">
-                    <div class="callout callout-danger mb-4">
-                        <h5 class="fw-bold">Liquidity</h5>
-                        <p>
-                            There are no channels open you can <a href="/starter.html" target="_blank" rel="noopener noreferrer" class="callout-link">
-                                send funds
-                            </a> until there are enough for a channel with inbound liquidity
-                            to be available. For more information visit
-                            <a href="https://phoenix.acinq.co/server/auto-liquidity" target="_blank" rel="noopener noreferrer" class="callout-link">Phoenix Server - Auto Liquidity</a> .
-                        </p>
-                    </div>
-                    <h4>Funding options</h4>
-                    <p>
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do
-                        eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut
-                        enim ad minim veniam, quis nostrud exercitation ullamco laboris
-                        nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in
-                        reprehenderit in voluptate velit esse cillum dolore eu fugiat
-                        nulla pariatur. Excepteur sint occaecat cupidatat non proident,
-                        sunt in culpa qui officia deserunt mollit anim id est laborum.
-                    </p>
-                    <ul>
-                        <li>Send funds to a lightning address.</li>
-                        <li>Create a lightning invoice.</li>
-                    </ul>
-                    <h2 id="quick-start">Quick start</h2>
-                    <p>There are multiple ways to install AdminLTE. one two three</p>
-                    <h3 id="download--changelog">Download &amp; Changelog:</h3>
-                    <p>Always Recommended to download from GitHub latest release <a href="https://github.com/ColorlibHQ/AdminLTE/releases/latest">AdminLTE 4</a> for bug free and latest features.<br />
-                        Visit the <a href="https://github.com/ColorlibHQ/AdminLTE/releases">releases</a> page to view the changelog.<br />
-                        Legacy Releases are <a href="https://github.com/ColorlibHQ/AdminLTE/releases/tag/v3.2.0">AdminLTE 3</a> / <a href="https://github.com/ColorlibHQ/AdminLTE/releases/tag/v2.4.18">AdminLTE 2</a> / <a href="https://github.com/ColorlibHQ/AdminLTE/releases/tag/1.3.1">AdminLTE 1</a>.</p>
-                    <h2 id="stable-release">Stable release</h2>
-                    <h3 id="grab-from-jsdelivr-cdn">Grab from <a href="https://www.jsdelivr.com/package/npm/admin-lte">jsdelivr</a> CDN:</h3>
-                    <p><em><strong>Important Note</strong>: You needed to add separately cdn links for plugins in your project.</em></p>
-                    <pre class="astro-code dark-plus" style="background-color:#1E1E1E;color:#D4D4D4;overflow-x:auto" tabindex="0" data-language="html"><code><span class="line"><span style="color:#808080">&lt;</span><span style="color:#569CD6">script</span></span>
-<span class="line"><span style="color:#9CDCFE">  src</span><span style="color:#D4D4D4">=</span><span style="color:#CE9178">&quot;https://cdn.jsdelivr.net/npm/admin-lte@4.0.0-beta1/dist/js/adminlte.min.js&quot;</span></span>
-<span class="line"><span style="color:#9CDCFE">  integrity</span><span style="color:#D4D4D4">=</span><span style="color:#CE9178">&quot;sha256-5SPy1/00NR75iVOk7p0Ci0nwAAM8Ab7j31wyie+DKYw=&quot;</span></span>
-<span class="line"><span style="color:#9CDCFE">  crossorigin</span><span style="color:#D4D4D4">=</span><span style="color:#CE9178">&quot;anonymous&quot;</span></span>
-<span class="line"><span style="color:#808080">&gt;&lt;/</span><span style="color:#569CD6">script</span><span style="color:#808080">&gt;</span></span>
-<span class="line"></span></code></pre>
-                    <pre class="astro-code dark-plus" style="background-color:#1E1E1E;color:#D4D4D4;overflow-x:auto" tabindex="0" data-language="html"><code><span class="line"><span style="color:#808080">&lt;</span><span style="color:#569CD6">link</span></span>
-<span class="line"><span style="color:#9CDCFE">  rel</span><span style="color:#D4D4D4">=</span><span style="color:#CE9178">&quot;stylesheet&quot;</span></span>
-<span class="line"><span style="color:#9CDCFE">  href</span><span style="color:#D4D4D4">=</span><span style="color:#CE9178">&quot;https://cdn.jsdelivr.net/npm/admin-lte@4.0.0-beta1/dist/css/adminlte.min.css&quot;</span></span>
-<span class="line"><span style="color:#9CDCFE">  integrity</span><span style="color:#D4D4D4">=</span><span style="color:#CE9178">&quot;sha256-c66Dhf3TzKZoXxk8aNaf2lu580xGnKke4mjUtbpMqYg=&quot;</span></span>
-<span class="line"><span style="color:#9CDCFE">  crossorigin</span><span style="color:#D4D4D4">=</span><span style="color:#CE9178">&quot;anonymous&quot;</span></span>
-<span class="line"><span style="color:#808080">/&gt;</span></span>
-<span class="line"></span></code></pre>
-                    <h3 id="using-the-command-line">Using The Command Line:</h3>
-                    <p><em><strong>Important Note</strong>: To install it via npm/Yarn, you need at least Node.js 14 or higher.</em></p>
-                    <h4 id="via-npm">Via npm</h4>
-                    <pre class="astro-code dark-plus" style="background-color:#1E1E1E;color:#D4D4D4;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#DCDCAA">npm</span><span style="color:#CE9178"> install</span><span style="color:#CE9178"> admin-lte@4.0.0-beta1</span><span style="color:#569CD6"> --save</span></span>
-<span class="line"></span></code></pre>
-                    <h4 id="via-yarn">Via Yarn</h4>
-                    <pre class="astro-code dark-plus" style="background-color:#1E1E1E;color:#D4D4D4;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#DCDCAA">yarn</span><span style="color:#CE9178"> add</span><span style="color:#CE9178"> admin-lte@4.0.0-beta1</span></span>
-<span class="line"></span></code></pre>
-                    <h4 id="via-composer">Via Composer</h4>
-                    <pre class="astro-code dark-plus" style="background-color:#1E1E1E;color:#D4D4D4;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#DCDCAA">composer</span><span style="color:#CE9178"> require</span><span style="color:#CE9178"> &quot;almasaeed2010/adminlte=4.0.0-beta1&quot;</span></span>
-<span class="line"></span></code></pre>
-                    <h4 id="via-git">Via Git</h4>
-                    <pre class="astro-code dark-plus" style="background-color:#1E1E1E;color:#D4D4D4;overflow-x:auto" tabindex="0" data-language="bash"><code><span class="line"><span style="color:#DCDCAA">git</span><span style="color:#CE9178"> clone</span><span style="color:#CE9178"> https://github.com/ColorlibHQ/AdminLTE.git</span></span>
-<span class="line"></span></code></pre>
-                </div> <!-- /.container-fluid -->
+            <div class="app-content"> <!--begin::Container-->
+                <div class="container-fluid"> <!--begin::Row-->
+                    <div class="row g-4 mb-4">
+                        {{range $c := .}}
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card {{$c.CardStyle}} collapsed-card">
+                                <div class="card-header">
+                                    <h3 class="card-title">{{$c.CardHeaderText}}</h3>
+                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
+                                </div> <!-- /.card-header -->
+                                <div class="card-body">{{$c.CardBodyText}}</div> <!-- /.card-body -->
+                            </div> <!-- /.card -->
+                        </div>
+                        {{end}}
+                    </div> <!--end::Row-->
+                </div> <!--end::Container-->
             </div> <!--end::App Content-->
         </main> <!--end::App Main--> <!--begin::Footer-->
         <footer class="app-footer"></footer> <!--end::Footer-->
-    </div> <!--end::App Wrapper--> <!--begin::Third Party Plugin(OverlayScrollbars)-->
+    </div> <!--end::App Wrapper--> <!--begin::Script--> <!--begin::Third Party Plugin(OverlayScrollbars)-->
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.3.0/browser/overlayscrollbars.browser.es6.min.js" integrity="sha256-H2VM7BKda+v2Z4+DRy69uknwxjyDRhszjXFhsL4gD3w=" crossorigin="anonymous"></script> <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha256-whL0tQWoY1Ku1iskqPFvmZ+CHsvmRWx/PIoEvIeWh4I=" crossorigin="anonymous"></script> <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js" integrity="sha256-YMa+wAM6QkVyz999odX7lPRxkoYAan8suedu4k2Zur8=" crossorigin="anonymous"></script> <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->

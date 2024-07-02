@@ -14,22 +14,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type IncomingPayments []struct {
+type OutgoingPayments []struct {
+	PaymentID   string `json:"paymentId"`
 	PaymentHash string `json:"paymentHash"`
 	Preimage    string `json:"preimage"`
-	ExternalID  string `json:"externalId"`
-	Description string `json:"description"`
-	Invoice     string `json:"invoice"`
 	IsPaid      bool   `json:"isPaid"`
-	ReceivedSat int    `json:"receivedSat"`
+	Sent        int    `json:"sent"`
 	Fees        int    `json:"fees"`
+	Invoice     string `json:"invoice"`
 	CompletedAt int64  `json:"completedAt"`
 	CreatedAt   int64  `json:"createdAt"`
 }
 
-func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
+func ListOutgoingPayments(limit int, offset int) (OutgoingPayments, error) {
 
-	var incomingPayments IncomingPayments
+	var outgoingPayments OutgoingPayments
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
 	util.Check(err)
@@ -38,7 +37,7 @@ func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 
 	client := http.Client{Timeout: 5 * time.Second}
 
-	req, err := http.NewRequest(http.MethodGet, "http://phoenix:9740/payments/incoming", http.NoBody)
+	req, err := http.NewRequest(http.MethodGet, "http://phoenix:9740/payments/outgoing", http.NoBody)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -60,14 +59,14 @@ func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 	util.Check(err)
 
 	if res.StatusCode != 200 {
-		log.Warning("listIncomingPayments StatusCode ", res.StatusCode)
-		return incomingPayments, errors.New("failed API call to Phoenix listIncomingPayments")
+		log.Warning("listOutgoingPayments StatusCode ", res.StatusCode)
+		return outgoingPayments, errors.New("failed API call to Phoenix listOutgoingPayments")
 	}
 
 	//log.Info(string(resBody))
 
-	err = json.Unmarshal(resBody, &incomingPayments)
+	err = json.Unmarshal(resBody, &outgoingPayments)
 	util.Check(err)
 
-	return incomingPayments, nil
+	return outgoingPayments, nil
 }

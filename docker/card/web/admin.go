@@ -18,7 +18,7 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 	if strings.HasSuffix(request, ".js") || strings.HasSuffix(request, ".css") ||
 		strings.HasSuffix(request, ".png") || strings.HasSuffix(request, ".jpg") ||
 		strings.HasSuffix(request, ".map") {
-		renderContent(w, request)
+		renderStaticContent(w, request)
 		return
 	}
 
@@ -64,14 +64,19 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// if request == "/admin/" {
-	// 	Dashboard(w, r)
-	// }
+	log.Info("request: ", request)
 
-	if request == "/admin/payments/" {
-		Payments(w, r)
+	if request == "/admin/" {
+		Index(w, r)
+	}
+
+	if request == "/admin/payments-in/" {
+		PaymentsIn(w, r)
+	}
+
+	if request == "/admin/payments-out/" {
+		PaymentsOut(w, r)
 	}
 
 	Blank(w, r)
-	//renderContent(w, request)
 }

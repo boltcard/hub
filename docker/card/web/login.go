@@ -49,5 +49,5 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to login as admin
-	renderContent(w, request)
+	renderStaticContent(w, request)
 }

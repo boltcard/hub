@@ -60,9 +60,12 @@
                                     </a> </li>
                             </ul>
                         </li>
-                        <li class="nav-header">DOCUMENTATIONS</li>
-                        <li class="nav-item"> <a href="/admin/payments/" class="nav-link active"> <i class="nav-icon bi bi-download"></i>
-                                <p>Payments</p>
+                        <li class="nav-header">PHOENIX SERVER</li>
+                        <li class="nav-item"> <a href="/admin/payments-in/" class="nav-link"> <i class="nav-icon bi bi-box-arrow-in-right"></i>
+                                <p>Payments In</p>
+                            </a> </li>
+                        <li class="nav-item"> <a href="/admin/payments-out/" class="nav-link active"> <i class="nav-icon bi bi-box-arrow-right"></i>
+                                <p>Payments Out</p>
                             </a> </li>
                         <li class="nav-item"> <a href="/admin/layout/" class="nav-link"> <i class="nav-icon bi bi-grip-horizontal"></i>
                                 <p>Layout</p>
@@ -76,18 +79,17 @@
                 <div class="container-fluid"> <!--begin::Row-->
                     <div class="row">
                         <div>
-                            <h3 class="mb-0">Payments</h3>
+                            <h3 class="mb-0">Payments Out</h3>
                         </div>
                     </div> <!--end::Row-->
                 </div> <!--end::Container-->
             </div> <!--end::App Content Header--> <!--begin::App Content-->
             <div class="app-content"> <!--begin::Container-->
-                <div class="container-fluid">
-                    <h4 class="mb-2">Incoming Payments</h4> <!--begin::Row-->
+                <div class="container-fluid"> <!--begin::Row-->
                     <div class="row g-4 mb-4">
                         {{range $c := .}}
                         <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card {{$c.CardStyle}} collapsed-card"><!-- card-success card-warning -->
+                            <div class="card {{$c.CardStyle}} collapsed-card">
                                 <div class="card-header">
                                     <h3 class="card-title">{{$c.CardHeaderText}}</h3>
                                     <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
@@ -96,45 +98,6 @@
                             </div> <!-- /.card -->
                         </div>
                         {{end}}
-                    </div> <!--end::Row-->
-                    <h4 class="mb-2">Outgoing Payments</h4> <!--begin::Row-->
-                    <div class="row g-4 mb-4">
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card card-success collapsed-card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Paid</h3>
-                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
-                                </div> <!-- /.card-header -->
-                                <div class="card-body">Details of the payment</div> <!-- /.card-body -->
-                            </div> <!-- /.card -->
-                        </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card card-success collapsed-card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Paid</h3>
-                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
-                                </div> <!-- /.card-header -->
-                                <div class="card-body">Details of the payment</div> <!-- /.card-body -->
-                            </div> <!-- /.card -->
-                        </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card card-warning collapsed-card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Unpaid</h3>
-                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
-                                </div> <!-- /.card-header -->
-                                <div class="card-body">Details of the payment</div> <!-- /.card-body -->
-                            </div> <!-- /.card -->
-                        </div>
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card card-warning collapsed-card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Unpaid</h3>
-                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
-                                </div> <!-- /.card-header -->
-                                <div class="card-body">Details of the payment</div> <!-- /.card-body -->
-                            </div> <!-- /.card -->
-                        </div> <!-- /.col -->
                     </div> <!--end::Row-->
                 </div> <!--end::Container-->
             </div> <!--end::App Content-->
