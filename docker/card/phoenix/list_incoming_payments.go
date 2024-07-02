@@ -60,8 +60,8 @@ func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 	util.Check(err)
 
 	if res.StatusCode != 200 {
-		log.Warning("listIncomingPayments StatusCode ", res.StatusCode)
-		return incomingPayments, errors.New("failed API call to Phoenix listIncomingPayments")
+		log.Warning("ListIncomingPayments StatusCode ", res.StatusCode)
+		return incomingPayments, errors.New("failed API call to Phoenix ListIncomingPayments")
 	}
 
 	//log.Info(string(resBody))

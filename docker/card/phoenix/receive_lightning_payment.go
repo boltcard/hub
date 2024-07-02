@@ -15,22 +15,21 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type CreateInvoiceRequest struct {
+type ReceiveLightningPaymentRequest struct {
 	Description string
 	AmountSat   string
 	ExternalId  string
 }
 
-type CreateInvoiceResponse struct {
+type ReceiveLightningPaymentResponse struct {
 	AmountSat   int    `json:"amountSat"`
 	PaymentHash string `json:"paymentHash"`
 	Serialized  string `json:"serialized"`
 }
 
-func CreateInvoice(createInvoiceRequest CreateInvoiceRequest) (CreateInvoiceResponse, error) {
-	log.Info("createInvoice")
+func ReceiveLightningPayment(receiveLightningPaymentRequest ReceiveLightningPaymentRequest) (ReceiveLightningPaymentResponse, error) {
 
-	var createInvoiceResponse CreateInvoiceResponse
+	var receiveLightningPaymentResponse ReceiveLightningPaymentResponse
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
 	util.Check(err)
@@ -40,9 +39,9 @@ func CreateInvoice(createInvoiceRequest CreateInvoiceRequest) (CreateInvoiceResp
 	client := http.Client{Timeout: 5 * time.Second}
 
 	formBody := url.Values{
-		"description": []string{createInvoiceRequest.Description},
-		"amountSat":   []string{createInvoiceRequest.AmountSat},
-		"externalId":  []string{createInvoiceRequest.ExternalId},
+		"description": []string{receiveLightningPaymentRequest.Description},
+		"amountSat":   []string{receiveLightningPaymentRequest.AmountSat},
+		"externalId":  []string{receiveLightningPaymentRequest.ExternalId},
 	}
 	dataReader := formBody.Encode()
 	reader := strings.NewReader(dataReader)
@@ -65,14 +64,14 @@ func CreateInvoice(createInvoiceRequest CreateInvoiceRequest) (CreateInvoiceResp
 	util.Check(err)
 
 	if res.StatusCode != 200 {
-		log.Warning("createinvoice StatusCode ", res.StatusCode)
-		return createInvoiceResponse, errors.New("failed API call to Phoenix createinvoice")
+		log.Warning("ReceiveLightningPayment StatusCode ", res.StatusCode)
+		return receiveLightningPaymentResponse, errors.New("failed API call to Phoenix ReceiveLightningPayment")
 	}
 
 	log.Info(string(resBody))
 
-	err = json.Unmarshal(resBody, &createInvoiceResponse)
+	err = json.Unmarshal(resBody, &receiveLightningPaymentResponse)
 	util.Check(err)
 
-	return createInvoiceResponse, nil
+	return receiveLightningPaymentResponse, nil
 }

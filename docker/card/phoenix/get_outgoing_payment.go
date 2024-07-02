@@ -27,7 +27,6 @@ type OutgoingPaymentResponse struct {
 }
 
 func GetOutgoingPayment(PaymentId string) (OutgoingPaymentResponse, error) {
-	//log.Info("getOutgoingPayment")
 
 	var outgoingPaymentResponse OutgoingPaymentResponse
 
@@ -55,8 +54,8 @@ func GetOutgoingPayment(PaymentId string) (OutgoingPaymentResponse, error) {
 	util.Check(err)
 
 	if res.StatusCode != 200 {
-		log.Warning("getOutgoingPayment StatusCode ", res.StatusCode)
-		return outgoingPaymentResponse, errors.New("failed API call to Phoenix getOutgoingPayment")
+		log.Warning("GetOutgoingPayment StatusCode ", res.StatusCode)
+		return outgoingPaymentResponse, errors.New("failed API call to Phoenix GetOutgoingPayment")
 	}
 
 	//log.Info(string(resBody))

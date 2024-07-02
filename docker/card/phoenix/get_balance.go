@@ -48,8 +48,8 @@ func GetBalance() (Balance, error) {
 	}
 
 	if res.StatusCode != 200 {
-		log.Warning("getbalance StatusCode ", res.StatusCode)
-		return balance, errors.New("failed API call to Phoenix getbalance")
+		log.Warning("GetBalance StatusCode ", res.StatusCode)
+		return balance, errors.New("failed API call to Phoenix GetBalance")
 	}
 
 	//log.Info(string(resBody))

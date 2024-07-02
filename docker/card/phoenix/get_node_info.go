@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type Info struct {
+type NodeInfo struct {
 	NodeID   string `json:"nodeId"`
 	Channels []struct {
 		State               string `json:"state"`
@@ -23,12 +23,12 @@ type Info struct {
 	} `json:"channels"`
 }
 
-func GetInfo() (Info, error) {
-	var info Info
+func GetNodeInfo() (NodeInfo, error) {
+	var nodeInfo NodeInfo
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
 	if err != nil {
-		return info, err
+		return nodeInfo, err
 	}
 
 	hp := cfg.Section("").Key("http-password").String()
@@ -37,34 +37,34 @@ func GetInfo() (Info, error) {
 
 	req, err := http.NewRequest(http.MethodGet, "http://phoenix:9740/getinfo", http.NoBody)
 	if err != nil {
-		return info, err
+		return nodeInfo, err
 	}
 
 	req.SetBasicAuth("", hp)
 
 	res, err := client.Do(req)
 	if err != nil {
-		return info, err
+		return nodeInfo, err
 	}
 
 	defer res.Body.Close()
 
 	resBody, err := io.ReadAll(res.Body)
 	if err != nil {
-		return info, err
+		return nodeInfo, err
 	}
 
 	if res.StatusCode != 200 {
-		log.Warning("getbalance StatusCode ", res.StatusCode)
-		return info, errors.New("failed API call to Phoenix getbalance")
+		log.Warning("GetNodeInfo StatusCode ", res.StatusCode)
+		return nodeInfo, errors.New("failed API call to Phoenix GetNodeInfo")
 	}
 
 	//log.Info(string(resBody))
 
-	err = json.Unmarshal(resBody, &info)
+	err = json.Unmarshal(resBody, &nodeInfo)
 	if err != nil {
-		return info, err
+		return nodeInfo, err
 	}
 
-	return info, nil
+	return nodeInfo, nil
 }

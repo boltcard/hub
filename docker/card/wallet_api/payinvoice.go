@@ -94,12 +94,12 @@ func PayInvoice(w http.ResponseWriter, r *http.Request) {
 
 	// make payment
 
-	var payInvoiceRequest phoenix.PayInvoiceRequest
+	var payInvoiceRequest phoenix.SendLightningPaymentRequest
 
 	payInvoiceRequest.Invoice = reqObj.Invoice
 	payInvoiceRequest.AmountSat = strconv.Itoa(reqObj.Amount)
 
-	payInvoiceResponse, err := phoenix.PayInvoice(payInvoiceRequest)
+	payInvoiceResponse, err := phoenix.SendLightningPayment(payInvoiceRequest)
 	util.Check(err)
 
 	log.Info("payInvoiceResponse ", payInvoiceResponse)

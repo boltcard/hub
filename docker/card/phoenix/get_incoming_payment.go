@@ -29,7 +29,6 @@ type IncomingPayment struct {
 }
 
 func GetIncomingPayment(PaymentHash string) (IncomingPayment, error) {
-	//log.Info("getIncomingPayment")
 
 	var incomingPayment IncomingPayment
 
@@ -57,8 +56,8 @@ func GetIncomingPayment(PaymentHash string) (IncomingPayment, error) {
 	util.Check(err)
 
 	if res.StatusCode != 200 {
-		log.Warning("getIncomingPayment StatusCode ", res.StatusCode)
-		return incomingPayment, errors.New("failed API call to Phoenix getIncomingPayment")
+		log.Warning("GetIncomingPayment StatusCode ", res.StatusCode)
+		return incomingPayment, errors.New("failed API call to Phoenix GetIncomingPayment")
 	}
 
 	//log.Info(string(resBody))

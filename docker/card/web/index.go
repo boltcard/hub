@@ -18,7 +18,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		log.Warn("phoenix error: ", err.Error())
 	}
 
-	info, err := phoenix.GetInfo()
+	info, err := phoenix.GetNodeInfo()
 	if err != nil {
 		log.Warn("phoenix error: ", err.Error())
 	}

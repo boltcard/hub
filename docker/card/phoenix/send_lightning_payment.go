@@ -15,12 +15,12 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-type PayInvoiceRequest struct {
+type SendLightningPaymentRequest struct {
 	AmountSat string
 	Invoice   string
 }
 
-type PayInvoiceResponse struct {
+type SendLightningPaymentResponse struct {
 	RecipientAmountSat int    `json:"recipientAmountSat"`
 	RoutingFeeSat      int    `json:"routingFeeSat"`
 	PaymentId          string `json:"paymentId"`
@@ -28,10 +28,10 @@ type PayInvoiceResponse struct {
 	PaymentPreimage    string `json:"paymentPreimage"`
 }
 
-func PayInvoice(payInvoiceRequest PayInvoiceRequest) (PayInvoiceResponse, error) {
+func SendLightningPayment(sendLightningPaymentRequest SendLightningPaymentRequest) (SendLightningPaymentResponse, error) {
 	log.Info("payInvoice")
 
-	var payInvoiceResponse PayInvoiceResponse
+	var sendLightningPaymentResponse SendLightningPaymentResponse
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
 	util.Check(err)
@@ -41,8 +41,8 @@ func PayInvoice(payInvoiceRequest PayInvoiceRequest) (PayInvoiceResponse, error)
 	client := http.Client{Timeout: 5 * time.Second}
 
 	formBody := url.Values{
-		"amountSat": []string{payInvoiceRequest.AmountSat},
-		"invoice":   []string{payInvoiceRequest.Invoice},
+		"amountSat": []string{sendLightningPaymentRequest.AmountSat},
+		"invoice":   []string{sendLightningPaymentRequest.Invoice},
 	}
 	dataReader := formBody.Encode()
 	reader := strings.NewReader(dataReader)
@@ -65,14 +65,14 @@ func PayInvoice(payInvoiceRequest PayInvoiceRequest) (PayInvoiceResponse, error)
 	util.Check(err)
 
 	if res.StatusCode != 200 {
-		log.Warning("payinvoice StatusCode ", res.StatusCode)
-		return payInvoiceResponse, errors.New("failed API call to Phoenix payinvoice")
+		log.Warning("SendLightningPayment StatusCode ", res.StatusCode)
+		return sendLightningPaymentResponse, errors.New("failed API call to Phoenix SendLightningPayment")
 	}
 
 	log.Info(string(resBody))
 
-	err = json.Unmarshal(resBody, &payInvoiceResponse)
+	err = json.Unmarshal(resBody, &sendLightningPaymentResponse)
 	util.Check(err)
 
-	return payInvoiceResponse, nil
+	return sendLightningPaymentResponse, nil
 }

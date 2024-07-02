@@ -62,12 +62,12 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 	// TODO: check the payment rules (max withdrawal amount, max per day, PIN number)
 
 	// make payment
-	var payInvoiceRequest phoenix.PayInvoiceRequest
+	var payInvoiceRequest phoenix.SendLightningPaymentRequest
 
 	payInvoiceRequest.Invoice = param_pr
 	payInvoiceRequest.AmountSat = strconv.Itoa(amountSats)
 
-	payInvoiceResponse, err := phoenix.PayInvoice(payInvoiceRequest)
+	payInvoiceResponse, err := phoenix.SendLightningPayment(payInvoiceRequest)
 	util.Check(err)
 
 	log.Info("payInvoiceResponse ", payInvoiceResponse)

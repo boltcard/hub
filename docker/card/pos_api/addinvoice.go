@@ -49,12 +49,12 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	log.Info("AddInvoice : ", req)
 
 	// create invoice on Phoenix server
-	invoiceRequest := phoenix.CreateInvoiceRequest{
+	invoiceRequest := phoenix.ReceiveLightningPaymentRequest{
 		Description: req.Memo,
 		AmountSat:   req.Amt,
 		ExternalId:  "ext_id",
 	}
-	invoice, err := phoenix.CreateInvoice(invoiceRequest)
+	invoice, err := phoenix.ReceiveLightningPayment(invoiceRequest)
 	util.Check(err)
 
 	log.Info("invoice : ", invoice)
