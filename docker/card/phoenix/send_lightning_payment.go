@@ -29,7 +29,6 @@ type SendLightningPaymentResponse struct {
 }
 
 func SendLightningPayment(sendLightningPaymentRequest SendLightningPaymentRequest) (SendLightningPaymentResponse, error) {
-	log.Info("payInvoice")
 
 	var sendLightningPaymentResponse SendLightningPaymentResponse
 

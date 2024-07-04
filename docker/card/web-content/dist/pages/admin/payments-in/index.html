@@ -87,9 +87,9 @@
             <div class="app-content"> <!--begin::Container-->
                 <div class="container-fluid"> <!--begin::Row-->
                     <div class="row g-4 mb-4">
-                        {{range $c := .}}
+                        {{range $c := .PaymentInCards}}
                         <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card {{$c.CardStyle}} collapsed-card">
+                            <div class="card {{$c.CardStyle}}">
                                 <div class="card-header">
                                     <h3 class="card-title">{{$c.CardHeaderText}}</h3>
                                     <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
@@ -101,8 +101,24 @@
                     </div> <!--end::Row-->
                 </div> <!--end::Container-->
             </div> <!--end::App Content-->
-        </main> <!--end::App Main--> <!--begin::Footer-->
-        <footer class="app-footer"></footer> <!--end::Footer-->
+        </main> <!--end::App Main-->
+        <footer class="app-footer">
+            <div>
+                <div>
+                    <ul class="pagination m-0 justify-content-end">
+                        <li class="page-item {{.PreviousPageEnabled}}">
+                            <a class="page-link" href="#">Previous</a>
+                        </li>
+                        <li class="page-item active">
+                            <a class="page-link" href="#">{{.CurrentPageNumber}}</a>
+                        </li>
+                        <li class="page-item {{.PreviousPageEnabled}}">
+                            <a class="page-link" href="#">Next</a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </footer>
     </div> <!--end::App Wrapper--> <!--begin::Script--> <!--begin::Third Party Plugin(OverlayScrollbars)-->
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.3.0/browser/overlayscrollbars.browser.es6.min.js" integrity="sha256-H2VM7BKda+v2Z4+DRy69uknwxjyDRhszjXFhsL4gD3w=" crossorigin="anonymous"></script> <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha256-whL0tQWoY1Ku1iskqPFvmZ+CHsvmRWx/PIoEvIeWh4I=" crossorigin="anonymous"></script> <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->

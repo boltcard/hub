@@ -59,9 +59,10 @@ func renderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, da
 	util.Check(err)
 }
 
+// TODO: cache these in memory
 func renderStaticContent(w http.ResponseWriter, request string) {
 
-	content, err := os.Open("/web-content" + request)
+	content, err := os.Open("/web-content/" + request)
 
 	if err != nil {
 		log.Info(err.Error())

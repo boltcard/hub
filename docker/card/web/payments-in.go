@@ -8,6 +8,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type paymentIn struct {
+	PaymentInCards      []paymentInCard
+	PreviousPageEnabled string
+	CurrentPageNumber   string
+	NextPageEnabled     string
+}
+
 type paymentInCard struct {
 	CardStyle      string
 	CardHeaderText string
@@ -23,7 +30,11 @@ func PaymentsIn(w http.ResponseWriter, r *http.Request) {
 		log.Warn("phoenix error: ", err.Error())
 	}
 
-	template_data := []paymentInCard{}
+	template_data := paymentIn{
+		PreviousPageEnabled: "disabled",
+		CurrentPageNumber:   "5",
+		NextPageEnabled:     "disabled",
+	}
 
 	for _, pmt := range pmt_list {
 
@@ -39,7 +50,7 @@ func PaymentsIn(w http.ResponseWriter, r *http.Request) {
 
 		c.CardBodyText = pmt.Invoice
 
-		template_data = append(template_data, c)
+		template_data.PaymentInCards = append(template_data.PaymentInCards, c)
 	}
 
 	renderHtmlFromTemplate(w, template_path, template_data)

@@ -7,8 +7,6 @@ import (
 
 func Register(w http.ResponseWriter, r *http.Request) {
 
-	request := r.RequestURI
-
 	clearSessionToken(w)
 
 	// this protects from setting a new admin_password_hash when it has already been set
@@ -35,5 +33,5 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to set an admin password
-	renderStaticContent(w, request)
+	renderHtmlFromTemplate(w, "/dist/pages/admin/register/index.html", nil)
 }

@@ -8,6 +8,13 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type paymentOut struct {
+	PaymentOutCards     []paymentOutCard
+	PreviousPageEnabled string
+	CurrentPageNumber   string
+	NextPageEnabled     string
+}
+
 type paymentOutCard struct {
 	CardStyle      string
 	CardHeaderText string
@@ -23,7 +30,11 @@ func PaymentsOut(w http.ResponseWriter, r *http.Request) {
 		log.Warn("phoenix error: ", err.Error())
 	}
 
-	template_data := []paymentOutCard{}
+	template_data := paymentOut{
+		PreviousPageEnabled: "disabled",
+		CurrentPageNumber:   "5",
+		NextPageEnabled:     "disabled",
+	}
 
 	for _, pmt := range pmt_list {
 
@@ -39,7 +50,7 @@ func PaymentsOut(w http.ResponseWriter, r *http.Request) {
 
 		c.CardBodyText = pmt.Invoice
 
-		template_data = append(template_data, c)
+		template_data.PaymentOutCards = append(template_data.PaymentOutCards, c)
 	}
 
 	renderHtmlFromTemplate(w, template_path, template_data)

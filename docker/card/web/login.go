@@ -10,8 +10,6 @@ import (
 
 func Login(w http.ResponseWriter, r *http.Request) {
 
-	request := r.RequestURI
-
 	clearSessionToken(w)
 
 	// handle postback
@@ -49,5 +47,5 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to login as admin
-	renderStaticContent(w, request)
+	renderHtmlFromTemplate(w, "/dist/pages/admin/login/index.html", nil)
 }
