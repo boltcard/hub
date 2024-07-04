@@ -70,11 +70,11 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 		Index(w, r)
 	}
 
-	if request == "/admin/payments-in/" {
+	if strings.HasPrefix(request, "/admin/payments-in/") {
 		PaymentsIn(w, r)
 	}
 
-	if request == "/admin/payments-out/" {
+	if strings.HasPrefix(request, "/admin/payments-out/") {
 		PaymentsOut(w, r)
 	}
 
