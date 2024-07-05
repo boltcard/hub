@@ -23,6 +23,13 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		log.Warn("phoenix error: ", err.Error())
 	}
 
+	offer, err := phoenix.GetOffer()
+	if err != nil {
+		log.Warn("phoenix error: ", err.Error())
+	}
+
+	log.Info("offer: ", offer)
+
 	totalInboundSats := 0
 	for _, channel := range info.Channels {
 		totalInboundSats += channel.InboundLiquiditySat

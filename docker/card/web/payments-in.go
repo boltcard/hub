@@ -80,7 +80,7 @@ func PaymentsIn(w http.ResponseWriter, r *http.Request) {
 
 		c := paymentInCard{
 			CardStyle:      "card-warning",
-			CardHeaderText: time.Unix(0, pmt_list[i].CreatedAt*int64(time.Millisecond)).Format("Mon 2 Jan 2006 15:04"),
+			CardHeaderText: time.Unix(0, pmt_list[i].CreatedAt*int64(time.Millisecond)).Format("Mon 2 Jan 2006 15:04 UTC"),
 			CardBodyText:   "",
 		}
 
