@@ -2,9 +2,11 @@ package web
 
 import (
 	"card/phoenix"
+	"encoding/base64"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
+	qrcode "github.com/skip2/go-qrcode"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 )
@@ -28,7 +30,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		log.Warn("phoenix error: ", err.Error())
 	}
 
-	log.Info("offer: ", offer)
+	// log.Info("offer: ", offer)
 
 	totalInboundSats := 0
 	for _, channel := range info.Channels {
@@ -43,16 +45,27 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	ChannelsStr := p.Sprintf("%d", len(info.Channels))
 	TotalInboundSatsStr := p.Sprintf("%d sats", totalInboundSats)
 
+	var offer_qr_png []byte
+	offer_qr_png, err = qrcode.Encode(offer, qrcode.Medium, 256)
+	if err != nil {
+		log.Warn("qrcode error: ", err.Error())
+	}
+
+	// https://stackoverflow.com/questions/2807251/can-i-embed-a-png-image-into-an-html-page
+	OfferQrPngEncoded := base64.StdEncoding.EncodeToString(offer_qr_png)
+
 	data := struct {
-		FeeCredit string
-		Balance   string
-		Channels  string
-		Inbound   string
+		FeeCredit         string
+		Balance           string
+		Channels          string
+		Inbound           string
+		OfferQrPngEncoded string
 	}{
-		FeeCredit: FeeCreditSatStr,
-		Balance:   BalanceSatStr,
-		Channels:  ChannelsStr,
-		Inbound:   TotalInboundSatsStr,
+		FeeCredit:         FeeCreditSatStr,
+		Balance:           BalanceSatStr,
+		Channels:          ChannelsStr,
+		Inbound:           TotalInboundSatsStr,
+		OfferQrPngEncoded: OfferQrPngEncoded,
 	}
 
 	renderHtmlFromTemplate(w, template_path, data)
