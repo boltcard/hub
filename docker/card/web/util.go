@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func clearSessionToken(w http.ResponseWriter) {
+func ClearSessionToken(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:    "session_token",
 		Value:   "",
@@ -17,7 +17,7 @@ func clearSessionToken(w http.ResponseWriter) {
 	})
 }
 
-func getPwHash(passwordStr string) (passwordHashStr string) {
+func GetPwHash(passwordStr string) (passwordHashStr string) {
 	passwordSalt := db.Db_get_setting("admin_password_salt")
 
 	hasher := sha256.New()

@@ -1,7 +1,8 @@
-package web
+package admin
 
 import (
 	"card/db"
+	"card/web"
 	"net/http"
 	"strings"
 
@@ -18,7 +19,7 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 	if strings.HasSuffix(request, ".js") || strings.HasSuffix(request, ".css") ||
 		strings.HasSuffix(request, ".png") || strings.HasSuffix(request, ".jpg") ||
 		strings.HasSuffix(request, ".map") {
-		renderStaticContent(w, request)
+		web.RenderStaticContent(w, request)
 		return
 	}
 
@@ -49,7 +50,7 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		log.Info("session_token error : ", err.Error())
-		Blank(w, nil)
+		web.Blank(w, nil)
 		return
 	}
 
@@ -58,7 +59,7 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 	adminSessionToken := db.Db_get_setting("session_token")
 
 	if sessionToken != adminSessionToken {
-		clearSessionToken(w)
+		web.ClearSessionToken(w)
 		//redirect to "login" page
 		http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 		return
@@ -78,5 +79,5 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 		PaymentsOut(w, r)
 	}
 
-	Blank(w, r)
+	web.Blank(w, r)
 }

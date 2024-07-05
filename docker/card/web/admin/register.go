@@ -1,13 +1,14 @@
-package web
+package admin
 
 import (
 	"card/db"
+	"card/web"
 	"net/http"
 )
 
 func Register(w http.ResponseWriter, r *http.Request) {
 
-	clearSessionToken(w)
+	web.ClearSessionToken(w)
 
 	// this protects from setting a new admin_password_hash when it has already been set
 	if db.Db_get_setting("admin_password_hash") != "" {
@@ -21,7 +22,7 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 
 		passwordStr := r.Form.Get("password")
-		passwordHashStr := getPwHash(passwordStr)
+		passwordHashStr := web.GetPwHash(passwordStr)
 
 		db.Db_set_setting("admin_password_hash", passwordHashStr)
 
@@ -33,5 +34,5 @@ func Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to set an admin password
-	renderHtmlFromTemplate(w, "/dist/pages/admin/register/index.html", nil)
+	web.RenderHtmlFromTemplate(w, "/dist/pages/admin/register/index.html", nil)
 }

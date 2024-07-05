@@ -1,7 +1,8 @@
-package web
+package admin
 
 import (
 	"card/phoenix"
+	"card/web"
 	"net/http"
 	"strconv"
 	"strings"
@@ -93,5 +94,5 @@ func PaymentsIn(w http.ResponseWriter, r *http.Request) {
 		template_data.PaymentInCards = append(template_data.PaymentInCards, c)
 	}
 
-	renderHtmlFromTemplate(w, template_path, template_data)
+	web.RenderHtmlFromTemplate(w, template_path, template_data)
 }

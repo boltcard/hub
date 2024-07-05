@@ -6,6 +6,7 @@ import (
 	"card/pos_api"
 	"card/wallet_api"
 	"card/web"
+	"card/web/admin"
 	"net/http"
 	"net/http/httputil"
 	"time"
@@ -46,12 +47,15 @@ func main() {
 	// QR code for connecting BoltCardWallet
 
 	// web pages
-	router.Path("/").Methods("GET").HandlerFunc(web.Blank)
+	router.Path("/").Methods("GET").HandlerFunc(web.Index)
 	router.Path("/favicon.ico").Methods("GET").HandlerFunc(web.Blank)
 
+	// websocket
+	router.Path("/websocket").HandlerFunc(web.WebsocketHandler)
+
 	// admin dashboard
-	router.PathPrefix("/admin/").HandlerFunc(web.Admin)
-	router.PathPrefix("/dist/").HandlerFunc(web.Admin)
+	router.PathPrefix("/admin/").HandlerFunc(admin.Admin)
+	router.PathPrefix("/dist/").HandlerFunc(admin.Admin)
 
 	// BoltCardHub API
 	// LNDHUB API reference https://github.com/BlueWallet/LndHub/blob/master/doc/Send-requirements.md

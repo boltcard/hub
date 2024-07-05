@@ -42,7 +42,7 @@ func visit(path string, di fs.DirEntry, err error) error {
 	return nil
 }
 
-func renderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, data interface{}) {
+func RenderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, data interface{}) {
 
 	w.Header().Add("Content-Type", "text/html")
 
@@ -60,7 +60,7 @@ func renderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, da
 }
 
 // TODO: cache these in memory
-func renderStaticContent(w http.ResponseWriter, request string) {
+func RenderStaticContent(w http.ResponseWriter, request string) {
 
 	content, err := os.Open("/web-content/" + request)
 

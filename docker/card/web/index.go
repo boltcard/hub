@@ -6,44 +6,18 @@ import (
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
-	qrcode "github.com/skip2/go-qrcode"
-	"golang.org/x/text/language"
-	"golang.org/x/text/message"
+	"github.com/skip2/go-qrcode"
 )
 
 func Index(w http.ResponseWriter, r *http.Request) {
+	// TODO: return QR code for BOLT 12 Offer
 
-	template_path := "/dist/pages/admin/index.html"
-
-	balance, err := phoenix.GetBalance()
-	if err != nil {
-		log.Warn("phoenix error: ", err.Error())
-	}
-
-	info, err := phoenix.GetNodeInfo()
-	if err != nil {
-		log.Warn("phoenix error: ", err.Error())
-	}
+	template_path := "/dist/pages/index.html"
 
 	offer, err := phoenix.GetOffer()
 	if err != nil {
 		log.Warn("phoenix error: ", err.Error())
 	}
-
-	// log.Info("offer: ", offer)
-
-	totalInboundSats := 0
-	for _, channel := range info.Channels {
-		totalInboundSats += channel.InboundLiquiditySat
-	}
-
-	// https://gosamples.dev/print-number-thousands-separator/
-	// https://stackoverflow.com/questions/11123865/format-a-go-string-without-printing
-	p := message.NewPrinter(language.English)
-	FeeCreditSatStr := p.Sprintf("%d sats", balance.FeeCreditSat)
-	BalanceSatStr := p.Sprintf("%d sats", balance.BalanceSat)
-	ChannelsStr := p.Sprintf("%d", len(info.Channels))
-	TotalInboundSatsStr := p.Sprintf("%d sats", totalInboundSats)
 
 	var offer_qr_png []byte
 	offer_qr_png, err = qrcode.Encode(offer, qrcode.Medium, 256)
@@ -55,18 +29,10 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	OfferQrPngEncoded := base64.StdEncoding.EncodeToString(offer_qr_png)
 
 	data := struct {
-		FeeCredit         string
-		Balance           string
-		Channels          string
-		Inbound           string
 		OfferQrPngEncoded string
 	}{
-		FeeCredit:         FeeCreditSatStr,
-		Balance:           BalanceSatStr,
-		Channels:          ChannelsStr,
-		Inbound:           TotalInboundSatsStr,
 		OfferQrPngEncoded: OfferQrPngEncoded,
 	}
 
-	renderHtmlFromTemplate(w, template_path, data)
+	RenderHtmlFromTemplate(w, template_path, data)
 }

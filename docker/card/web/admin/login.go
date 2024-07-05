@@ -1,8 +1,9 @@
-package web
+package admin
 
 import (
 	"card/db"
 	"card/util"
+	"card/web"
 	"time"
 
 	"net/http"
@@ -10,14 +11,14 @@ import (
 
 func Login(w http.ResponseWriter, r *http.Request) {
 
-	clearSessionToken(w)
+	web.ClearSessionToken(w)
 
 	// handle postback
 	if r.Method == "POST" {
 		r.ParseForm()
 
 		passwordStr := r.Form.Get("password")
-		passwordHashStr := getPwHash(passwordStr)
+		passwordHashStr := web.GetPwHash(passwordStr)
 
 		// TODO: add rate limiting
 
@@ -47,5 +48,5 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to login as admin
-	renderHtmlFromTemplate(w, "/dist/pages/admin/login/index.html", nil)
+	web.RenderHtmlFromTemplate(w, "/dist/pages/admin/login/index.html", nil)
 }
