@@ -3,8 +3,10 @@ package web
 import (
 	"card/util"
 	"encoding/base64"
-	"log"
 	"net/http"
+	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/go-ini/ini"
 	"github.com/gorilla/websocket"
@@ -47,11 +49,18 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
-				log.Println("read:", err)
+				log.Warning("websocket read error :", err)
 				return
 			}
-			log.Printf("recv: %ss", message)
-			err = conn.WriteMessage(websocket.TextMessage, message)
+
+			message_string := string(message)
+			now := time.Now()
+			now_string := now.Format("15:04:05")
+			err = conn.WriteMessage(websocket.TextMessage, []byte(now_string+" "+message_string))
+			if err != nil {
+				log.Warning("websocket write error :", err)
+				return
+			}
 		}
 	}()
 
@@ -61,10 +70,10 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 		util.Check(err)
 
 		// show message
-		log.Printf("Received message: %s", message)
+		log.Info("websocket rx : ", string(message))
 
 		//send message to client
-		err = conn.WriteMessage(websocket.TextMessage, message)
+		err = conn.WriteMessage(websocket.TextMessage, []byte("connected"))
 		util.Check(err)
 	}
 }

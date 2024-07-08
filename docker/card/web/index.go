@@ -29,8 +29,10 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	OfferQrPngEncoded := base64.StdEncoding.EncodeToString(offer_qr_png)
 
 	data := struct {
+		QrValue           string
 		OfferQrPngEncoded string
 	}{
+		QrValue:           offer,
 		OfferQrPngEncoded: OfferQrPngEncoded,
 	}
 
