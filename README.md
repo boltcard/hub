@@ -37,8 +37,7 @@ docker compose build
 docker compose up
 ```
 
-- set an admin password at https://domain-name/admin/login/
-- access the web interface at https://domain-name-from-init/admin/
+- set an admin password and access the admin web interface at https://domain-name/admin/
 
 ### to keep the service running
 
