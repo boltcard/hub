@@ -31,7 +31,7 @@ cd hub
 
 - the domain name could be `your Hostname from the lunanode VM rDNS tab`
 - the domain name could also be a custom domain or subdomain where you have set an A record to your VPS external IP
-- the GroundControl URL could be `gc.boltcardwallet.com`
+- the GroundControl URL could be `gc.boltcardwallet.com` or blank if you are not using the norifications feature
 
 ```bash
 docker compose build
