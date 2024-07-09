@@ -3,7 +3,7 @@ WORKDIR /app
 COPY . .
 RUN go mod download
 ENV GOCACHE=/root/.cache/go-build
-RUN --mount=type=cache,target="/root/.cache/go-build" go build -o app -ldflags="-X 'card/build.Date=$(date +"%a %d %b %Y")' -X 'card/build.Time=$(date +"%H:%M:%S")'"
+RUN --mount=type=cache,target="/root/.cache/go-build" go build -o app -ldflags="-X 'card/build.Date=$(date +"%a %d %b %Y")' -X 'card/build.Time=$(date +"%H:%M:%S %Z")'"
 
 FROM ubuntu:22.04
 RUN mkdir /app
