@@ -30,10 +30,7 @@ func Db_init() {
 
 		hostDomain := os.Getenv("HOST_DOMAIN")
 		Db_set_setting("host_domain", hostDomain)
-
-		gcUrl := os.Getenv("GC_URL")
-		Db_set_setting("gc_url", gcUrl)
-
+		Db_set_setting("gc_url", "")
 		Db_set_setting("log_level", "debug")
 		Db_set_setting("min_withdraw_sats", "1")
 		Db_set_setting("max_withdraw_sats", "100000000")
