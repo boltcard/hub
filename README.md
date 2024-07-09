@@ -13,7 +13,7 @@ Alpha version - early code for further development
 
 ## install
 
-- provision an m1s VM on [lunanode (with affiliate link)](https://www.lunanode.com/?r=9026) using the `Debian 12 64-bit` template  
+- provision an m1s VM on [lunanode](https://www.lunanode.com/?r=9026) using the `Debian 12 64-bit` template  
   ($3.50 per month in June 2024, they accept bitcoin and are lighting enabled for payments)
 - log in to the machine using SSH (Linux) or Putty (Windows)
 - [install docker](https://docs.docker.com/engine/install/debian/)
