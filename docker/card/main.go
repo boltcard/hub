@@ -1,6 +1,7 @@
 package main
 
 import (
+	"card/build"
 	"card/db"
 	"card/lnurlw"
 	"card/pos_api"
@@ -27,12 +28,16 @@ func dumpRequest(w http.ResponseWriter, req *http.Request) {
 
 func main() {
 
-	log.Info("card service started")
+	log.Info("build version : ", build.Version)
+	log.Info("build date : ", build.Date)
+	log.Info("build time : ", build.Time)
 
 	if db.Db_get_setting("log_level") == "debug" {
 		log.SetLevel(log.DebugLevel)
-		log.Info("log level is set to debug")
+		log.Info("log level : debug")
 	}
+
+	log.Info("card service started")
 
 	// ensure a database is available
 	log.Info("init database")

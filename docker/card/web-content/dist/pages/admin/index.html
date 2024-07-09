@@ -97,9 +97,24 @@
                     <div class="row">
                         <div class="col-12 col-sm-6 col-xxl-3">
                             <div class="info-box"> <span class="info-box-icon text-bg-primary shadow-sm"> <i class="bi bi-qr-code"></i> </span>
-                                <div class="info-box-content"> <span class="info-box-text">Bolt12 Offer</span> <span class="info-box-content">
+                                <div class="info-box-content"> <span class="info-box-text">Bolt12 Offer (sats in)</span> <span class="info-box-content">
                                         <img class="img-fluid" alt="Bolt 12 Offer QR code" src="data:image/png;base64,{{.OfferQrPngEncoded}}" />
                                     </span> </div> <!-- /.info-box-content -->
+                            </div> <!-- /.info-box -->
+                        </div> <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-xxl-3">
+                            <div class="info-box"> <span class="info-box-icon text-bg-primary shadow-sm"> <i class="bi bi-qr-code"></i> </span>
+                                <div class="info-box-content"> <span class="info-box-text">LNURLw (sats out)</span> <span class="info-box-content">
+                                        <img class="img-fluid" alt="LNURLw QR code" src="data:image/png;base64,{{.LnurlwQrPngEncoded}}" />
+                                    </span> </div> <!-- /.info-box-content -->
+                            </div> <!-- /.info-box -->
+                        </div> <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box"> <span class="info-box-icon text-bg-primary shadow-sm"> <i class="bi bi-tag"></i> </span>
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Software</span>
+                                    <span class="info-box-number">version {{.SwVersion}}<br/>{{.SwBuildDate}}<br/>{{.SwBuildTime}}</span>
+                                </div> <!-- /.info-box-content -->
                             </div> <!-- /.info-box -->
                         </div> <!-- /.col -->
                     </div> <!-- /.row -->

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"card/build"
 	"card/phoenix"
 	"card/web"
 	"encoding/base64"
@@ -55,18 +56,29 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	// https://stackoverflow.com/questions/2807251/can-i-embed-a-png-image-into-an-html-page
 	OfferQrPngEncoded := base64.StdEncoding.EncodeToString(offer_qr_png)
 
+	//TODO: create LNURLw one time code
+	LnurlwQrPngEncoded := OfferQrPngEncoded
+
 	data := struct {
-		FeeCredit         string
-		Balance           string
-		Channels          string
-		Inbound           string
-		OfferQrPngEncoded string
+		FeeCredit          string
+		Balance            string
+		Channels           string
+		Inbound            string
+		OfferQrPngEncoded  string
+		LnurlwQrPngEncoded string
+		SwVersion          string
+		SwBuildDate        string
+		SwBuildTime        string
 	}{
-		FeeCredit:         FeeCreditSatStr,
-		Balance:           BalanceSatStr,
-		Channels:          ChannelsStr,
-		Inbound:           TotalInboundSatsStr,
-		OfferQrPngEncoded: OfferQrPngEncoded,
+		FeeCredit:          FeeCreditSatStr,
+		Balance:            BalanceSatStr,
+		Channels:           ChannelsStr,
+		Inbound:            TotalInboundSatsStr,
+		OfferQrPngEncoded:  OfferQrPngEncoded,
+		LnurlwQrPngEncoded: LnurlwQrPngEncoded,
+		SwVersion:          build.Version,
+		SwBuildDate:        build.Date,
+		SwBuildTime:        build.Time,
 	}
 
 	web.RenderHtmlFromTemplate(w, template_path, data)
