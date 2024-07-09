@@ -33,6 +33,13 @@ cd hub
 - the domain name could also be a custom domain or subdomain where you have set an A record to your VPS external IP
 - the GroundControl URL could be `gc.boltcardwallet.com` or blank if you are not using the norifications feature
 
+for a very low resource machine it may be useful to pull the docker images from docker hub
+```bash
+docker compose pull
+docker compose up
+```
+
+for a full local build from source
 ```bash
 docker compose build
 docker compose up
