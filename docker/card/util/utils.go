@@ -2,7 +2,11 @@ package util
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+
+	log "github.com/sirupsen/logrus"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 func Check(e error) {
@@ -39,4 +43,17 @@ func Max(a, b int) int {
 		max = b
 	}
 	return max
+}
+
+func QrPngBase64Encode(data string) (encoded string) {
+	var data_qr_png []byte
+	data_qr_png, err := qrcode.Encode(data, qrcode.Medium, 256)
+	if err != nil {
+		log.Warn("qrcode error: ", err.Error())
+	}
+
+	// https://stackoverflow.com/questions/2807251/can-i-embed-a-png-image-into-an-html-page
+	encoded = base64.StdEncoding.EncodeToString(data_qr_png)
+
+	return encoded
 }
