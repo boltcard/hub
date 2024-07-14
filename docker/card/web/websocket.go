@@ -1,9 +1,12 @@
 package web
 
 import (
+	"card/phoenix"
 	"card/util"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -11,6 +14,12 @@ import (
 	"github.com/go-ini/ini"
 	"github.com/gorilla/websocket"
 )
+
+type WebSocketMessage struct {
+	Type        string `json:"type"`
+	AmountSat   int    `json:"amountSat"`
+	PaymentHash string `json:"paymentHash"`
+}
 
 func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 
@@ -53,10 +62,31 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			message_string := string(message)
+			// `message` contains the websocket message as []byte from Phoenix server
+
+			// TODO:
+			// decode the JSON into a struct
+			// look up the payment_hash to look up the description using GetIncomingPayment
+
+			var webSocketMessage WebSocketMessage
+
+			err = json.Unmarshal(message, &webSocketMessage)
+			util.Check(err)
+
+			log.Info("webSocketMessage : ", webSocketMessage)
+
+			incomingPayment, err := phoenix.GetIncomingPayment(webSocketMessage.PaymentHash)
+			util.Check(err)
+
+			log.Info("incomingPayment : ", incomingPayment)
+
+			// message_string := string(message)
 			now := time.Now()
 			now_string := now.Format("15:04:05")
-			err = conn.WriteMessage(websocket.TextMessage, []byte(now_string+" "+message_string))
+			err = conn.WriteMessage(websocket.TextMessage,
+				[]byte(now_string+" UTC, "+
+					strconv.Itoa(incomingPayment.ReceivedSat)+" sats received, "+
+					strconv.Itoa(incomingPayment.Fees)+" sats fees"))
 			if err != nil {
 				log.Warning("websocket write error :", err)
 				return
