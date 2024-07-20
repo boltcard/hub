@@ -56,25 +56,25 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	LnurlwQrPngEncoded := util.QrPngBase64Encode(LnurlwLink)
 
 	data := struct {
-		FeeCredit         string
-		Balance           string
-		Channels          string
-		Inbound           string
-		OfferQrPngEncoded string
-		LnurlwQr          string
-		SwVersion         string
-		SwBuildDate       string
-		SwBuildTime       string
+		FeeCredit          string
+		Balance            string
+		Channels           string
+		Inbound            string
+		OfferQrPngEncoded  string
+		LnurlwQrPngEncoded string
+		SwVersion          string
+		SwBuildDate        string
+		SwBuildTime        string
 	}{
-		FeeCredit:         FeeCreditSatStr,
-		Balance:           BalanceSatStr,
-		Channels:          ChannelsStr,
-		Inbound:           TotalInboundSatsStr,
-		OfferQrPngEncoded: OfferQrPngEncoded,
-		LnurlwQr:          LnurlwQrPngEncoded,
-		SwVersion:         build.Version,
-		SwBuildDate:       build.Date,
-		SwBuildTime:       build.Time,
+		FeeCredit:          FeeCreditSatStr,
+		Balance:            BalanceSatStr,
+		Channels:           ChannelsStr,
+		Inbound:            TotalInboundSatsStr,
+		OfferQrPngEncoded:  OfferQrPngEncoded,
+		LnurlwQrPngEncoded: LnurlwQrPngEncoded,
+		SwVersion:          build.Version,
+		SwBuildDate:        build.Date,
+		SwBuildTime:        build.Time,
 	}
 
 	web.RenderHtmlFromTemplate(w, template_path, data)
