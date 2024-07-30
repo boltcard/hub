@@ -52,8 +52,9 @@ func main() {
 	// QR code for connecting BoltCardWallet
 
 	// web pages
-	router.Path("/").Methods("GET").HandlerFunc(web.Index)
+	router.Path("/").Methods("GET").HandlerFunc(web.HomePage)
 	router.Path("/favicon.ico").Methods("GET").HandlerFunc(web.Blank)
+	router.Path("/bolt12/").Methods("GET").HandlerFunc(web.Bolt12Test)
 
 	// websocket
 	router.Path("/websocket").HandlerFunc(web.WebsocketHandler)

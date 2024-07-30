@@ -9,10 +9,17 @@ import (
 	"github.com/skip2/go-qrcode"
 )
 
-func Index(w http.ResponseWriter, r *http.Request) {
+func HomePage(w http.ResponseWriter, r *http.Request) {
 	// TODO: return QR code for BOLT 12 Offer
 
 	template_path := "/dist/pages/index.html"
+	RenderHtmlFromTemplate(w, template_path, nil)
+}
+
+func Bolt12Test(w http.ResponseWriter, r *http.Request) {
+	// TODO: return QR code for BOLT 12 Offer
+
+	template_path := "/dist/pages/bolt12/index.html"
 
 	offer, err := phoenix.GetOffer()
 	if err != nil {
