@@ -16,6 +16,8 @@
         </a>
     </div>
 
+    <p id="ws_state">DISCONNECTED</p>
+
     <ul class="list-group" id="messages"></ul>
 
     <script type="module">
@@ -32,15 +34,16 @@
         }
 
         function connect() {
-            console.log("connecting...");
-
             let o = window.location;
             let a = "wss://" + o.host + "/websocket";
             ws = new WebSocket(a);
 
+            ws.onopen = function(t) {
+                document.getElementById("ws_state").textContent = "CONNECTED"                
+            }
+
             ws.onclose = function(t) {
-                console.log("disconnected...");
-                console.log(t);
+                document.getElementById("ws_state").textContent = "DISCONNECTED"                
                 connectTimer = setTimeout(connect, 500);
             }
 
