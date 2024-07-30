@@ -100,10 +100,13 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 		util.Check(err)
 
 		// show message
-		log.Info("websocket rx : ", string(message))
+		//log.Info("websocket rx : ", string(message))
 
-		//send message to client
-		err = conn.WriteMessage(websocket.TextMessage, []byte("connected"))
-		util.Check(err)
+		if string(message) == "ping" {
+
+			//send message to client
+			err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
+			util.Check(err)
+		}
 	}
 }

@@ -15,23 +15,50 @@
             <img class="img-fluid" alt="Bolt 12 Offer QR code" src="data:image/png;base64,{{.OfferQrPngEncoded}}" />
         </a>
     </div>
+
     <ul class="list-group" id="messages"></ul>
+
     <script type="module">
-        let o = window.location;
-        let a = "wss://" + o.host + "/websocket";
-        let e = new WebSocket(a);
 
-        e.addEventListener("open", (t) => {
-            e.send("test websocket send");
-        });
+        var ws;
+        var connectTimer = null;
+        var hbTimer = null;
 
-        e.onmessage = function(t) {
-            let n = t.data;
-            let s = document.createElement("li");
-            s.classList.add("list-group-item");
-            s.textContent = n;
-            document.getElementById("messages").prepend(s);
+        function heartbeat() {
+            if(ws.readyState == WebSocket.OPEN) {
+                ws.send("ping");
+            }
+            hbTimer = setTimeout(heartbeat, 500);
+        }
+
+        function connect() {
+            console.log("connecting...");
+
+            let o = window.location;
+            let a = "wss://" + o.host + "/websocket";
+            ws = new WebSocket(a);
+
+            ws.onclose = function(t) {
+                console.log("disconnected...");
+                console.log(t);
+                connectTimer = setTimeout(connect, 500);
+            }
+
+            ws.onmessage = function(t) {
+                if(t.data != "pong") {
+                    console.log(t.data);
+                    let n = t.data;
+                    let s = document.createElement("li");
+                    s.classList.add("list-group-item");
+                    s.textContent = n;
+                    document.getElementById("messages").prepend(s);
+                }
+            };
         };
+
+        hbTimer = setTimeout(heartbeat, 500);
+
+        connect();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
