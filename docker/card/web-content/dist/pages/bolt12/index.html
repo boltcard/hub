@@ -16,7 +16,7 @@
         </a>
     </div>
 
-    <p id="ws_state">DISCONNECTED</p>
+    <p class="bg-warning" id="ws_state">DISCONNECTED</p>
 
     <ul class="list-group" id="messages"></ul>
 
@@ -39,11 +39,15 @@
             ws = new WebSocket(a);
 
             ws.onopen = function(t) {
-                document.getElementById("ws_state").textContent = "CONNECTED"                
+                document.getElementById("ws_state").textContent = "CONNECTED";   
+                document.getElementById("ws_state").classList.remove("bg-warning");
+                document.getElementById("ws_state").classList.add("bg-success");              
             }
 
             ws.onclose = function(t) {
-                document.getElementById("ws_state").textContent = "DISCONNECTED"                
+                document.getElementById("ws_state").textContent = "DISCONNECTED";        
+                document.getElementById("ws_state").classList.remove("bg-success");
+                document.getElementById("ws_state").classList.add("bg-warning");              
                 connectTimer = setTimeout(connect, 500);
             }
 
