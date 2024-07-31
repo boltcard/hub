@@ -10,24 +10,16 @@
 
 <body>
     <h1>Bolt 12 offer</h1>
-    <div>
-        <a href="lightning:{{.QrValue}}">
-            <img class="img-fluid" alt="Bolt 12 Offer QR code" src="data:image/png;base64,{{.OfferQrPngEncoded}}" />
-        </a>
-    </div>
-
+    <div> <a href="lightning:{{.QrValue}}"> <img class="img-fluid" alt="Bolt 12 Offer QR code" src="data:image/png;base64,{{.OfferQrPngEncoded}}"> </a> </div>
     <p class="bg-warning" id="ws_state">DISCONNECTED</p>
-
     <ul class="list-group" id="messages"></ul>
-
     <script type="module">
-
         var ws;
         var connectTimer = null;
         var hbTimer = null;
 
         function heartbeat() {
-            if(ws.readyState == WebSocket.OPEN) {
+            if (ws.readyState == WebSocket.OPEN) {
                 ws.send("ping");
             }
             hbTimer = setTimeout(heartbeat, 500);
@@ -39,20 +31,20 @@
             ws = new WebSocket(a);
 
             ws.onopen = function(t) {
-                document.getElementById("ws_state").textContent = "CONNECTED";   
+                document.getElementById("ws_state").textContent = "CONNECTED";
                 document.getElementById("ws_state").classList.remove("bg-warning");
-                document.getElementById("ws_state").classList.add("bg-success");              
-            }
+                document.getElementById("ws_state").classList.add("bg-success");
+            };
 
             ws.onclose = function(t) {
-                document.getElementById("ws_state").textContent = "DISCONNECTED";        
+                document.getElementById("ws_state").textContent = "DISCONNECTED";
                 document.getElementById("ws_state").classList.remove("bg-success");
-                document.getElementById("ws_state").classList.add("bg-warning");              
+                document.getElementById("ws_state").classList.add("bg-warning");
                 connectTimer = setTimeout(connect, 500);
-            }
+            };
 
             ws.onmessage = function(t) {
-                if(t.data != "pong") {
+                if (t.data != "pong") {
                     console.log(t.data);
                     let n = t.data;
                     let s = document.createElement("li");
@@ -61,7 +53,7 @@
                     document.getElementById("messages").prepend(s);
                 }
             };
-        };
+        }
 
         hbTimer = setTimeout(heartbeat, 500);
 
