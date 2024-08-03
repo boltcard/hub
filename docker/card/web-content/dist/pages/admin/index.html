@@ -94,6 +94,48 @@
                             </div> <!-- /.info-box -->
                         </div> <!-- /.col -->
                     </div> <!-- /.row -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    <h3 class="card-title">Recent Transactions</h3>
+                                </div> <!-- /.card-header -->
+                                <div class="card-body p-0">
+                                    <table class="table" id="recent-tx-table">
+                                        <thead>
+                                            <tr>
+                                                <th style="width: 320px">Date</th>
+                                                <th>Description</th>
+                                                <th style="width: 160px">Amount</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="align-middle">
+                                                <td>01 Jan 2024 08:57 UTC</td>
+                                                <td>Update software</td>
+                                                <td>123 sats</td>
+                                            </tr>
+                                            <tr class="align-middle">
+                                                <td>02 Jan 2024 08:57 UTC</td>
+                                                <td></td>
+                                                <td>20 sats</td>
+                                            </tr>
+                                            <tr class="align-middle">
+                                                <td>03 Jan 2024 08:57 UTC</td>
+                                                <td>Update software</td>
+                                                <td>85 sats</td>
+                                            </tr>
+                                            <tr class="align-middle">
+                                                <td>04 Jan 2024 08:57 UTC</td>
+                                                <td>Update software</td>
+                                                <td>100 sats</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div> <!-- /.card-body -->
+                            </div> <!-- /.card -->
+                        </div> <!-- col -->
+                    </div> <!-- row -->
                 </div> <!--end::Container-->
             </div> <!--end::App Content-->
         </main> <!--end::App Main--> <!--begin::Footer-->
@@ -215,7 +257,27 @@
                 }
             });
         })();
-    </script> <!--end::LightDarkMode--> <!-- OPTIONAL SCRIPTS -->
+    </script> <!--end::LightDarkMode-->
+    <script>
+        var tbodyRef = document
+            .getElementById("recent-tx-table")
+            .getElementsByTagName("tbody")[0];
+
+        while (tbodyRef.hasChildNodes()) {
+            tbodyRef.removeChild(tbodyRef.firstChild);
+        }
+
+        var newRow = tbodyRef.insertRow();
+        var dateCell = newRow.insertCell();
+        var dateText = document.createTextNode("06 Jan 2024 09:45 UTC");
+        dateCell.appendChild(dateText);
+        var descCell = newRow.insertCell();
+        var descText = document.createTextNode("dynamically added row");
+        descCell.appendChild(descText);
+        var amtCell = newRow.insertCell();
+        var amtText = document.createTextNode("111 sats");
+        amtCell.appendChild(amtText);
+    </script> <!--end::Script-->
 </body><!--end::Body-->
 
 </html>
