@@ -139,7 +139,11 @@
                 </div> <!--end::Container-->
             </div> <!--end::App Content-->
         </main> <!--end::App Main--> <!--begin::Footer-->
-        <footer class="app-footer"></footer> <!--end::Footer-->
+        <footer class="app-footer">
+            <div id="websocket-status" class="float-end d-none d-sm-inline">
+                Disconnected
+            </div>
+        </footer> <!--end::Footer-->
     </div> <!--end::App Wrapper--> <!--begin::Script--> <!--begin::Third Party Plugin(OverlayScrollbars)-->
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.3.0/browser/overlayscrollbars.browser.es6.min.js" integrity="sha256-H2VM7BKda+v2Z4+DRy69uknwxjyDRhszjXFhsL4gD3w=" crossorigin="anonymous"></script> <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha256-whL0tQWoY1Ku1iskqPFvmZ+CHsvmRWx/PIoEvIeWh4I=" crossorigin="anonymous"></script> <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->
@@ -277,6 +281,47 @@
         var amtCell = newRow.insertCell();
         var amtText = document.createTextNode("111 sats");
         amtCell.appendChild(amtText);
+
+        var ws;
+        var connectTimer = null;
+        var hbTimer = null;
+
+        function heartbeat() {
+            if (ws.readyState == WebSocket.OPEN) {
+                ws.send("ping");
+            }
+            hbTimer = setTimeout(heartbeat, 500);
+        }
+
+        function connect() {
+            let o = window.location;
+            let a = "wss://" + o.host + "/websocket";
+            ws = new WebSocket(a);
+
+            ws.onopen = function(t) {
+                document.getElementById("websocket-status").textContent = "Connected";
+            };
+
+            ws.onclose = function(t) {
+                document.getElementById("websocket-status").textContent = "Disconnected";
+                connectTimer = setTimeout(connect, 500);
+            };
+
+            ws.onmessage = function(t) {
+                if (t.data != "pong") {
+                    console.log(t.data);
+                    let n = t.data;
+                    let s = document.createElement("li");
+                    s.classList.add("list-group-item");
+                    s.textContent = n;
+                    document.getElementById("messages").prepend(s);
+                }
+            };
+        }
+
+        hbTimer = setTimeout(heartbeat, 500);
+
+        connect();
     </script> <!--end::Script-->
 </body><!--end::Body-->
 
