@@ -74,6 +74,13 @@
                     <h4 class="mb-2">Phoenix Server</h4> <!-- Info boxes -->
                     <div class="row">
                         <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box"> <span class="info-box-icon text-bg-primary shadow-sm"> <i class="bi bi-tag"></i> </span>
+                                <div class="info-box-content"> <span class="info-box-text">Bolt12 Offer (sats in)</span> <span class="info-box-content">
+                                        <img class="img-fluid" alt="Bolt 12 Offer QR code" src="data:image/png;base64,{{.OfferQrPngEncoded}}" />
+                                    </span> </div> <!-- /.info-box-content -->
+                            </div> <!-- /.info-box -->
+                        </div> <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
                             <div class="info-box"> <span class="info-box-icon text-bg-primary shadow-sm"> <i class="bi bi-align-bottom"></i> </span>
                                 <div class="info-box-content"> <span class="info-box-text">Fee Credit</span> <span class="info-box-number">{{.FeeCredit}}</span> </div> <!-- /.info-box-content -->
                             </div> <!-- /.info-box -->
@@ -86,11 +93,6 @@
                         <div class="col-12 col-sm-6 col-md-3">
                             <div class="info-box"> <span class="info-box-icon text-bg-primary shadow-sm"> <i class="bi bi-box-arrow-in-left"></i> </span>
                                 <div class="info-box-content"> <span class="info-box-text">Inbound Liquidity</span> <span class="info-box-number">{{.Inbound}}</span> </div> <!-- /.info-box-content -->
-                            </div> <!-- /.info-box -->
-                        </div> <!-- /.col -->
-                        <div class="col-12 col-sm-6 col-md-3">
-                            <div class="info-box"> <span class="info-box-icon text-bg-primary shadow-sm"> <i class="bi bi-tag"></i> </span>
-                                <div class="info-box-content"> <span class="info-box-text">Software</span> <span class="info-box-number">version {{.SwVersion}} <br>{{.SwBuildDate}} <br>{{.SwBuildTime}} </span> </div> <!-- /.info-box-content -->
                             </div> <!-- /.info-box -->
                         </div> <!-- /.col -->
                     </div> <!-- /.row -->
@@ -139,8 +141,8 @@
                 </div> <!--end::Container-->
             </div> <!--end::App Content-->
         </main> <!--end::App Main--> <!--begin::Footer-->
-        <footer class="app-footer">
-            <div id="websocket_status" class="float-end d-none d-sm-inline badge text-bg-warning">
+        <footer class="app-footer"> {{.SwVersion}}
+            <div id="websocket_status" class="float-end d-inline badge text-bg-warning">
                 Disconnected
             </div>
         </footer> <!--end::Footer-->

@@ -3,6 +3,7 @@ package admin
 import (
 	"card/build"
 	"card/phoenix"
+	"card/util"
 	"card/web"
 	"net/http"
 
@@ -25,6 +26,11 @@ func Index(w http.ResponseWriter, r *http.Request) {
 		log.Warn("phoenix error: ", err.Error())
 	}
 
+	offer, err := phoenix.GetOffer()
+	if err != nil {
+		log.Warn("phoenix error: ", err.Error())
+	}
+
 	totalInboundSats := 0
 	for _, channel := range info.Channels {
 		totalInboundSats += channel.InboundLiquiditySat
@@ -37,20 +43,24 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	BalanceSatStr := p.Sprintf("%d sats", balance.BalanceSat)
 	TotalInboundSatsStr := p.Sprintf("%d sats", totalInboundSats)
 
+	OfferQrPngEncoded := util.QrPngBase64Encode(offer)
+
 	data := struct {
-		FeeCredit   string
-		Balance     string
-		Inbound     string
-		SwVersion   string
-		SwBuildDate string
-		SwBuildTime string
+		FeeCredit         string
+		Balance           string
+		Inbound           string
+		OfferQrPngEncoded string
+		SwVersion         string
+		SwBuildDate       string
+		SwBuildTime       string
 	}{
-		FeeCredit:   FeeCreditSatStr,
-		Balance:     BalanceSatStr,
-		Inbound:     TotalInboundSatsStr,
-		SwVersion:   build.Version,
-		SwBuildDate: build.Date,
-		SwBuildTime: build.Time,
+		FeeCredit:         FeeCreditSatStr,
+		Balance:           BalanceSatStr,
+		Inbound:           TotalInboundSatsStr,
+		OfferQrPngEncoded: OfferQrPngEncoded,
+		SwVersion:         build.Version,
+		SwBuildDate:       build.Date,
+		SwBuildTime:       build.Time,
 	}
 
 	web.RenderHtmlFromTemplate(w, template_path, data)
