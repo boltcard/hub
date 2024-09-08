@@ -65,13 +65,13 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 
 	// create an invoice
 
-	var createInvoiceRequest phoenix.ReceiveLightningPaymentRequest
+	var createInvoiceRequest phoenix.CreateInvoiceRequest
 
 	createInvoiceRequest.Description = reqObj.Memo
 	createInvoiceRequest.AmountSat = strconv.Itoa(amountSats)
 	createInvoiceRequest.ExternalId = "" // could use a unique id here if needed
 
-	createInvoiceResponse, err := phoenix.ReceiveLightningPayment(createInvoiceRequest)
+	createInvoiceResponse, err := phoenix.CreateInvoice(createInvoiceRequest)
 	util.Check(err)
 
 	log.Info("createInvoiceResponse ", createInvoiceResponse)

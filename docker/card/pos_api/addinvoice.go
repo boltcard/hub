@@ -5,6 +5,7 @@ import (
 	"card/util"
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -33,28 +34,32 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	reqToken := r.Header.Get("Authorization")
 	log.Info("auth token : ", reqToken)
 
-	var req AddInvoiceRequest
+	// get details from request body
 
-	// err := decodeJSONBody(w, r, &req)
-	// if err != nil {
-	// 	var mr *malformedRequest
-	// 	if errors.As(err, &mr) {
-	// 		log.Error(mr.msg)
-	// 	} else {
-	// 		log.Error(err.Error())
-	// 	}
-	// 	return
-	// }
+	decoder := json.NewDecoder(r.Body)
+	var reqObj AddInvoiceRequest
+	err := decoder.Decode(&reqObj)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-	log.Info("AddInvoice : ", req)
+	amountSats, err := strconv.Atoi(reqObj.Amt)
+
+	if amountSats <= 0 || err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	log.Info("AddInvoice : ", reqObj)
 
 	// create invoice on Phoenix server
-	invoiceRequest := phoenix.ReceiveLightningPaymentRequest{
-		Description: req.Memo,
-		AmountSat:   req.Amt,
+	invoiceRequest := phoenix.CreateInvoiceRequest{
+		Description: reqObj.Memo,
+		AmountSat:   reqObj.Amt,
 		ExternalId:  "ext_id",
 	}
-	invoice, err := phoenix.ReceiveLightningPayment(invoiceRequest)
+	invoice, err := phoenix.CreateInvoice(invoiceRequest)
 	util.Check(err)
 
 	log.Info("invoice : ", invoice)
