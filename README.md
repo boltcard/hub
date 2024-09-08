@@ -64,3 +64,7 @@ sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat ; echo
 ```bash
 sudo rm /var/lib/docker/volumes/hub_card_data/_data/cards.db
 ```
+
+## notes
+
+- consider debian-12.6 or alpine-3.14 instead of ubuntu-22.04 to save disk space
