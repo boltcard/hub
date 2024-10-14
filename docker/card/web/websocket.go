@@ -34,6 +34,8 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	util.Check(err)
 
+	log.Info("websocket from client is open")
+
 	defer conn.Close()
 
 	// open a websocket connection to phoenix
@@ -58,7 +60,7 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 		for {
 			_, message, err := c.ReadMessage()
 			if err != nil {
-				log.Warning("websocket read error :", err)
+				log.Info("websocket to phoenix is closing : ", err.Error())
 				return
 			}
 
@@ -97,16 +99,22 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	for {
 		// read message from client
 		_, message, err := conn.ReadMessage()
-		util.Check(err)
+		if err != nil {
+			log.Info("websocket from client is closing : ", err.Error())
+			return
+		}
 
-		// show message
-		//log.Info("websocket rx : ", string(message))
-
+		// handle "ping" message
 		if string(message) == "ping" {
 
 			//send message to client
 			err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 			util.Check(err)
+
+			continue
 		}
+
+		// show message if not handled
+		log.Info("websocket from client - unhandled message : ", string(message))
 	}
 }
