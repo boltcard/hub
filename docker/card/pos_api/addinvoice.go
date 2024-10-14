@@ -73,10 +73,12 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	resp.AddIndex = "500"
 	resp.RHash.Type = "Buffer"
 	resp.RHash.Data = []int{1, 2, 3}
-	resp.Hash = "abcd"
+	resp.Hash = invoice.PaymentHash
 
 	respJson, err := json.Marshal(resp)
 	util.Check(err)
+
+	log.Info(string(respJson))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

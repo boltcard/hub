@@ -43,6 +43,7 @@ func GetUserInvoices(w http.ResponseWriter, r *http.Request) {
 	var userInvoice UserInvoice
 	for i := 0; i < numCards; i++ {
 		userInvoice.PaymentRequest = pmt_list[i].Invoice
+		userInvoice.PaymentHash = pmt_list[i].PaymentHash
 		userInvoice.Ispaid = pmt_list[i].IsPaid
 		userInvoice.Description = pmt_list[i].Description
 		userInvoice.Amt = pmt_list[i].ReceivedSat
