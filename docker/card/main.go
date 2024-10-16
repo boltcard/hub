@@ -1,6 +1,7 @@
 package main
 
 import (
+	"card/bcp"
 	"card/build"
 	"card/db"
 	"card/lnurlw"
@@ -90,6 +91,9 @@ func main() {
 	router.Path("/pos/auth").Methods("POST").HandlerFunc(pos_api.Auth)
 	router.Path("/pos/addinvoice").Methods("POST").HandlerFunc(pos_api.AddInvoice)
 	router.Path("/pos/getuserinvoices").Methods("GET").HandlerFunc(pos_api.GetUserInvoices)
+
+	// for Bolt Card Programmer app
+	router.Path("/new").Methods("GET").HandlerFunc(bcp.CreateCard) //TODO: complete this..
 
 	router.NotFoundHandler = http.HandlerFunc(dumpRequest)
 
