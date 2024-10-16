@@ -55,6 +55,9 @@
                         <li class="nav-item"> <a href="/admin/payments-out/" class="nav-link"> <i class="nav-icon bi bi-box-arrow-right"></i>
                                 <p>Payments Out</p>
                             </a> </li>
+                        <li class="nav-item"> <a href="/admin/bolt-card/" class="nav-link"> <i class="nav-icon bi bi-wifi"></i>
+                                <p>Bolt Card</p>
+                            </a> </li>
                     </ul> <!--end::Sidebar Menu-->
                 </nav>
             </div> <!--end::Sidebar Wrapper-->
@@ -298,6 +301,8 @@
         function connect() {
             let o = window.location;
             let a = "wss://" + o.host + "/websocket";
+
+            // https://stackoverflow.com/questions/31978298/suppress-websocket-connection-to-xyz-failed
             ws = new WebSocket(a);
 
             ws.onopen = function(t) {
@@ -322,13 +327,18 @@
             };
 
             ws.onmessage = function(t) {
+                if (t.data == null) {
+                    console.log("null message");
+                    return;
+                }
+
                 if (t.data != "pong") {
                     console.log(t.data);
-                    let n = t.data;
-                    let s = document.createElement("li");
-                    s.classList.add("list-group-item");
-                    s.textContent = n;
-                    document.getElementById("messages").prepend(s);
+                    // let n = t.data;
+                    // let s = document.createElement("li");
+                    // s.classList.add("list-group-item");
+                    // s.textContent = n;
+                    // document.getElementById("messages").prepend(s);
                 }
             };
         }

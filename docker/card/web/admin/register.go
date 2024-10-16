@@ -24,6 +24,8 @@ func Register(w http.ResponseWriter, r *http.Request) {
 		passwordStr := r.Form.Get("password")
 		passwordHashStr := web.GetPwHash(passwordStr)
 
+		// TODO: check that password has >128 bit entropy to mitigate brute force attacks
+
 		db.Db_set_setting("admin_password_hash", passwordHashStr)
 
 		// TODO: redirect to 2FA setup

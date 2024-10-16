@@ -19,6 +19,10 @@ type WebSocketMessage struct {
 	Type        string `json:"type"`
 	AmountSat   int    `json:"amountSat"`
 	PaymentHash string `json:"paymentHash"`
+	Timestamp   int64  `json:"timestamp"`
+	ExternalID  string `json:"externalId,omitempty"`
+	PayerNote   string `json:"payerNote,omitempty"`
+	PayerKey    string `json:"payerKey,omitempty"`
 }
 
 func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +31,7 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			return true
+			return true // TODO: authenticate
 		},
 	}
 
@@ -65,11 +69,9 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			// `message` contains the websocket message as []byte from Phoenix server
+			log.Info("message : ", string(message))
 
-			// TODO:
 			// decode the JSON into a struct
-			// look up the payment_hash to look up the description using GetIncomingPayment
-
 			var webSocketMessage WebSocketMessage
 
 			err = json.Unmarshal(message, &webSocketMessage)
@@ -77,18 +79,21 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 
 			log.Info("webSocketMessage : ", webSocketMessage)
 
+			// look up the payment_hash to look up the description using GetIncomingPayment
 			incomingPayment, err := phoenix.GetIncomingPayment(webSocketMessage.PaymentHash)
 			util.Check(err)
 
 			log.Info("incomingPayment : ", incomingPayment)
 
-			// message_string := string(message)
+			// TODO: send JSON encoded data to add a tx row
+			// TODO: send JSON encoded data to update the totals
 			now := time.Now()
 			now_string := now.Format("15:04:05")
 			err = conn.WriteMessage(websocket.TextMessage,
 				[]byte(now_string+" UTC, "+
 					strconv.Itoa(incomingPayment.ReceivedSat)+" sats received, "+
-					strconv.Itoa(incomingPayment.Fees)+" sats fees"))
+					strconv.Itoa(incomingPayment.Fees)+" sats fees,"+
+					" message: "+webSocketMessage.PayerNote))
 			if err != nil {
 				log.Warning("websocket write error :", err)
 				return
@@ -113,6 +118,8 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 
 			continue
 		}
+
+		// TODO: make sure authentication is implemented before adding more here!
 
 		// show message if not handled
 		log.Info("websocket from client - unhandled message : ", string(message))

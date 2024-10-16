@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"net/http"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Login(w http.ResponseWriter, r *http.Request) {
@@ -19,8 +21,6 @@ func Login(w http.ResponseWriter, r *http.Request) {
 
 		passwordStr := r.Form.Get("password")
 		passwordHashStr := web.GetPwHash(passwordStr)
-
-		// TODO: add rate limiting
 
 		// check password
 		if db.Db_get_setting("admin_password_hash") == passwordHashStr {
@@ -43,6 +43,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// failed login
+		log.Warn("a failed login happened")
 		http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 		return
 	}

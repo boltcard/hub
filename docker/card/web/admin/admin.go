@@ -79,5 +79,9 @@ func Admin(w http.ResponseWriter, r *http.Request) {
 		PaymentsOut(w, r)
 	}
 
+	if strings.HasPrefix(request, "/admin/bolt-card/") {
+		BoltCard(w, r)
+	}
+
 	web.Blank(w, r)
 }

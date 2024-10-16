@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.3.0/styles/overlayscrollbars.min.css" integrity="sha256-dSokZseQNT08wYEWiz5iLI8QPlKxG+TswNRD8k35cpg=" crossorigin="anonymous"><!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Third Party Plugin(Bootstrap Icons)-->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.min.css" integrity="sha256-Qsx5lrStHZyR9REqhUF8iQt73X06c8LGIUPzpOhwRrI=" crossorigin="anonymous"><!--end::Third Party Plugin(Bootstrap Icons)--><!--begin::Required Plugin(AdminLTE)-->
     <link rel="stylesheet" href="/dist/css/adminlte.css"><!--end::Required Plugin(AdminLTE)-->
-</head> <!--end::Head--> <!--begin::Body-->
+</head>
 
 <body class="layout-fixed sidebar-expand-lg bg-body-tertiary"> <!--begin::App Wrapper-->
     <div class="app-wrapper"> <!--begin::Header-->
@@ -52,10 +52,10 @@
                         <li class="nav-item"> <a href="/admin/payments-in/" class="nav-link"> <i class="nav-icon bi bi-box-arrow-in-right"></i>
                                 <p>Payments In</p>
                             </a> </li>
-                        <li class="nav-item"> <a href="/admin/payments-out/" class="nav-link active"> <i class="nav-icon bi bi-box-arrow-right"></i>
+                        <li class="nav-item"> <a href="/admin/payments-out/" class="nav-link"> <i class="nav-icon bi bi-box-arrow-right"></i>
                                 <p>Payments Out</p>
                             </a> </li>
-                        <li class="nav-item"> <a href="/admin/bolt-card/" class="nav-link"> <i class="nav-icon bi bi-wifi"></i>
+                        <li class="nav-item"> <a href="/admin/bolt-card/" class="nav-link active"> <i class="nav-icon bi bi-wifi"></i>
                                 <p>Bolt Card</p>
                             </a> </li>
                     </ul> <!--end::Sidebar Menu-->
@@ -67,49 +67,31 @@
                 <div class="container-fluid"> <!--begin::Row-->
                     <div class="row">
                         <div>
-                            <h3 class="mb-0">Payments Out</h3>
+                            <h3 class="mb-0">Management</h3>
                         </div>
                     </div> <!--end::Row-->
                 </div> <!--end::Container-->
-            </div> <!--end::App Content Header--> <!--begin::App Content-->
+            </div>
             <div class="app-content"> <!--begin::Container-->
-                <div class="container-fluid"> <!--begin::Row-->
-                    <div class="row g-4 mb-4">
-                        {{range $c := .PaymentOutCards}}
-                        <div class="col-12 col-sm-6 col-xl-3">
-                            <div class="card {{$c.CardStyle}}">
-                                <div class="card-header">
-                                    <h3 class="card-title">{{$c.CardHeaderText}}</h3>
-                                    <div class="card-tools"> <button type="button" class="btn btn-tool" data-lte-toggle="card-collapse"> <i data-lte-icon="expand" class="bi bi-plus-lg"></i> <i data-lte-icon="collapse" class="bi bi-dash-lg"></i> </button> </div> <!-- /.card-tools -->
-                                </div> <!-- /.card-header -->
-                                <div class="card-body">{{$c.CardBodyText}}</div> <!-- /.card-body -->
-                            </div> <!-- /.card -->
-                        </div>
-                        {{end}}
-                    </div> <!--end::Row-->
+                <div class="container-fluid">
+                    <h4 class="mb-2">Bolt Card</h4> <!-- Info boxes -->
+                    <div class="row">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box"> <span class="info-box-icon text-bg-primary shadow-sm"> <i class="bi bi-wifi"></i> </span>
+                                <div class="info-box-content"> <span class="info-box-text">Create a new card</span> <span class="info-box-content">
+                                        <img class="img-fluid" alt="Create Bolt Card" src="data:image/png;base64,{{.CreateBoltCardPngEncoded}}" />
+                                    </span> </div> <!-- /.info-box-content -->
+                            </div> <!-- /.info-box -->
+                        </div> <!-- /.col -->
+                    </div> <!-- /.row -->
                 </div> <!--end::Container-->
             </div> <!--end::App Content-->
-        </main> <!--end::App Main-->
-        <footer class="app-footer">
-            <div>
-                <div>
-                    <ul class="pagination m-0 justify-content-end">
-                        <li class="page-item {{.FirstPageEnabled}}">
-                            <a class="page-link" href="{{.FirstPageLink}}">First</a>
-                        </li>
-                        <li class="page-item {{.PreviousPageEnabled}}">
-                            <a class="page-link" href="{{.PreviousPageLink}}">Previous</a>
-                        </li>
-                        <li class="page-item active">
-                            <span class="page-link">{{.CurrentPageNumber}}</a>
-                        </li>
-                        <li class="page-item {{.NextPageEnabled}}">
-                            <a class="page-link" href="{{.NextPageLink}}">Next</a>
-                        </li>
-                    </ul>
-                </div>
+        </main> <!--end::App Main--> <!--begin::Footer-->
+        <footer class="app-footer"> {{.SwVersion}}
+            <div id="websocket_status" class="float-end d-inline badge text-bg-warning">
+                Disconnected
             </div>
-        </footer>
+        </footer> <!--end::Footer-->
     </div> <!--end::App Wrapper--> <!--begin::Script--> <!--begin::Third Party Plugin(OverlayScrollbars)-->
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.3.0/browser/overlayscrollbars.browser.es6.min.js" integrity="sha256-H2VM7BKda+v2Z4+DRy69uknwxjyDRhszjXFhsL4gD3w=" crossorigin="anonymous"></script> <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha256-whL0tQWoY1Ku1iskqPFvmZ+CHsvmRWx/PIoEvIeWh4I=" crossorigin="anonymous"></script> <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->
@@ -227,7 +209,87 @@
                 }
             });
         })();
-    </script> <!--end::LightDarkMode--> <!--end::Script-->
+    </script> <!--end::LightDarkMode-->
+    <script>
+        var tbodyRef = document
+            .getElementById("recent-tx-table")
+            .getElementsByTagName("tbody")[0];
+
+        while (tbodyRef.hasChildNodes()) {
+            tbodyRef.removeChild(tbodyRef.firstChild);
+        }
+
+        var newRow = tbodyRef.insertRow();
+        var dateCell = newRow.insertCell();
+        var dateText = document.createTextNode("06 Jan 2024 09:45 UTC");
+        dateCell.appendChild(dateText);
+        var descCell = newRow.insertCell();
+        var descText = document.createTextNode("dynamically added row");
+        descCell.appendChild(descText);
+        var amtCell = newRow.insertCell();
+        var amtText = document.createTextNode("111 sats");
+        amtCell.appendChild(amtText);
+
+        var ws;
+        var connectTimer = null;
+        var hbTimer = null;
+
+        function heartbeat() {
+            if (ws.readyState == WebSocket.OPEN) {
+                ws.send("ping");
+            }
+            hbTimer = setTimeout(heartbeat, 500);
+        }
+
+        function connect() {
+            let o = window.location;
+            let a = "wss://" + o.host + "/websocket";
+
+            // https://stackoverflow.com/questions/31978298/suppress-websocket-connection-to-xyz-failed
+            ws = new WebSocket(a);
+
+            ws.onopen = function(t) {
+                document.getElementById("websocket_status").textContent = "Connected";
+                document
+                    .getElementById("websocket_status")
+                    .classList.remove("text-bg-warning");
+                document
+                    .getElementById("websocket_status")
+                    .classList.add("text-bg-success");
+            };
+
+            ws.onclose = function(t) {
+                document.getElementById("websocket_status").textContent = "Disconnected";
+                document
+                    .getElementById("websocket_status")
+                    .classList.remove("text-bg-success");
+                document
+                    .getElementById("websocket_status")
+                    .classList.add("text-bg-warning");
+                connectTimer = setTimeout(connect, 500);
+            };
+
+            ws.onmessage = function(t) {
+                if (t.data == null) {
+                    console.log("null message");
+                    return;
+                }
+
+                if (t.data != "pong") {
+                    console.log(t.data);
+                    // let n = t.data;
+                    // let s = document.createElement("li");
+                    // s.classList.add("list-group-item");
+                    // s.textContent = n;
+                    // document.getElementById("messages").prepend(s);
+                }
+            };
+        }
+
+        hbTimer = setTimeout(heartbeat, 500);
+
+        connect();
+    </script> <!--end::Script-->
 </body><!--end::Body-->
 
 </html>
