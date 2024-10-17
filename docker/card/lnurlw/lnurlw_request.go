@@ -174,13 +174,17 @@ func LnurlwRequest(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !cardMatch {
+		log.Info("card not found")
 		w.Write([]byte(`{"status": "ERROR", "reason": "card not found"}`))
 		return
 	}
 
+	log.Info("card found")
+
 	// check counter is incremented
 	cardLastCounter := db.Db_get_card_counter(cardId)
 	if ctr <= cardLastCounter {
+		log.Info("card counter not incremented")
 		w.Write([]byte(`{"status": "ERROR", "reason": "card counter not incremented"}`))
 		return
 	}
@@ -201,6 +205,8 @@ func LnurlwRequest(w http.ResponseWriter, req *http.Request) {
 	resObj.Lnurlwk1 = lnurlwK1
 	resObj.MinWithdrawable, _ = strconv.Atoi(db.Db_get_setting("min_withdraw_sats"))
 	resObj.MaxWithdrawable, _ = strconv.Atoi(db.Db_get_setting("max_withdraw_sats"))
+
+	log.Info("card response sent")
 
 	// send response
 	resJson, err := json.Marshal(resObj)
