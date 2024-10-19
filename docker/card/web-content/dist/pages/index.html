@@ -42,11 +42,18 @@ scanButton.addEventListener("click", async () => {
       });
   
       ndef.addEventListener("reading", ({ message, serialNumber }) => {
+        log(`*** card read ***`);
         log(`> Serial Number: ${serialNumber}`);
         log(`> Records: (${message.records.length})`);
+        const decoder = new TextDecoder();
+        for (const record of message.records) {
+          log(" Record type:  " + record.recordType);
+          log(" MIME type:    " + record.mediaType);
+          log(" Data: \n" + decoder.decode(record.data));
+        }
       });
     } catch (error) {
-        ("error! " + error);
+        log("error! " + error);
     }
   });
 
