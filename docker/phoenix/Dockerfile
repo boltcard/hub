@@ -1,12 +1,14 @@
 FROM ubuntu:22.04
 
+ARG PHOENIXD_VERSION=0.4.2
+
 RUN apt update
 RUN apt install -y wget
 RUN apt install -y unzip
 RUN apt install -y sqlite3
 RUN apt install -y curl
-RUN wget https://github.com/ACINQ/phoenixd/releases/download/v0.4.0/phoenix-0.4.0-linux-x64.zip
-RUN unzip -j phoenix-0.4.0-linux-x64.zip
+RUN wget https://github.com/ACINQ/phoenixd/releases/download/v${PHOENIXD_VERSION}/phoenix-${PHOENIXD_VERSION}-linux-x64.zip
+RUN unzip -j phoenix-${PHOENIXD_VERSION}-linux-x64.zip
 
 EXPOSE 9740
 
