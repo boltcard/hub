@@ -13,6 +13,47 @@
         <li class="list-group-item"><a href="/admin/">admin page</a></li>
         <li class="list-group-item"><a href="/bolt12/">bolt12 test page</a></li>
     </ul>
+
+    <h3>Web NFC test</h3>
+
+<button id="scanButton">Scan</button>
+
+<div id="log-msgs"></div>
+
+<script>
+function log(log_message) {
+  var theDiv = document.getElementById("log-msgs");
+  theDiv.appendChild(document.createTextNode(log_message));
+  theDiv.appendChild(document.createElement('br'));
+}
+
+log("start")
+
+scanButton.addEventListener("click", async () => {
+    log("User clicked scan button");
+  
+    try {
+      const ndef = new NDEFReader();
+      await ndef.scan();
+      log("> Scan started");
+  
+      ndef.addEventListener("readingerror", () => {
+        log("Argh! Cannot read data from the NFC tag. Try another one?");
+      });
+  
+      ndef.addEventListener("reading", ({ message, serialNumber }) => {
+        log(`> Serial Number: ${serialNumber}`);
+        log(`> Records: (${message.records.length})`);
+      });
+    } catch (error) {
+        ("error! " + error);
+    }
+  });
+
+if (!("NDEFReader" in window))
+  log("Web NFC is not available - use Chrome on Android.");
+</script>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 
