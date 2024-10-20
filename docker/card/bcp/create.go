@@ -3,6 +3,8 @@ package bcp
 import (
 	"card/db"
 	"card/util"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"net/http"
 
@@ -22,6 +24,17 @@ type BcpResponse struct {
 	K4              string `json:"k4"`
 }
 
+func random_hex() string {
+	b := make([]byte, 16)
+	_, err := rand.Read(b)
+	if err != nil {
+		log.Warn(err.Error())
+		return ""
+	}
+
+	return hex.EncodeToString(b)
+}
+
 func CreateCard(w http.ResponseWriter, r *http.Request) {
 	param_a := r.URL.Query().Get("a")
 
@@ -37,6 +50,16 @@ func CreateCard(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// create a new card in the database
+	k0 := random_hex()
+	k1 := random_hex()
+	k2 := random_hex()
+	k3 := random_hex()
+	k4 := random_hex()
+	login := random_hex() // included for LndHub compatibility
+	password := random_hex()
+	db.Db_insert_card(k0, k1, k2, k3, k4, login, password)
+
 	var resObj BcpResponse
 
 	resObj.ProtocolName = "new_bolt_card_response"
@@ -44,11 +67,11 @@ func CreateCard(w http.ResponseWriter, r *http.Request) {
 	resObj.CardName = "Spending_Card"
 	resObj.LnurlwBase = "lnurlw://" + db.Db_get_setting("host_domain") + "/ln"
 	resObj.UIDPrivacy = "Y"
-	resObj.K0 = "11111111111111111111111111111111"
-	resObj.K1 = "22222222222222222222222222222222"
-	resObj.K2 = "33333333333333333333333333333333"
-	resObj.K3 = "44444444444444444444444444444444"
-	resObj.K4 = "55555555555555555555555555555555"
+	resObj.K0 = k0
+	resObj.K1 = k1
+	resObj.K2 = k2
+	resObj.K3 = k3
+	resObj.K4 = k4
 
 	resJson, err := json.Marshal(resObj)
 	util.Check(err)
