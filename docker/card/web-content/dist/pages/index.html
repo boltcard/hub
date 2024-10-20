@@ -54,8 +54,11 @@ async function startScan() {
     log("Starting scan");
   
     try {
+      abortController = new AbortController();
+      abortController.signal.onabort = () => log("WaitingForCard");
+    
       const ndef = new NDEFReader();
-      await ndef.scan();
+      await ndef.scan({ signal: abortController.signal })
       log("Scan started");
   
       ndef.addEventListener("readingerror", () => {
@@ -67,11 +70,19 @@ async function startScan() {
         log(`Serial Number: ${serialNumber}`);
         log(`Records: (${message.records.length})`);
         const decoder = new TextDecoder();
-        for (const record of message.records) {
-          log(" Record type:  " + record.recordType);
-          log(" MIME type:    " + record.mediaType);
-          log(" Data: \n" + decoder.decode(record.data));
+
+        const record = message.records[0];
+        if (message.records.length === 0)
+        {
+          log("Card is blank");
+          return;
         }
+
+        const textDecoder = new TextDecoder('utf-8');
+        const decoded = textDecoder.decode(record.data);
+        log("decoded: " + decoded)
+//      await showBalance(decoded);
+
       });
     } catch (error) {
         log("error: " + error);
