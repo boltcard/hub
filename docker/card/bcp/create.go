@@ -25,12 +25,17 @@ type BcpResponse struct {
 func CreateCard(w http.ResponseWriter, r *http.Request) {
 	param_a := r.URL.Query().Get("a")
 
+	log.Info("CreateCard a=" + param_a)
+
 	if param_a == "" {
 		w.Write([]byte(`{"status": "ERROR", "reason": "a value not found"}`))
 		return
 	}
 
-	log.Info("CreateCard a=" + param_a)
+	if param_a != db.Db_get_setting("new_card_code") {
+		w.Write([]byte(`{"status": "ERROR", "reason": "a value not valid"}`))
+		return
+	}
 
 	var resObj BcpResponse
 

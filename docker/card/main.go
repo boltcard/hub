@@ -96,8 +96,8 @@ func main() {
 	router.Path("/pos/getuserinvoices").Methods("GET").HandlerFunc(pos_api.GetUserInvoices)
 
 	// for Bolt Card Programmer app
-	router.Path("/new").Methods("GET").HandlerFunc(bcp.CreateCard) //TODO: complete this..
-	router.PathPrefix("/batch/").HandlerFunc(bcp.BatchCreateCard)  //TODO: complete this..
+	router.Path("/new").Methods("GET").HandlerFunc(bcp.CreateCard)
+	//router.PathPrefix("/batch/").HandlerFunc(bcp.BatchCreateCard)  //TODO: complete this..
 
 	router.NotFoundHandler = http.HandlerFunc(dumpRequest)
 
