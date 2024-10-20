@@ -54,11 +54,8 @@ async function startScan() {
     log("Starting scan");
   
     try {
-      abortController = new AbortController();
-      abortController.signal.onabort = () => log("WaitingForCard");
-    
       const ndef = new NDEFReader();
-      await ndef.scan({ signal: abortController.signal })
+      await ndef.scan()
       log("Scan started");
   
       ndef.addEventListener("readingerror", () => {
