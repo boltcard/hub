@@ -36,10 +36,16 @@ cd hub
 for a very low resource machine it may be useful to pull the docker images from docker hub
 ```bash
 docker compose pull
-docker compose up
+docker compose --profile phoenix up
 ```
 
 for a full local build from source
+```bash
+docker compose build
+docker compose --profile phoenix up
+```
+
+for development, it may be useful (faster development iteration) to start without phoenix
 ```bash
 docker compose build
 docker compose up

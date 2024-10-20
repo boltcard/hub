@@ -16,8 +16,6 @@
 
     <h3>Web NFC test</h3>
 
-<button id="scanButton">Scan</button>
-
 <div id="log-msgs"></div>
 
 <script>
@@ -29,22 +27,45 @@ function log(log_message) {
 
 log("start")
 
-scanButton.addEventListener("click", async () => {
-    log("User clicked scan button");
+document.addEventListener("DOMContentLoaded", async () => {
+            try {
+              
+                var nfcSupported = 'NDEFReader' in window;
+                if (!nfcSupported) {
+                    log("NFCNotSupported");
+                }
+                else {
+                    log("WaitingForPermission");
+                    var granted = (await navigator.permissions.query({ name: 'nfc' })).state === 'granted';
+                    if (granted)
+                    {
+                        log("WaitingForCard");
+                        startScan();
+                    }
+                  }
+                }
+                catch (e) {
+                handleError(e);
+                }
+              }
+            ) 
+
+async function startScan() {
+    log("Starting scan");
   
     try {
       const ndef = new NDEFReader();
       await ndef.scan();
-      log("> Scan started");
+      log("Scan started");
   
       ndef.addEventListener("readingerror", () => {
-        log("Argh! Cannot read data from the NFC tag. Try another one?");
+        log("Cannot read data from the NFC tag.");
       });
   
       ndef.addEventListener("reading", ({ message, serialNumber }) => {
         log(`*** card read ***`);
-        log(`> Serial Number: ${serialNumber}`);
-        log(`> Records: (${message.records.length})`);
+        log(`Serial Number: ${serialNumber}`);
+        log(`Records: (${message.records.length})`);
         const decoder = new TextDecoder();
         for (const record of message.records) {
           log(" Record type:  " + record.recordType);
@@ -53,12 +74,10 @@ scanButton.addEventListener("click", async () => {
         }
       });
     } catch (error) {
-        log("error! " + error);
+        log("error: " + error);
     }
-  });
+  }
 
-if (!("NDEFReader" in window))
-  log("Web NFC is not available - use Chrome on Android.");
 </script>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
