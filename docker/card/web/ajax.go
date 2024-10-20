@@ -18,6 +18,16 @@ func BalanceAjaxPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
+	params_p, ok := r.URL.Query()["card"]
+	if !ok || len(params_p[0]) < 1 {
+		log.Info("card value not found")
+		//TODO: return error
+	}
+
+	card_str := params_p[0]
+
+	log.Info("card_p = " + card_str)
+
 	var resObj BalanceResponse
 	resObj.AvailableBalance = 1234
 
@@ -26,7 +36,7 @@ func BalanceAjaxPage(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	log.Info("resJson string ", string(resJson))
+	//log.Info("resJson string ", string(resJson))
 
 	w.Write(resJson)
 }
