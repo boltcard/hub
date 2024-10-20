@@ -55,7 +55,10 @@ func main() {
 	// web pages
 	router.Path("/").Methods("GET").HandlerFunc(web.HomePage)
 	router.Path("/favicon.ico").Methods("GET").HandlerFunc(web.Blank)
-	router.Path("/bolt12/").Methods("GET").HandlerFunc(web.Bolt12Test)
+	router.Path("/balance/").Methods("GET").HandlerFunc(web.BalancePage)
+
+	// AJAX
+	router.Path("/balance-ajax").Methods("GET").HandlerFunc(web.BalanceAjaxPage)
 
 	// websocket
 	router.Path("/websocket").HandlerFunc(web.WebsocketHandler)
