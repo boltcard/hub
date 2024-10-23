@@ -35,11 +35,11 @@ cd hub
 
 for a very low resource machine it may be useful to pull the docker images from docker hub
 ```bash
-docker compose pull
+docker compose --profile phoenix pull
 docker compose --profile phoenix up
 ```
 
-for a full local build from source
+for a full local build from source and start with phoenix
 ```bash
 docker compose build
 docker compose --profile phoenix up
@@ -57,12 +57,24 @@ docker compose up
 
 ```bash
 docker compose up -d
+docker compose logs
 ```
 
 ### to get the phoenix server seed words
 
 ```bash
 sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat ; echo
+```
+
+### to access the database
+
+```bash
+$ sudo apt install sqlite3
+$ sudo sqlite3 /var/lib/docker/volumes/hub_card_data/_data/cards.db
+sqlite> .tables
+sqlite> .schema settings
+sqlite> select * from settings;
+
 ```
 
 ### to delete the database

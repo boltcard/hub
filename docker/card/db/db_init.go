@@ -39,6 +39,10 @@ func Db_init() {
 		passwordSalt := util.Random_hex()
 		Db_set_setting("admin_password_salt", passwordSalt)
 
+		// set new card code
+		newCardCode := util.Random_hex()
+		Db_set_setting("new_card_code", newCardCode)
+
 		add_test_data()
 	}
 }

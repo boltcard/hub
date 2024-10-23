@@ -78,7 +78,7 @@ func PayInvoice(w http.ResponseWriter, r *http.Request) {
 	// check if there is sufficient balance
 
 	total_paid_receipts := db.Db_get_total_paid_receipts(card_id)
-	total_paid_payments := db.Db_get_total_payments(card_id)
+	total_paid_payments := db.Db_get_total_paid_payments(card_id)
 	total_card_balance := total_paid_receipts - total_paid_payments
 
 	if actualAmtSat > total_card_balance {

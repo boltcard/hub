@@ -48,7 +48,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 	//select IFNULL(SUM(amount_sats),0) from card_payments;
 
 	total_paid_receipts := db.Db_get_total_paid_receipts(card_id)
-	total_paid_payments := db.Db_get_total_payments(card_id)
+	total_paid_payments := db.Db_get_total_paid_payments(card_id)
 	total_card_balance := total_paid_receipts - total_paid_payments
 
 	log.Info("total_card_balance = ", total_card_balance)

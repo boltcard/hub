@@ -67,37 +67,41 @@ func main() {
 	router.PathPrefix("/admin/").HandlerFunc(admin.Admin)
 	router.PathPrefix("/dist/").HandlerFunc(admin.Admin)
 
-	// BoltCardHub API
-	// LNDHUB API reference https://github.com/BlueWallet/LndHub/blob/master/doc/Send-requirements.md
-	router.Path("/getinfobolt").Methods("GET").HandlerFunc(wallet_api.GetInfoBolt)
-	router.Path("/create").Methods("POST").HandlerFunc(wallet_api.Create)
-	router.Path("/auth").Methods("POST").HandlerFunc(wallet_api.Auth)
-	router.Path("/getbtc").Methods("GET").HandlerFunc(wallet_api.GetBtc) // Get user's BTC address to top-up his account
-	router.Path("/balance").Methods("GET").HandlerFunc(wallet_api.Balance)
-	router.Path("/gettxs").Methods("GET").HandlerFunc(wallet_api.GetTxs)         // /gettxs?limit=10&offset=0 (onchain & lightning)
-	router.Path("/getpending").Methods("GET").HandlerFunc(wallet_api.GetPending) // for onchain txs only
-	router.Path("/getuserinvoices").Methods("GET").HandlerFunc(wallet_api.GetUserInvoices)
-	router.Path("/getcardkeys").Methods("POST").HandlerFunc(wallet_api.GetCardKeys) // creating a new card
-	router.Path("/addinvoice").Methods("POST").HandlerFunc(wallet_api.AddInvoice)
-	router.Path("/payinvoice").Methods("POST").HandlerFunc(wallet_api.PayInvoice)
-	router.Path("/getcard").Methods("POST").HandlerFunc(wallet_api.GetCard)   // get card details
-	router.Path("/wipecard").Methods("POST").HandlerFunc(wallet_api.WipeCard) // return keys and deactivate card
-	router.Path("/updatecardwithpin").Methods("POST").HandlerFunc((wallet_api.UpdateCardWithPin))
+	// for Bolt Card Programmer app
+	router.Path("/new").Methods("GET").HandlerFunc(bcp.CreateCard)
+	//router.PathPrefix("/batch/").HandlerFunc(bcp.BatchCreateCard)  //TODO: complete this..
 
 	// Bolt Card interface (hit from PoS when a card is tapped)
 	router.Path("/ln").Methods("GET").HandlerFunc(lnurlw.LnurlwRequest)
 	router.Path("/cb").Methods("GET").HandlerFunc(lnurlw.LnurlwCallback)
 
-	// for PoS which uses part of an LndHub API
-	// lndhub://a:b@https://somedomain/pos/
-	router.Path("/pos/getinfo").Methods("GET").HandlerFunc(pos_api.GetInfo)
-	router.Path("/pos/auth").Methods("POST").HandlerFunc(pos_api.Auth)
-	router.Path("/pos/addinvoice").Methods("POST").HandlerFunc(pos_api.AddInvoice)
-	router.Path("/pos/getuserinvoices").Methods("GET").HandlerFunc(pos_api.GetUserInvoices)
+	if db.Db_get_setting("bolt_card_hub_api") == "enabled" {
+		// BoltCardHub API
+		// LNDHUB API reference https://github.com/BlueWallet/LndHub/blob/master/doc/Send-requirements.md
+		router.Path("/getinfobolt").Methods("GET").HandlerFunc(wallet_api.GetInfoBolt)
+		router.Path("/create").Methods("POST").HandlerFunc(wallet_api.Create)
+		router.Path("/auth").Methods("POST").HandlerFunc(wallet_api.Auth)
+		router.Path("/getbtc").Methods("GET").HandlerFunc(wallet_api.GetBtc) // Get user's BTC address to top-up his account
+		router.Path("/balance").Methods("GET").HandlerFunc(wallet_api.Balance)
+		router.Path("/gettxs").Methods("GET").HandlerFunc(wallet_api.GetTxs)         // /gettxs?limit=10&offset=0 (onchain & lightning)
+		router.Path("/getpending").Methods("GET").HandlerFunc(wallet_api.GetPending) // for onchain txs only
+		router.Path("/getuserinvoices").Methods("GET").HandlerFunc(wallet_api.GetUserInvoices)
+		router.Path("/getcardkeys").Methods("POST").HandlerFunc(wallet_api.GetCardKeys) // creating a new card
+		router.Path("/addinvoice").Methods("POST").HandlerFunc(wallet_api.AddInvoice)
+		router.Path("/payinvoice").Methods("POST").HandlerFunc(wallet_api.PayInvoice)
+		router.Path("/getcard").Methods("POST").HandlerFunc(wallet_api.GetCard)   // get card details
+		router.Path("/wipecard").Methods("POST").HandlerFunc(wallet_api.WipeCard) // return keys and deactivate card
+		router.Path("/updatecardwithpin").Methods("POST").HandlerFunc((wallet_api.UpdateCardWithPin))
+	}
 
-	// for Bolt Card Programmer app
-	router.Path("/new").Methods("GET").HandlerFunc(bcp.CreateCard)
-	//router.PathPrefix("/batch/").HandlerFunc(bcp.BatchCreateCard)  //TODO: complete this..
+	if db.Db_get_setting("bolt_card_pos_api") == "enabled" {
+		// for PoS which uses part of an LndHub API
+		// lndhub://a:b@https://somedomain/pos/
+		router.Path("/pos/getinfo").Methods("GET").HandlerFunc(pos_api.GetInfo)
+		router.Path("/pos/auth").Methods("POST").HandlerFunc(pos_api.Auth)
+		router.Path("/pos/addinvoice").Methods("POST").HandlerFunc(pos_api.AddInvoice)
+		router.Path("/pos/getuserinvoices").Methods("GET").HandlerFunc(pos_api.GetUserInvoices)
+	}
 
 	router.NotFoundHandler = http.HandlerFunc(dumpRequest)
 

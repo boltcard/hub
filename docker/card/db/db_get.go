@@ -56,7 +56,7 @@ func Db_get_total_paid_receipts(card_id int) int {
 
 	// get card id
 	sqlStatement := `SELECT IFNULL(SUM(amount_sats),0) FROM card_receipts` +
-		` WHERE paid_flag='Y' and card_id=$1;`
+		` WHERE paid_flag='Y' AND card_id=$1;`
 	row := db.QueryRow(sqlStatement, card_id)
 	util.Check(err)
 
@@ -69,7 +69,7 @@ func Db_get_total_paid_receipts(card_id int) int {
 	return value
 }
 
-func Db_get_total_payments(card_id int) int {
+func Db_get_total_paid_payments(card_id int) int {
 
 	// open a database connection
 	db, err := Open()
@@ -78,7 +78,7 @@ func Db_get_total_payments(card_id int) int {
 
 	// get card id
 	sqlStatement := `SELECT IFNULL(SUM(amount_sats),0) FROM card_payments` +
-		` WHERE card_id=$1;`
+		` WHERE paid_flag='Y' AND card_id=$1;`
 	row := db.QueryRow(sqlStatement, card_id)
 	util.Check(err)
 

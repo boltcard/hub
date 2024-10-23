@@ -38,7 +38,7 @@ func random_hex() string {
 func CreateCard(w http.ResponseWriter, r *http.Request) {
 	param_a := r.URL.Query().Get("a")
 
-	log.Info("CreateCard a=" + param_a)
+	log.Info("CreateCard")
 
 	if param_a == "" {
 		w.Write([]byte(`{"status": "ERROR", "reason": "a value not found"}`))

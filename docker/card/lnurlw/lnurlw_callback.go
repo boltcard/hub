@@ -43,12 +43,9 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 	bolt11, _ := decodepay.Decodepay(param_pr)
 	amountSats := int(bolt11.MSatoshi / 1000)
 
-	// save the lightning invoice
-	db.Db_add_card_payment(cardId, amountSats, param_pr)
-
 	// check the card balance
 	total_paid_receipts := db.Db_get_total_paid_receipts(cardId)
-	total_paid_payments := db.Db_get_total_payments(cardId)
+	total_paid_payments := db.Db_get_total_paid_payments(cardId)
 	total_card_balance := total_paid_receipts - total_paid_payments
 
 	// log.Info("amountSats ", amountSats)
@@ -58,6 +55,9 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 		w.Write([]byte(`{"status": "ERROR", "reason": "card balance lower than payment amount"}`))
 		return
 	}
+
+	// save the lightning invoice
+	db.Db_add_card_payment(cardId, amountSats, param_pr)
 
 	// TODO: check the payment rules (max withdrawal amount, max per day, PIN number)
 
