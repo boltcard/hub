@@ -33,12 +33,6 @@ cd hub
 - the domain name could also be a custom domain or subdomain where you have set an A record to your VPS external IP
 - the GroundControl URL could be `gc.boltcardwallet.com` or blank if you are not using the norifications feature
 
-for a very low resource machine it may be useful to pull the docker images from docker hub
-```bash
-docker compose --profile phoenix pull
-docker compose --profile phoenix up
-```
-
 for a full local build from source and start with phoenix
 ```bash
 docker compose build
@@ -51,12 +45,12 @@ docker compose build
 docker compose up
 ```
 
-- set an admin password and access the admin web interface at https://domain-name/admin/
+- access the admin web interface at https://domain-name/admin/ to set a password and login
 
 ### to keep the service running
 
 ```bash
-docker compose up -d
+docker compose --profile phoenix up -d
 docker compose logs
 ```
 
