@@ -7,62 +7,57 @@
     <title>Bolt Card Hub - Phoenix Edition</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <script type="module">
-        function e(t) {
-            var r = document.getElementById("log-msgs");
-            r.appendChild(document.createTextNode(t)), r.appendChild(document.createElement("br"))
+        function e(r) {
+            var n = document.getElementById("log-msgs");
+            n.appendChild(document.createTextNode(r)), n.appendChild(document.createElement("br"))
         }
         e("start");
-        document.addEventListener("DOMContentLoaded", async () => {
-            try {
-                var t = "NDEFReader" in window;
-                t ? (e("WaitingForCard"), s()) : e("NFCNotSupported")
-            } catch (r) {
-                e(r)
-            }
-        });
-        async function s() {
+        var d = document.getElementById("scanButton"),
+            i = "NDEFReader" in window;
+        i ? (e("NFC is supported"), d.disabled = !1) : (e("NFC is not supported"), d.disabled = !0);
+        d.addEventListener("click", async () => {
             e("Starting scan");
             try {
-                const t = new NDEFReader;
-                await t.scan(), e("Scan started"), t.addEventListener("readingerror", () => {
+                const r = new NDEFReader;
+                await r.scan(), e("Scan started"), r.addEventListener("readingerror", () => {
                     e("Cannot read data from the NFC tag.")
-                }), t.addEventListener("reading", ({
-                    message: r,
-                    serialNumber: a
+                }), r.addEventListener("reading", ({
+                    message: n,
+                    serialNumber: c
                 }) => {
-                    e("*** card read ***"), e(`Serial Number: ${a}`), e(`Records: (${r.records.length})`);
-                    const i = new TextDecoder,
-                        c = r.records[0];
-                    if (r.records.length === 0) {
+                    e("*** card read ***"), e(`Serial Number: ${c}`), e(`Records: (${n.records.length})`);
+                    const u = new TextDecoder,
+                        s = n.records[0];
+                    if (n.records.length === 0) {
                         e("Card is blank");
                         return
                     }
-                    const d = new TextDecoder("utf-8").decode(c.data);
-                    e("decoded: " + d);
-                    const n = new XMLHttpRequest;
-                    n.open("GET", "/balance-ajax?card=" + encodeURIComponent(d), !0), n.onload = function() {
-                        if (n.status === 200) try {
-                            const o = JSON.parse(n.responseText);
+                    const o = new TextDecoder("utf-8").decode(s.data);
+                    e("decoded: " + o);
+                    const t = new XMLHttpRequest;
+                    t.open("GET", "/balance-ajax?card=" + encodeURIComponent(o), !0), t.onload = function() {
+                        if (t.status === 200) try {
+                            const a = JSON.parse(t.responseText);
                             e(`
                         <h3>Data Loaded Successfully:</h3>
-                        <pre>${JSON.stringify(o,null,2)}</pre>
+                        <pre>${JSON.stringify(a,null,2)}</pre>
                     `)
                         } catch {
                             e("Error parsing JSON response")
-                        } else e(`Error: ${n.status} - ${n.statusText}`)
-                    }, n.onerror = function() {
+                        } else e(`Error: ${t.status} - ${t.statusText}`)
+                    }, t.onerror = function() {
                         e("Network Error occurred")
-                    }, n.send()
+                    }, t.send()
                 })
-            } catch (t) {
-                e("error: " + t)
+            } catch (r) {
+                e("error: " + r)
             }
-        }
+        });
     </script>
 </head>
 
 <body>
-    <h3>Card Balance</h3>
+    <h3>Card Balance</h3> <button id="scanButton">Scan Card</button>
     <div id="log-msgs"></div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
