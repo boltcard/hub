@@ -1,15 +1,16 @@
 # Bolt Card Hub - Phoenix Edition
 
-Alpha version - early code for further development
-
 ## features
 
-- host accounts for the Bolt Card Wallet app
-- lightweight
+- host bolt cards
+- web admin
+- low resource use
+
+## technologies
+
 - Phoenix Server
 - SQLite database
 - docker deployment
-- web admin
 
 ## install
 
@@ -38,7 +39,7 @@ for a full local build from source and start with phoenix
 docker compose --profile phoenix up
 ```
 
-for development, it may be useful (faster development iteration) to start without phoenix
+for development, it may be useful to start without phoenix for faster development iteration
 ```bash
 docker compose down
 docker compose build
@@ -69,7 +70,6 @@ $ sudo sqlite3 /var/lib/docker/volumes/hub_card_data/_data/cards.db
 sqlite> .tables
 sqlite> .schema settings
 sqlite> select * from settings;
-
 ```
 
 ### to delete the database
