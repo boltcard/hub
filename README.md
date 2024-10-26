@@ -67,9 +67,15 @@ sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat ; echo
 ```bash
 $ sudo apt install sqlite3
 $ sudo sqlite3 /var/lib/docker/volumes/hub_card_data/_data/cards.db
+```
+
+### misc SQLite
+```bash
 sqlite> .tables
 sqlite> .schema settings
 sqlite> select * from settings;
+sqlite> update settings set value='' where name='admin_password_hash';
+sqlite> .quit
 ```
 
 ### to delete the database

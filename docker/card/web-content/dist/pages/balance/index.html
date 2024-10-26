@@ -13,8 +13,8 @@
         }
         e("start");
         var d = document.getElementById("scanButton"),
-            i = "NDEFReader" in window;
-        i ? (e("NFC is supported"), d.disabled = !1) : (e("NFC is not supported"), d.disabled = !0);
+            s = "NDEFReader" in window;
+        s ? (e("NFC is supported"), d.disabled = !1) : (e("NFC is not supported"), d.disabled = !0);
         d.addEventListener("click", async () => {
             e("Starting scan");
             try {
@@ -23,25 +23,21 @@
                     e("Cannot read data from the NFC tag.")
                 }), r.addEventListener("reading", ({
                     message: n,
-                    serialNumber: c
+                    serialNumber: i
                 }) => {
-                    e("*** card read ***"), e(`Serial Number: ${c}`), e(`Records: (${n.records.length})`);
+                    e("*** card read ***");
                     const u = new TextDecoder,
-                        s = n.records[0];
+                        o = n.records[0];
                     if (n.records.length === 0) {
-                        e("Card is blank");
+                        e("Read did not complete or card is blank");
                         return
                     }
-                    const o = new TextDecoder("utf-8").decode(s.data);
-                    e("decoded: " + o);
-                    const t = new XMLHttpRequest;
-                    t.open("GET", "/balance-ajax?card=" + encodeURIComponent(o), !0), t.onload = function() {
+                    const c = new TextDecoder("utf-8").decode(o.data),
+                        t = new XMLHttpRequest;
+                    t.open("GET", "/balance-ajax?card=" + encodeURIComponent(c), !0), t.onload = function() {
                         if (t.status === 200) try {
                             const a = JSON.parse(t.responseText);
-                            e(`
-                        <h3>Data Loaded Successfully:</h3>
-                        <pre>${JSON.stringify(a,null,2)}</pre>
-                    `)
+                            e(`ajax:${JSON.stringify(a,null,2)}`)
                         } catch {
                             e("Error parsing JSON response")
                         } else e(`Error: ${t.status} - ${t.statusText}`)
