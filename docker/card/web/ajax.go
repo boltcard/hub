@@ -94,7 +94,7 @@ func BalanceAjaxPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//log.Info("resJson string ", string(resJson))
+	log.Info("resJson string ", string(resJson))
 
 	w.Write(resJson)
 }
