@@ -46,6 +46,10 @@ func BalanceAjaxPage(w http.ResponseWriter, r *http.Request) {
 
 	cardMatch, cardId, cardCounter := lnurlw.Find_card(p, c)
 
+	if !cardMatch {
+		return
+	}
+
 	// check counter is incremented
 	cardLastCounter := db.Db_get_card_counter(cardId)
 	if cardCounter <= cardLastCounter {
@@ -55,12 +59,13 @@ func BalanceAjaxPage(w http.ResponseWriter, r *http.Request) {
 	// store new counter value
 	db.Db_set_card_counter(cardId, cardCounter)
 
-	var resObj BalanceResponse
-	resObj.AvailableBalance = -1
+	// check the card balance
+	total_paid_receipts := db.Db_get_total_paid_receipts(cardId)
+	total_paid_payments := db.Db_get_total_paid_payments(cardId)
+	total_card_balance := total_paid_receipts - total_paid_payments
 
-	if cardMatch {
-		resObj.AvailableBalance = cardId
-	}
+	var resObj BalanceResponse
+	resObj.AvailableBalance = total_card_balance
 
 	resJson, err := json.Marshal(resObj)
 	if err != nil {
