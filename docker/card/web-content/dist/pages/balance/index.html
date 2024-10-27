@@ -7,46 +7,114 @@
     <title>Bolt Card Hub - Phoenix Edition</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     <script type="module">
-        function e(r) {
-            var n = document.getElementById("log-msgs");
-            n.appendChild(document.createTextNode(r)), n.appendChild(document.createElement("br"))
+        Date.prototype.toShortFormat = function() {
+            const e = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+                o = this.getDate(),
+                l = this.getMonth(),
+                i = e[l],
+                c = this.getFullYear();
+            return `${o} ${i} ${c}`
+        };
+
+        function d(e) {
+            var o = document.getElementById("log-msgs");
+            o.appendChild(document.createTextNode(e)), o.appendChild(document.createElement("br"))
         }
-        e("start");
-        var d = document.getElementById("scanButton"),
-            s = "NDEFReader" in window;
-        s ? (e("NFC is supported"), d.disabled = !1) : (e("NFC is not supported"), d.disabled = !0);
-        d.addEventListener("click", async () => {
-            e("Starting scan");
+
+        function E() {
+            for (var e = document.getElementById("results"); e.firstChild;) e.removeChild(e.firstChild)
+        }
+
+        function N(e) {
+            E();
+            var o = document.getElementById("results"),
+                l = document.createElement("Label");
+            l.style.fontSize = "large", l.style.fontWeight = "bold";
+            var i = e.AvailableBalance;
+            l.textContent = "Balance = " + i.toString() + " sats", o.appendChild(l);
+            var c = document.createElement("table");
+            c.classList.add("table"), c.classList.add("table-bordered");
+            var p = document.createElement("thead"),
+                a = document.createElement("tr"),
+                t = document.createElement("th"),
+                n = document.createTextNode("Date");
+            t.appendChild(n), a.appendChild(t);
+            var t = document.createElement("th"),
+                n = document.createTextNode("Time");
+            t.appendChild(n), a.appendChild(t);
+            var t = document.createElement("th"),
+                n = document.createTextNode("Amount");
+            t.appendChild(n), a.appendChild(t);
+            var t = document.createElement("th"),
+                n = document.createTextNode("Fees");
+            t.appendChild(n), a.appendChild(t);
+            var t = document.createElement("th"),
+                n = document.createTextNode("Balance");
+            t.appendChild(n), a.appendChild(t), c.appendChild(p), p.appendChild(a);
+            var h = document.createElement("tbody"),
+                m = 0;
+            for (let s in e.txs) {
+                var v = e.txs[s].AmountSats,
+                    x = e.txs[s].FeeSats,
+                    C = new Date(e.txs[s].Timestamp * 1e3);
+                m = m + v + x;
+                var a = document.createElement("tr"),
+                    n = document.createTextNode(C.toShortFormat()),
+                    r = document.createElement("td");
+                r.appendChild(n), a.appendChild(r);
+                var n = document.createTextNode(C.toLocaleTimeString()),
+                    r = document.createElement("td");
+                r.appendChild(n), a.appendChild(r);
+                var n = document.createTextNode(v.toString()),
+                    r = document.createElement("td");
+                r.appendChild(n), a.appendChild(r);
+                var n = document.createTextNode(x.toString()),
+                    r = document.createElement("td");
+                r.appendChild(n), a.appendChild(r);
+                var n = document.createTextNode(m.toString()),
+                    r = document.createElement("td");
+                r.appendChild(n), a.appendChild(r), h.appendChild(a), console.log(e.txs[s].AmountSats), console.log(e.txs[s].FeeSats), console.log(e.txs[s].Timestamp);
+                var g = new Date(e.txs[s].Timestamp * 1e3);
+                console.log(g)
+            }
+            c.appendChild(h), o.appendChild(c)
+        }
+        d("start");
+        var u = document.getElementById("scanButton"),
+            b = "NDEFReader" in window;
+        b ? (d("NFC is supported"), u.disabled = !1) : (d("NFC is not supported"), u.disabled = !0);
+        u.addEventListener("click", async () => {
+            d("Starting scan");
             try {
-                const r = new NDEFReader;
-                await r.scan(), e("Scan started"), r.addEventListener("readingerror", () => {
-                    e("Cannot read data from the NFC tag.")
-                }), r.addEventListener("reading", ({
-                    message: n,
-                    serialNumber: i
+                const e = new NDEFReader;
+                await e.scan(), d("Scan started"), e.addEventListener("readingerror", () => {
+                    d("Cannot read data from the NFC tag.")
+                }), e.addEventListener("reading", ({
+                    message: o,
+                    serialNumber: l
                 }) => {
-                    e("*** card read ***");
-                    const u = new TextDecoder,
-                        o = n.records[0];
-                    if (n.records.length === 0) {
-                        e("Read did not complete or card is blank");
+                    d("*** card read ***"), E();
+                    const i = new TextDecoder,
+                        c = o.records[0];
+                    if (o.records.length === 0) {
+                        d("Read did not complete or card is blank");
                         return
                     }
-                    const c = new TextDecoder("utf-8").decode(o.data),
+                    const a = new TextDecoder("utf-8").decode(c.data),
                         t = new XMLHttpRequest;
-                    t.open("GET", "/balance-ajax?card=" + encodeURIComponent(c), !0), t.onload = function() {
+                    t.open("GET", "/balance-ajax?card=" + encodeURIComponent(a), !0), t.onload = function() {
                         if (t.status === 200) try {
-                            const a = JSON.parse(t.responseText);
-                            e(`ajax:${JSON.stringify(a,null,2)}`)
+                            const n = JSON.parse(t.responseText);
+                            N(n)
                         } catch {
-                            e("Error parsing JSON response")
-                        } else e(`Error: ${t.status} - ${t.statusText}`)
+                            d("Error parsing JSON response")
+                        } else d(`Error: ${t.status} - ${t.statusText}`)
                     }, t.onerror = function() {
-                        e("Network Error occurred")
+                        d("Network Error occurred")
                     }, t.send()
                 })
-            } catch (r) {
-                e("error: " + r)
+            } catch (e) {
+                d("error: " + e)
             }
         });
     </script>
@@ -54,6 +122,9 @@
 
 <body>
     <h3>Card Balance</h3> <button id="scanButton">Scan Card</button>
+    <h3>Results</h3>
+    <div id="results"></div>
+    <h3>Log</h3>
     <div id="log-msgs"></div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
