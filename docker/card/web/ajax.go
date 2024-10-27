@@ -10,8 +10,15 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+type Tx struct {
+	AmountSats int `json:"AmountSats"`
+	FeeSats    int `json:"FeeSats"`
+	Timestamp  int `json:"Timestamp"`
+}
+
 type BalanceResponse struct {
 	AvailableBalance int    `json:"AvailableBalance"`
+	Txs              []Tx   `json:"txs"`
 	Error            string `json:"error,omitempty"`
 }
 
@@ -59,13 +66,28 @@ func BalanceAjaxPage(w http.ResponseWriter, r *http.Request) {
 	// store new counter value
 	db.Db_set_card_counter(cardId, cardCounter)
 
+	// build response
+	var resObj BalanceResponse
+
 	// check the card balance
 	total_paid_receipts := db.Db_get_total_paid_receipts(cardId)
 	total_paid_payments := db.Db_get_total_paid_payments(cardId)
 	total_card_balance := total_paid_receipts - total_paid_payments
-
-	var resObj BalanceResponse
 	resObj.AvailableBalance = total_card_balance
+
+	// get card transactions
+	cardTxs := db.Db_select_card_txs(cardId)
+	for _, cardTx := range cardTxs {
+		// log.Info("cardId=" + strconv.Itoa(cardId) +
+		// 	", AmountSats=" + strconv.Itoa(cardTx.AmountSats) +
+		// 	", FeeSats=" + strconv.Itoa(cardTx.FeeSats) +
+		// 	", Timestamp=" + strconv.Itoa(cardTx.Timestamp))
+		var cardTxAppend Tx
+		cardTxAppend.AmountSats = cardTx.AmountSats
+		cardTxAppend.FeeSats = 0
+		cardTxAppend.Timestamp = cardTx.Timestamp
+		resObj.Txs = append(resObj.Txs, cardTxAppend)
+	}
 
 	resJson, err := json.Marshal(resObj)
 	if err != nil {

@@ -63,7 +63,6 @@ func Db_select_card_receipts(card_id int) (result CardReceipts) {
 	util.Check(err)
 	defer db.Close()
 
-	// get card id
 	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
 		` r_hash_hex, amount_sats, paid_flag,` +
 		` timestamp, expire_time` +
@@ -111,7 +110,6 @@ func Db_select_card_payments(card_id int) (result CardPayments) {
 	util.Check(err)
 	defer db.Close()
 
-	// get card id
 	sqlStatement := `SELECT card_payment_id,` +
 		` amount_sats, paid_flag,` +
 		` timestamp, expire_time` +
@@ -136,4 +134,47 @@ func Db_select_card_payments(card_id int) (result CardPayments) {
 	}
 
 	return cardPayments
+}
+
+type CardTx struct {
+	Timestamp  int
+	AmountSats int
+	FeeSats    int
+}
+
+type CardTxs []CardTx
+
+func Db_select_card_txs(card_id int) (result CardTxs) {
+	var cardTxs CardTxs
+
+	// open a database connection
+	db, err := Open()
+	util.Check(err)
+	defer db.Close()
+
+	// get card txs
+	sqlStatement := `SELECT timestamp, amount_sats, 0` +
+		` FROM card_receipts` +
+		` WHERE card_receipts.card_id = $1 AND card_receipts.paid_flag='Y'` +
+		` UNION` +
+		` SELECT timestamp, -amount_sats, 0` + // -feesats
+		` FROM card_payments` +
+		` WHERE card_payments.card_id = $1 AND card_payments.paid_flag='Y'` +
+		` ORDER BY timestamp;`
+	rows, err := db.Query(sqlStatement, card_id)
+	util.Check(err)
+
+	for rows.Next() {
+		var cardTx CardTx
+
+		err := rows.Scan(
+			&cardTx.Timestamp,
+			&cardTx.AmountSats,
+			&cardTx.FeeSats)
+		util.Check(err)
+
+		cardTxs = append(cardTxs, cardTx)
+	}
+
+	return cardTxs
 }
