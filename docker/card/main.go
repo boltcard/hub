@@ -50,7 +50,8 @@ func main() {
 
 	var router = mux.NewRouter()
 
-	// QR code for connecting BoltCardWallet
+	// status monitoring
+	router.Path("/").Methods("HEAD").HandlerFunc(web.HomePage)
 
 	// web pages
 	router.Path("/").Methods("GET").HandlerFunc(web.HomePage)

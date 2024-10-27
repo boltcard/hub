@@ -4,6 +4,10 @@ import (
 	"net/http"
 )
 
+func StatusResponse(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
 func HomePage(w http.ResponseWriter, r *http.Request) {
 	// TODO: return QR code for BOLT 12 Offer
 
