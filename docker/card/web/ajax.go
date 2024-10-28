@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strconv"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -65,6 +66,8 @@ func BalanceAjaxPage(w http.ResponseWriter, r *http.Request) {
 
 	// store new counter value
 	db.Db_set_card_counter(cardId, cardCounter)
+
+	log.Info("card_id = " + strconv.Itoa(cardId))
 
 	// build response
 	var resObj BalanceResponse

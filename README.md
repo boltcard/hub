@@ -53,7 +53,7 @@ docker compose up
 
 ```bash
 docker compose --profile phoenix up -d
-docker compose logs
+docker compose logs -f
 ```
 
 ### to get the phoenix server seed words
