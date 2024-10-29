@@ -31,8 +31,8 @@ type AddInvoiceResponse struct {
 func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	log.Info("pos_api AddInvoice request received")
 
-	reqToken := r.Header.Get("Authorization")
-	log.Info("auth token : ", reqToken)
+	// reqToken := r.Header.Get("Authorization")
+	// log.Info("auth token : ", reqToken)
 
 	// get details from request body
 

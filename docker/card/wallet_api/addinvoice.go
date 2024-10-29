@@ -44,7 +44,7 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	splitToken := strings.Split(authToken, "Bearer ")
 	accessToken := splitToken[1]
 
-	log.Info("access_token ", accessToken)
+	// log.Info("access_token ", accessToken)
 
 	// get details from request body
 
