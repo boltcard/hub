@@ -52,7 +52,7 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 	// log.Info("total_card_balance ", total_card_balance)
 
 	if amountSats > total_card_balance {
-		w.Write([]byte(`{"status": "ERROR", "reason": "card balance lower than payment amount"}`))
+		w.Write([]byte(`{"status": "ERROR", "reason": "Insufficient funds"}`))
 		return
 	}
 
