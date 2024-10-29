@@ -6,8 +6,8 @@ require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1
 	github.com/go-ini/ini v1.67.0
 	github.com/gorilla/mux v1.8.1
-	github.com/gorilla/websocket v1.5.0
-	github.com/mattn/go-sqlite3 v1.14.22
+	github.com/gorilla/websocket v1.5.3
+	github.com/mattn/go-sqlite3 v1.14.24
 	github.com/nbd-wtf/ln-decodepay v1.12.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
