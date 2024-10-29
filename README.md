@@ -14,11 +14,12 @@
 
 ## install
 
-- provision an m.1s VM on [lunanode](https://www.lunanode.com/?r=9026) using the `Debian 12 64-bit` template  
+- provision an m.1s VPS on [lunanode](https://www.lunanode.com/?r=9026) using the `Debian 12 64-bit` template  
   ($3.50 per month in June 2024, they accept bitcoin and are lighting enabled for payments)
 - log in to the machine using SSH (Linux) or Putty (Windows)
 - [install docker](https://docs.docker.com/engine/install/debian/)
 - [enable managing docker as a non root user](https://docs.docker.com/engine/install/linux-postinstall/)
+- initialise the system as below, entering your domain which could be hub.yourdomain.com with an A record pointing to the VPS
 
 ```bash
 docker volume create phoenix_data
@@ -30,16 +31,15 @@ cd hub
 ./docker_init.sh
 ```
 
-- the domain name could be `your Hostname from the lunanode VM rDNS tab`
-- the domain name could also be a custom domain or subdomain where you have set an A record to your VPS external IP
+- for a full local build from source and start with phoenix
 
-for a full local build from source and start with phoenix
 ```bash
 docker compose --profile phoenix build
 docker compose --profile phoenix up
 ```
 
-for development, it may be useful to start without phoenix for faster development iteration
+- for development, it may be useful to start without phoenix for faster development iteration
+
 ```bash
 docker compose down
 docker compose build
@@ -65,8 +65,8 @@ sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat ; echo
 ### to access the database
 
 ```bash
-$ sudo apt install sqlite3
-$ sudo sqlite3 /var/lib/docker/volumes/hub_card_data/_data/cards.db
+sudo apt install sqlite3
+sudo sqlite3 /var/lib/docker/volumes/hub_card_data/_data/cards.db
 ```
 
 ### misc SQLite
@@ -90,7 +90,3 @@ sudo rm /var/lib/docker/volumes/hub_card_data/_data/cards.db
 docker system df
 docker system prune
 ```
-
-## notes
-
-- consider debian-12.6 or alpine-3.14 instead of ubuntu-22.04 to save disk space for docker images
