@@ -12,7 +12,6 @@ func Db_insert_card(key0 string, key1 string, k2 string, key3 string, key4 strin
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// insert a new card record
 	sqlStatement := `INSERT INTO cards (key0_auth, key1_enc,` +

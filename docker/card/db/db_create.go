@@ -105,3 +105,19 @@ func create_card_receipts_table(db *sql.DB) {
 		return
 	}
 }
+
+func update_schema_1(db *sql.DB) {
+
+	sqlStmt := `
+		BEGIN TRANSACTION;
+		ALTER TABLE card_payments ADD COLUMN fee_sats INTEGER NOT NULL DEFAULT 0;
+		ALTER TABLE card_receipts ADD COLUMN fee_sats INTEGER NOT NULL DEFAULT 0;
+		UPDATE settings SET value='2' WHERE name='schema_version_number';
+		COMMIT TRANSACTION;
+	`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("%q : %s\n", err, sqlStmt)
+		return
+	}
+}

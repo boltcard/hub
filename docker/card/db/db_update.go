@@ -11,7 +11,6 @@ func Db_update_tokens(initial_refresh_token string, new_refresh_token string, ac
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// update card record
 	sqlStatement := `UPDATE cards SET access_token = $1, refresh_token = $2` +
@@ -29,7 +28,6 @@ func Db_update_card_with_pin(card_id int, tx_limit_sats int, day_limit_sats int,
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// update card record
 	sqlStatement := `UPDATE cards SET tx_limit_sats = $1, day_limit_sats = $2, pin_enable = $3, pin_number = $4, pin_limit_sats = $5, lnurlw_enable = $6` +
@@ -43,7 +41,6 @@ func Db_update_card_without_pin(card_id int, tx_limit_sats int, day_limit_sats i
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// update card record
 	sqlStatement := `UPDATE cards SET tx_limit_sats = $1, day_limit_sats = $2, pin_enable = $3, pin_limit_sats = $4, lnurlw_enable = $5` +

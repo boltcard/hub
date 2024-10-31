@@ -11,7 +11,6 @@ func Db_add_card_receipt(card_id int, payment_request string, payment_hash_hex s
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// insert a new record
 	sqlStatement := `INSERT INTO card_receipts (card_id, ln_invoice, r_hash_hex, amount_sats,` +
@@ -26,12 +25,12 @@ func Db_add_card_receipt(card_id int, payment_request string, payment_hash_hex s
 	}
 }
 
+// func Db_add_card_payment(card_id int, amount_sat int, invoice string) (card_payment_id int) {
 func Db_add_card_payment(card_id int, amount_sat int, invoice string) {
 
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// insert a new record
 	sqlStatement := `INSERT INTO card_payments (card_id, amount_sats, ln_invoice,` +
@@ -44,4 +43,11 @@ func Db_add_card_payment(card_id int, amount_sat int, invoice string) {
 	if count != 1 {
 		panic("expected one record to be inserted")
 	}
+
+	// card_payment_id_int64, err2 := res.LastInsertId()
+	// util.Check(err2)
+
+	// //TODO:card_payment_id_int64 to card_payment_id
+
+	// return card_payment_id
 }

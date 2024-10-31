@@ -72,6 +72,9 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 
 	log.Info("payInvoiceResponse ", payInvoiceResponse)
 
+	// update card_payment record to add payInvoiceResponse.RoutingFeeSat
+	//TODO
+
 	// send response
 	jsonData := []byte(`{"status":"OK"}`)
 	w.Write(jsonData)

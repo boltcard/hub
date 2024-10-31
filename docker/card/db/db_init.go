@@ -12,7 +12,6 @@ func Db_init() {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// ensure tables exist (idempotent)
 	create_settings_table(db)
@@ -20,7 +19,18 @@ func Db_init() {
 	create_card_payments_table(db)
 	create_card_receipts_table(db)
 
-	// update schema for new versions
+	// update schema and track with a 'schema_version_number' setting
+	if Db_get_setting("schema_version_number") == "" {
+		Db_set_setting("schema_version_number", "1")
+	}
+
+	if Db_get_setting("schema_version_number") == "1" {
+		update_schema_1(db)
+	}
+
+	if Db_get_setting("schema_version_number") != "2" {
+		panic("database schema is not as expected")
+	}
 
 	// set initial data
 	if Db_get_setting("host_domain") == "" {

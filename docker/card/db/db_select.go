@@ -24,7 +24,6 @@ func Db_select_card_receipts_with_limit(card_id int, limit int) (result CardRece
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// get card id
 	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
@@ -61,7 +60,6 @@ func Db_select_card_receipts(card_id int) (result CardReceipts) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
 		` r_hash_hex, amount_sats, paid_flag,` +
@@ -108,7 +106,6 @@ func Db_select_card_payments(card_id int) (result CardPayments) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	sqlStatement := `SELECT card_payment_id,` +
 		` amount_sats, paid_flag,` +
@@ -152,7 +149,6 @@ func Db_select_card_txs(card_id int) (result CardTxs) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
 
 	// get card txs
 	sqlStatement := `SELECT card_receipt_id, 0, timestamp, amount_sats, 0` +
