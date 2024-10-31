@@ -48,3 +48,15 @@ func Db_update_card_without_pin(card_id int, tx_limit_sats int, day_limit_sats i
 	_, err = db.Exec(sqlStatement, tx_limit_sats, day_limit_sats, pin_enable, pin_limit_sats, lnurlw_enable, card_id)
 	util.Check(err)
 }
+
+func Db_update_card_payment(card_payment_id int, fee_sats int) {
+
+	// open a database connection
+	db, err := Open()
+	util.Check(err)
+
+	// update card record
+	sqlStatement := `UPDATE card_payments SET fee_sats = $1 WHERE card_payment_id = $2;`
+	_, err = db.Exec(sqlStatement, fee_sats, card_payment_id)
+	util.Check(err)
+}

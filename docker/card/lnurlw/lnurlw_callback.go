@@ -57,7 +57,8 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// save the lightning invoice
-	db.Db_add_card_payment(cardId, amountSats, param_pr)
+	card_payment_id := db.Db_add_card_payment(cardId, amountSats, param_pr)
+	// log.Info("card_payment_id ", card_payment_id)
 
 	// TODO: check the payment rules (max withdrawal amount, max per day, PIN number)
 
@@ -73,7 +74,7 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 	log.Info("payInvoiceResponse ", payInvoiceResponse)
 
 	// update card_payment record to add payInvoiceResponse.RoutingFeeSat
-	//TODO
+	db.Db_update_card_payment(card_payment_id, payInvoiceResponse.RoutingFeeSat)
 
 	// send response
 	jsonData := []byte(`{"status":"OK"}`)
