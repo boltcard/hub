@@ -87,7 +87,7 @@ func BalanceAjaxPage(w http.ResponseWriter, r *http.Request) {
 		// 	", Timestamp=" + strconv.Itoa(cardTx.Timestamp))
 		var cardTxAppend Tx
 		cardTxAppend.AmountSats = cardTx.AmountSats
-		cardTxAppend.FeeSats = 0
+		cardTxAppend.FeeSats = cardTx.FeeSats
 		cardTxAppend.Timestamp = cardTx.Timestamp
 		resObj.Txs = append(resObj.Txs, cardTxAppend)
 	}

@@ -151,11 +151,11 @@ func Db_select_card_txs(card_id int) (result CardTxs) {
 	util.Check(err)
 
 	// get card txs
-	sqlStatement := `SELECT card_receipt_id, 0, timestamp, amount_sats, 0` +
+	sqlStatement := `SELECT card_receipt_id, 0, timestamp, amount_sats, fee_sats` +
 		` FROM card_receipts` +
 		` WHERE card_receipts.card_id = $1 AND card_receipts.paid_flag='Y'` +
 		` UNION` +
-		` SELECT 0, card_payment_id, timestamp, -amount_sats, 0` + // -feesats
+		` SELECT 0, card_payment_id, timestamp, -amount_sats, -fee_sats` +
 		` FROM card_payments` +
 		` WHERE card_payments.card_id = $1 AND card_payments.paid_flag='Y'` +
 		` ORDER BY timestamp;`

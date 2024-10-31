@@ -73,7 +73,7 @@ func Db_get_total_paid_payments(card_id int) int {
 	util.Check(err)
 
 	// get card id
-	sqlStatement := `SELECT IFNULL(SUM(amount_sats),0) FROM card_payments` +
+	sqlStatement := `SELECT IFNULL(SUM(amount_sats) + SUM(fee_sats),0) FROM card_payments` +
 		` WHERE paid_flag='Y' AND card_id=$1;`
 	row := db.QueryRow(sqlStatement, card_id)
 	util.Check(err)
