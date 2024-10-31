@@ -9,123 +9,110 @@
     <script type="module">
         Date.prototype.toShortFormat = function() {
             const e = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-                o = this.getDate(),
-                l = this.getMonth(),
-                i = e[l],
-                c = this.getFullYear();
-            return `${o} ${i} ${c}`
+                d = this.getDate(),
+                c = this.getMonth(),
+                m = e[c],
+                s = this.getFullYear();
+            return `${d} ${m} ${s}`
         };
 
-        function d(e) {
-            var o = document.getElementById("log-msgs");
-            o.appendChild(document.createTextNode(e)), o.appendChild(document.createElement("br"))
-        }
-
-        function E() {
+        function u() {
             for (var e = document.getElementById("results"); e.firstChild;) e.removeChild(e.firstChild)
         }
 
-        function N(e) {
-            E();
-            var o = document.getElementById("results"),
-                l = document.createElement("Label");
-            l.style.fontSize = "large", l.style.fontWeight = "bold";
-            var i = e.AvailableBalance;
-            l.textContent = "Balance = " + i.toString() + " sats", o.appendChild(l);
-            var c = document.createElement("table");
-            c.classList.add("table"), c.classList.add("table-bordered");
+        function g(e) {
+            u();
+            var d = document.getElementById("results"),
+                c = document.createElement("Label");
+            c.classList.add("display-5");
+            var m = e.AvailableBalance;
+            c.textContent = "Balance is " + m.toString() + " sats", d.appendChild(c);
+            var s = document.createElement("hr");
+            d.appendChild(s);
+            var l = document.createElement("table");
+            l.classList.add("table"), l.classList.add("table-bordered");
             var p = document.createElement("thead"),
-                a = document.createElement("tr"),
-                t = document.createElement("th"),
+                t = document.createElement("tr"),
+                a = document.createElement("th"),
                 n = document.createTextNode("Date");
-            t.appendChild(n), a.appendChild(t);
-            var t = document.createElement("th"),
+            a.appendChild(n), t.appendChild(a);
+            var a = document.createElement("th"),
                 n = document.createTextNode("Time");
-            t.appendChild(n), a.appendChild(t);
-            var t = document.createElement("th"),
+            a.appendChild(n), t.appendChild(a);
+            var a = document.createElement("th"),
                 n = document.createTextNode("Amount");
-            t.appendChild(n), a.appendChild(t);
-            var t = document.createElement("th"),
+            a.appendChild(n), t.appendChild(a);
+            var a = document.createElement("th"),
                 n = document.createTextNode("Fees");
-            t.appendChild(n), a.appendChild(t);
-            var t = document.createElement("th"),
-                n = document.createTextNode("Balance");
-            t.appendChild(n), a.appendChild(t), c.appendChild(p), p.appendChild(a);
-            var h = document.createElement("tbody"),
-                m = 0;
-            for (let s in e.txs) {
-                var v = e.txs[s].AmountSats,
-                    x = e.txs[s].FeeSats,
-                    C = new Date(e.txs[s].Timestamp * 1e3);
-                m = m + v + x;
-                var a = document.createElement("tr"),
-                    n = document.createTextNode(C.toShortFormat()),
+            a.appendChild(n), t.appendChild(a), l.appendChild(p), p.appendChild(t);
+            var h = document.createElement("tbody");
+            for (let o in e.txs) {
+                var x = e.txs[o].AmountSats,
+                    C = e.txs[o].FeeSats,
+                    v = new Date(e.txs[o].Timestamp * 1e3),
+                    t = document.createElement("tr"),
+                    n = document.createTextNode(v.toShortFormat()),
                     r = document.createElement("td");
-                r.appendChild(n), a.appendChild(r);
-                var n = document.createTextNode(C.toLocaleTimeString()),
+                r.appendChild(n), t.appendChild(r);
+                var n = document.createTextNode(v.toLocaleTimeString()),
                     r = document.createElement("td");
-                r.appendChild(n), a.appendChild(r);
-                var n = document.createTextNode(v.toString()),
-                    r = document.createElement("td");
-                r.appendChild(n), a.appendChild(r);
+                r.appendChild(n), t.appendChild(r);
                 var n = document.createTextNode(x.toString()),
                     r = document.createElement("td");
-                r.appendChild(n), a.appendChild(r);
-                var n = document.createTextNode(m.toString()),
+                r.appendChild(n), t.appendChild(r);
+                var n = document.createTextNode(C.toString()),
                     r = document.createElement("td");
-                r.appendChild(n), a.appendChild(r), h.appendChild(a), console.log(e.txs[s].AmountSats), console.log(e.txs[s].FeeSats), console.log(e.txs[s].Timestamp);
-                var g = new Date(e.txs[s].Timestamp * 1e3);
-                console.log(g)
+                r.appendChild(n), t.appendChild(r), h.appendChild(t), console.log(e.txs[o].AmountSats), console.log(e.txs[o].FeeSats), console.log(e.txs[o].Timestamp);
+                var E = new Date(e.txs[o].Timestamp * 1e3);
+                console.log(E)
             }
-            c.appendChild(h), o.appendChild(c)
+            l.appendChild(h), d.appendChild(l)
         }
-        d("start");
-        var u = document.getElementById("scanButton"),
-            b = "NDEFReader" in window;
-        b ? (d("NFC is supported"), u.disabled = !1) : (d("NFC is not supported"), u.disabled = !0);
-        u.addEventListener("click", async () => {
-            d("Starting scan");
+        var i = document.getElementById("scanButton"),
+            N = "NDEFReader" in window;
+        N ? i.disabled = !1 : (i.textContent = "NFC is not supported", i.disabled = !0);
+        i.addEventListener("click", async () => {
+            i.textContent = "Scanning", u();
             try {
                 const e = new NDEFReader;
-                await e.scan(), d("Scan started"), e.addEventListener("readingerror", () => {
-                    d("Cannot read data from the NFC tag.")
-                }), e.addEventListener("reading", ({
-                    message: o,
-                    serialNumber: l
+                await e.scan(), e.addEventListener("readingerror", () => {}), e.addEventListener("reading", ({
+                    message: d,
+                    serialNumber: c
                 }) => {
-                    d("*** card read ***"), E();
-                    const i = new TextDecoder,
-                        c = o.records[0];
-                    if (o.records.length === 0) {
-                        d("Read did not complete or card is blank");
+                    u();
+                    const m = new TextDecoder,
+                        s = d.records[0];
+                    if (d.records.length === 0) {
                         return
                     }
-                    const a = new TextDecoder("utf-8").decode(c.data),
+                    const p = new TextDecoder("utf-8").decode(s.data),
                         t = new XMLHttpRequest;
-                    t.open("GET", "/balance-ajax?card=" + encodeURIComponent(a), !0), t.onload = function() {
+                    t.open("GET", "/balance-ajax?card=" + encodeURIComponent(p), !0), t.onload = function() {
                         if (t.status === 200) try {
-                            const n = JSON.parse(t.responseText);
-                            N(n)
-                        } catch {
-                            d("Error parsing JSON response")
-                        } else d(`Error: ${t.status} - ${t.statusText}`)
-                    }, t.onerror = function() {
-                        d("Network Error occurred")
-                    }, t.send()
+                            const a = JSON.parse(t.responseText);
+                            g(a)
+                        } catch {} else `${t.status}${t.statusText}`
+                    }, t.onerror = function() {}, t.send()
                 })
-            } catch (e) {
-                d("error: " + e)
-            }
+            } catch {}
         });
     </script>
 </head>
 
 <body>
-    <h3>Card Balance</h3> <button id="scanButton">Scan Card</button>
-    <h3>Results</h3>
-    <div id="results"></div>
-    <h3>Log</h3>
-    <div id="log-msgs"></div>
+    <div class="container-fluid">
+        <div class="row">
+            <div class="d-grid gap-2 col-6 mx-auto p-4"> <button id="scanButton" class="btn btn-primary btn-lg">Scan Card</button> </div>
+        </div>
+        <div class="row">
+            <div id="results"></div>
+        </div>
+        <div class="row">
+            <blockquote class="blockquote">
+                <div id="log-msgs"></div>
+            </blockquote>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
 
