@@ -88,6 +88,7 @@ sudo rm /var/lib/docker/volumes/hub_card_data/_data/cards.db
 ### after updating - check that docker disk use is reasonable
 
 ```bash
+df -h
 docker system df
 docker system prune
 ```
