@@ -20,7 +20,19 @@ func Open() (*sql.DB, error) {
 		return db, err
 	}
 
-	db.SetMaxOpenConns(1)
+	/*
+		stats := db.Stats()
+		log.Info(
+			"db Idle=" + strconv.Itoa(stats.Idle) +
+				", InUse=" + strconv.Itoa(stats.InUse) +
+				", WaitCount=" + strconv.Itoa(int(stats.WaitCount)) +
+				", WaitDuration (ms)=" + strconv.Itoa(int(stats.WaitDuration.Milliseconds())))
+
+		// https://www.alexedwards.net/blog/configuring-sqldb
+		db.SetMaxOpenConns(10)
+		db.SetMaxIdleConns(10)
+		db.SetConnMaxLifetime(1 * time.Hour)
+	*/
 
 	return db, nil
 }
