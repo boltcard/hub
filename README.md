@@ -15,7 +15,7 @@
 ## install
 
 - provision an m.1s VPS on [lunanode](https://www.lunanode.com/?r=9026) using the `Debian 12 64-bit` template  
-  ($3.50 per month in June 2024, they accept bitcoin and are lighting enabled for payments)
+  ($3.50 per month, LunaNode accept bitcoin and are lighting enabled for payments)
 - log in to the machine using SSH (Linux) or Putty (Windows)
 - [install docker](https://docs.docker.com/engine/install/debian/)
 - [enable managing docker as a non root user](https://docs.docker.com/engine/install/linux-postinstall/)
