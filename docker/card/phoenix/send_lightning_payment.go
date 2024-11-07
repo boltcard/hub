@@ -26,6 +26,7 @@ type SendLightningPaymentResponse struct {
 	PaymentId          string `json:"paymentId"`
 	PaymentHash        string `json:"paymentHash"`
 	PaymentPreimage    string `json:"paymentPreimage"`
+	Reason             string `json:"reason"`
 }
 
 func SendLightningPayment(sendLightningPaymentRequest SendLightningPaymentRequest) (SendLightningPaymentResponse, error) {
@@ -37,7 +38,7 @@ func SendLightningPayment(sendLightningPaymentRequest SendLightningPaymentReques
 
 	hp := cfg.Section("").Key("http-password").String()
 
-	client := http.Client{Timeout: 5 * time.Second}
+	client := http.Client{Timeout: 30 * time.Second}
 
 	formBody := url.Values{
 		"amountSat": []string{sendLightningPaymentRequest.AmountSat},
@@ -57,6 +58,8 @@ func SendLightningPayment(sendLightningPaymentRequest SendLightningPaymentReques
 
 	res, err := client.Do(req)
 	util.Check(err)
+	// with 5s http.Client timeout, this error happened
+	// Post "http://phoenix:9740/payinvoice": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
 
 	defer res.Body.Close()
 

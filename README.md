@@ -85,6 +85,13 @@ sqlite> .quit
 sudo rm /var/lib/docker/volumes/hub_card_data/_data/cards.db
 ```
 
+### to get a shell on a container
+
+```bash
+docker container ps
+docker exec -it ContainerId sh
+```
+
 ### after updating - check that docker disk use is reasonable
 
 ```bash

@@ -5,12 +5,14 @@ import (
 	"card/build"
 	"card/db"
 	"card/lnurlw"
+	"card/phoenix"
 	"card/pos_api"
 	"card/wallet_api"
 	"card/web"
 	"card/web/admin"
 	"net/http"
 	"net/http/httputil"
+	"os"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -27,6 +29,29 @@ func dumpRequest(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func processArgs(arg []string) {
+	// for testing in a similar way to how it is called from LnurlwCallback
+	// ./app SendLightningPayment Invoice AmountSat
+	if arg[0] == "SendLightningPayment" {
+		var payInvoiceRequest phoenix.SendLightningPaymentRequest
+
+		payInvoiceRequest.Invoice = arg[1]
+		payInvoiceRequest.AmountSat = arg[2]
+
+		payInvoiceResponse, err := phoenix.SendLightningPayment(payInvoiceRequest)
+
+		if err != nil {
+			log.Error("Phoenix error response", err)
+		}
+
+		log.Info("payInvoiceResponse ", payInvoiceResponse)
+
+		if payInvoiceResponse.PaymentId == "" {
+			log.Info("no PaymentId so unpaid")
+		}
+	}
+}
+
 func main() {
 
 	log.Info("build version : ", build.Version)
@@ -36,6 +61,13 @@ func main() {
 	if db.Db_get_setting("log_level") == "debug" {
 		log.SetLevel(log.DebugLevel)
 		log.Info("log level : debug")
+	}
+
+	// check for command line arguments
+	args := os.Args[1:] // without program name
+	if len(args) > 0 {
+		processArgs(args)
+		return
 	}
 
 	log.Info("card service started")
