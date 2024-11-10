@@ -65,13 +65,16 @@ func LnurlwRequest(w http.ResponseWriter, req *http.Request) {
 	// prepare response
 	var resObj LnurlwResponse
 
+	minWithdrawableSats, _ := strconv.Atoi(db.Db_get_setting("min_withdraw_sats"))
+	maxWithdrawableSats, _ := strconv.Atoi(db.Db_get_setting("max_withdraw_sats"))
+
 	resObj.Tag = "withdrawRequest"
 	resObj.Callback = "https://" + db.Db_get_setting("host_domain") + "/cb"
 	resObj.Lnurlwk1 = lnurlwK1
-	resObj.MinWithdrawable, _ = strconv.Atoi(db.Db_get_setting("min_withdraw_sats"))
-	resObj.MaxWithdrawable, _ = strconv.Atoi(db.Db_get_setting("max_withdraw_sats"))
+	resObj.MinWithdrawable = minWithdrawableSats * 1000
+	resObj.MaxWithdrawable = maxWithdrawableSats * 1000
 
-	log.Info("card response sent")
+	log.Info("sending response for lnurlw request")
 
 	// send response
 	resJson, err := json.Marshal(resObj)

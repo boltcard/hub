@@ -49,7 +49,7 @@ func Db_update_card_without_pin(card_id int, tx_limit_sats int, day_limit_sats i
 	util.Check(err)
 }
 
-func Db_update_card_payment(card_payment_id int, fee_sats int) {
+func Db_update_card_payment_fee(card_payment_id int, fee_sats int) {
 
 	// open a database connection
 	db, err := Open()
@@ -58,5 +58,17 @@ func Db_update_card_payment(card_payment_id int, fee_sats int) {
 	// update card record
 	sqlStatement := `UPDATE card_payments SET fee_sats = $1 WHERE card_payment_id = $2;`
 	_, err = db.Exec(sqlStatement, fee_sats, card_payment_id)
+	util.Check(err)
+}
+
+func Db_update_card_payment_unpaid(card_payment_id int) {
+
+	// open a database connection
+	db, err := Open()
+	util.Check(err)
+
+	// update card record
+	sqlStatement := `UPDATE card_payments SET paid = 'N' WHERE card_payment_id = $2;`
+	_, err = db.Exec(sqlStatement, card_payment_id)
 	util.Check(err)
 }

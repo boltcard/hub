@@ -38,21 +38,32 @@ func processArgs(arg []string) {
 		payInvoiceRequest.Invoice = arg[1]
 		payInvoiceRequest.AmountSat = arg[2]
 
-		payInvoiceResponse, err := phoenix.SendLightningPayment(payInvoiceRequest)
+		payInvoiceResponse, payInvoiceResult, err := phoenix.SendLightningPayment(payInvoiceRequest)
 
 		if err != nil {
-			log.Error("Phoenix error response", err)
+			log.Error("Phoenix error response : ", err)
 		}
 
-		log.Info("payInvoiceResponse ", payInvoiceResponse)
+		log.Info("payInvoiceResult : ", payInvoiceResult)
+		log.Info("payInvoiceResponse : ", payInvoiceResponse)
 
 		if payInvoiceResponse.PaymentId == "" {
-			log.Info("no PaymentId so unpaid")
+			log.Info("no PaymentId") // might still be paid if timeout
 		}
+
+		// TODO:
+		// get-outgoing-payment PaymentId
+		// and store in the database
 	}
 }
 
 func main() {
+
+	Formatter := new(log.TextFormatter)
+	Formatter.TimestampFormat = "2006-01-02 15:04:05.999 -0700"
+	Formatter.FullTimestamp = true
+	Formatter.ForceColors = true
+	log.SetFormatter(Formatter)
 
 	log.Info("build version : ", build.Version)
 	log.Info("build date : ", build.Date)

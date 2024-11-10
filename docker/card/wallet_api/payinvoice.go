@@ -99,10 +99,14 @@ func PayInvoice(w http.ResponseWriter, r *http.Request) {
 	payInvoiceRequest.Invoice = reqObj.Invoice
 	payInvoiceRequest.AmountSat = strconv.Itoa(reqObj.Amount)
 
-	payInvoiceResponse, err := phoenix.SendLightningPayment(payInvoiceRequest)
-	util.Check(err)
+	payInvoiceResponse, payInvoiceResult, err := phoenix.SendLightningPayment(payInvoiceRequest)
 
-	log.Info("payInvoiceResponse ", payInvoiceResponse)
+	if err != nil {
+		log.Error("Phoenix error response : ", err)
+	}
+
+	log.Info("payInvoiceResult : ", payInvoiceResult)
+	log.Info("payInvoiceResponse : ", payInvoiceResponse)
 
 	// create the response
 

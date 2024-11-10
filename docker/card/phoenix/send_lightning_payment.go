@@ -1,13 +1,12 @@
 package phoenix
 
 import (
-	"card/util"
-
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,15 +28,32 @@ type SendLightningPaymentResponse struct {
 	Reason             string `json:"reason"`
 }
 
-func SendLightningPayment(sendLightningPaymentRequest SendLightningPaymentRequest) (SendLightningPaymentResponse, error) {
+// TODO:
+// log timeout (should never happen but we need a timeout)
+// log success
+// log fail with reason in database
+// add these records to the admin dashboard
+func SendLightningPayment(
+	sendLightningPaymentRequest SendLightningPaymentRequest,
+) (
+	SendLightningPaymentResponse,
+	string,
+	error,
+) {
 
 	var sendLightningPaymentResponse SendLightningPaymentResponse
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-	util.Check(err)
+	if err != nil {
+		log.Warning(err)
+		return sendLightningPaymentResponse,
+			"no_config",
+			errors.New("could not load config for SendLightningPayment")
+	}
 
 	hp := cfg.Section("").Key("http-password").String()
 
+	//client := http.Client{Timeout: 10 * time.Millisecond} // HACK: to fail with client timeout
 	client := http.Client{Timeout: 30 * time.Second}
 
 	formBody := url.Values{
@@ -49,7 +65,10 @@ func SendLightningPayment(sendLightningPaymentRequest SendLightningPaymentReques
 
 	req, err := http.NewRequest(http.MethodPost, "http://phoenix:9740/payinvoice", reader)
 	if err != nil {
-		log.Fatal(err)
+		log.Warning(err)
+		return sendLightningPaymentResponse,
+			"failed_request_creation",
+			errors.New("could not create request for SendLightningPayment")
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
@@ -57,24 +76,44 @@ func SendLightningPayment(sendLightningPaymentRequest SendLightningPaymentReques
 	req.SetBasicAuth("", hp)
 
 	res, err := client.Do(req)
-	util.Check(err)
-	// with 5s http.Client timeout, this error happened
-	// Post "http://phoenix:9740/payinvoice": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+	if err != nil {
+		// we never want this error as the payment may or may not be made
+		// so we assume it has been made - it needs to be manually corrected
+		// and the cause of the error established (probably timeout too short)
+		// i.e.
+		//  ERRO[0000] Post "http://phoenix:9740/payinvoice": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+		log.Error(err)
+		return sendLightningPaymentResponse,
+			"phoenix_api_timeout",
+			errors.New("no response to SendLightningPayment")
+	}
 
 	defer res.Body.Close()
 
 	resBody, err := io.ReadAll(res.Body)
-	util.Check(err)
+	if err != nil {
+		log.Error(err)
+		return sendLightningPaymentResponse,
+			"failed_read_response",
+			errors.New("could not read response to SendLightningPayment")
+	}
 
 	if res.StatusCode != 200 {
-		log.Warning("SendLightningPayment StatusCode ", res.StatusCode)
-		return sendLightningPaymentResponse, errors.New("failed API call to Phoenix SendLightningPayment")
+		log.Warning("SendLightningPayment StatusCode ", res.StatusCode, "ResBody", string(resBody))
+		return sendLightningPaymentResponse,
+			"fail_status_code",
+			errors.New("fail status code returned for SendLightningPayment " + strconv.Itoa(res.StatusCode))
 	}
 
 	log.Info(string(resBody))
 
 	err = json.Unmarshal(resBody, &sendLightningPaymentResponse)
-	util.Check(err)
+	if err != nil {
+		log.Error(err)
+		return sendLightningPaymentResponse,
+			"failed_decode_response",
+			errors.New("could not decode response to SendLightningPayment")
+	}
 
-	return sendLightningPaymentResponse, nil
+	return sendLightningPaymentResponse, "no_error", nil
 }
