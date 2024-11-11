@@ -44,7 +44,7 @@ func LnurlwRequest(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	log.Info("card found")
+	log.Info("card_id = " + strconv.Itoa(cardId))
 
 	// check counter is incremented
 	cardLastCounter := db.Db_get_card_counter(cardId)
