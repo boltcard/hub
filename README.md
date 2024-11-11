@@ -20,7 +20,7 @@
 - [install docker](https://docs.docker.com/engine/install/debian/)
 - [enable managing docker as a non root user](https://docs.docker.com/engine/install/linux-postinstall/)
 - initialise the system as below
-- enter hub.yourdomain.com and set up an A record pointing to the VPS
+- enter `hub.yourdomain.com` and set up an A record pointing to the VPS
 
 ```bash
 docker volume create phoenix_data
