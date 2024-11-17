@@ -45,7 +45,7 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 	// detect gift card use, i.e. sweeping of max_withdraw_sats amount
 	maxWithdrawableSats, _ := strconv.Atoi(db.Db_get_setting("max_withdraw_sats"))
 	if amountSats == maxWithdrawableSats {
-		w.Write([]byte(`{"status": "ERROR", "reason": "gift card use detected - this is a bolt card - use a Point of Sale"}`))
+		w.Write([]byte(`{"status": "ERROR", "reason": "this is a bolt card - use a Point of Sale"}`))
 		return
 	}
 
@@ -54,12 +54,25 @@ func LnurlwCallback(w http.ResponseWriter, req *http.Request) {
 	total_paid_payments := db.Db_get_total_paid_payments(cardId)
 	total_card_balance := total_paid_receipts - total_paid_payments
 
-	// log.Info("amountSats ", amountSats)
-	// log.Info("total_card_balance ", total_card_balance)
+	// calculate the max network fee possible
+	// https://phoenix.acinq.co/faq#what-are-the-fees
+	// Sending via Lightning 0.4 % + 4 sat
+
+	max_network_fee_sats := 4 + amountSats*4/1000
+
+	log.Info("amountSats ", amountSats)
+	log.Info("max_network_fee_sats ", max_network_fee_sats)
+	log.Info("total_card_balance ", total_card_balance)
 
 	if amountSats > total_card_balance {
 		log.Info("amountSats > total_card_balance : insufficient funds on card")
 		w.Write([]byte(`{"status": "ERROR", "reason": "Insufficient funds"}`))
+		return
+	}
+
+	if amountSats+max_network_fee_sats > total_card_balance {
+		log.Info("amountSats + max_network_fee_sats > total_card_balance : insufficient funds on card")
+		w.Write([]byte(`{"status": "ERROR", "reason": "Insufficient funds with network fees"}`))
 		return
 	}
 
