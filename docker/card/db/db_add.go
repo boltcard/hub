@@ -11,6 +11,7 @@ func Db_add_card_receipt(card_id int, payment_request string, payment_hash_hex s
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// insert a new record
 	sqlStatement := `INSERT INTO card_receipts (card_id, ln_invoice, r_hash_hex, amount_sats,` +
@@ -30,6 +31,7 @@ func Db_add_card_payment(card_id int, amount_sat int, invoice string) (card_paym
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// insert a new record
 	sqlStatement := `INSERT INTO card_payments (card_id, amount_sats, ln_invoice,` +

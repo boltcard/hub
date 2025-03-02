@@ -12,6 +12,7 @@ func Db_init() {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// ensure tables exist (idempotent)
 	create_settings_table(db)

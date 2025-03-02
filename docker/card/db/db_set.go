@@ -12,6 +12,7 @@ func Db_set_setting(name string, value string) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// ensure no records with the same name exist
 	sqlStatement := `DELETE FROM settings` +
@@ -38,6 +39,7 @@ func Db_set_tokens(login string, password string,
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// update card record
 	sqlStatement := `UPDATE cards` +
@@ -60,6 +62,7 @@ func Db_set_receipt_paid(paymentHash string) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// update card record
 	sqlStatement := `UPDATE card_receipts SET paid_flag = 'Y'` +
@@ -73,6 +76,7 @@ func Db_set_card_keys(card_id int, key0 string, key1 string, k2 string, key3 str
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// update card record
 	sqlStatement := `UPDATE cards SET key0_auth = $1, key1_enc = $2,` +
@@ -87,6 +91,7 @@ func Db_set_card_counter(cardId int, counter_value uint32) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// update card record
 	sqlStatement := `UPDATE cards SET last_counter_value = $1` +
@@ -100,6 +105,7 @@ func Db_set_lnurlw_k1(cardId int, lnurlwK1 string, lnurlwK1Expiry int64) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
+	defer db.Close()
 
 	// update card record
 	sqlStatement := `UPDATE cards SET lnurlw_k1 = $1, lnurlw_k1_expiry = $2` +
