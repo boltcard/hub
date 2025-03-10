@@ -182,3 +182,37 @@ func Db_select_card_txs(card_id int) (result CardTxs) {
 
 	return cardTxs
 }
+
+type CardIdOnly struct {
+	CardId int
+}
+
+type Cards []CardIdOnly
+
+func Db_select_cards_with_group_tag(group_tag string) (result Cards) {
+	var cards Cards
+
+	// open a database connection
+	db, err := Open()
+	util.Check(err)
+	defer db.Close()
+
+	// get card id
+	sqlStatement := `SELECT card_id` +
+		` FROM cards` +
+		` WHERE group_tag = $1;`
+	rows, err := db.Query(sqlStatement, group_tag)
+	util.Check(err)
+
+	for rows.Next() {
+		var cardIdOnly CardIdOnly
+
+		err := rows.Scan(
+			&cardIdOnly.CardId)
+		util.Check(err)
+
+		cards = append(cards, cardIdOnly)
+	}
+
+	return cards
+}
