@@ -121,3 +121,18 @@ func update_schema_1(db *sql.DB) {
 		return
 	}
 }
+
+func update_schema_2(db *sql.DB) {
+
+	sqlStmt := `
+		BEGIN TRANSACTION;
+		ALTER TABLE cards ADD COLUMN group_tag TEXT NOT NULL DEFAULT '';
+		UPDATE settings SET value='3' WHERE name='schema_version_number';
+		COMMIT TRANSACTION;
+	`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("%q : %s\n", err, sqlStmt)
+		return
+	}
+}

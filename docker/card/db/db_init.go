@@ -29,7 +29,11 @@ func Db_init() {
 		update_schema_1(db)
 	}
 
-	if Db_get_setting("schema_version_number") != "2" {
+	if Db_get_setting("schema_version_number") == "2" {
+		update_schema_2(db)
+	}
+
+	if Db_get_setting("schema_version_number") != "3" {
 		panic("database schema is not as expected")
 	}
 
