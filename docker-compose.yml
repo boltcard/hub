@@ -1,6 +1,5 @@
 services:
   phoenix:
-    profiles: ["phoenix"] # only runs with 'phoenix' profile
     container_name: phoenix
     build: ./docker/phoenix
     image: boltcard/phoenix:latest
@@ -16,8 +15,8 @@ services:
         - path: ./docker/card
           action: rebuild
     image: boltcard/card:latest
-#    depends_on:
-#      - phoenix
+    depends_on:
+      - phoenix
     volumes:
       - type: volume
         source: phoenix_data

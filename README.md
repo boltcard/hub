@@ -32,17 +32,9 @@ cd hub
 ./docker_init.sh
 ```
 
-- for a full local build from source and start with phoenix
+- for a full local build from source and start
 
 ```bash
-docker compose --profile phoenix build
-docker compose --profile phoenix up
-```
-
-- for development, it may be useful to start without phoenix for faster development iteration
-
-```bash
-docker compose down
 docker compose build
 docker compose up
 ```
@@ -53,7 +45,7 @@ docker compose up
 ### to keep the service running
 
 ```bash
-docker compose --profile phoenix up -d
+docker compose up -d
 docker compose logs -f
 ```
 

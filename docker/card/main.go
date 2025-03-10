@@ -5,7 +5,6 @@ import (
 	"card/build"
 	"card/db"
 	"card/lnurlw"
-	"card/phoenix"
 	"card/pos_api"
 	"card/wallet_api"
 	"card/web"
@@ -26,34 +25,6 @@ func dumpRequest(w http.ResponseWriter, req *http.Request) {
 		log.Info(err.Error())
 	} else {
 		log.Info(string(requestDump))
-	}
-}
-
-func processArgs(arg []string) {
-	// for testing in a similar way to how it is called from LnurlwCallback
-	// ./app SendLightningPayment Invoice AmountSat
-	if arg[0] == "SendLightningPayment" {
-		var payInvoiceRequest phoenix.SendLightningPaymentRequest
-
-		payInvoiceRequest.Invoice = arg[1]
-		payInvoiceRequest.AmountSat = arg[2]
-
-		payInvoiceResponse, payInvoiceResult, err := phoenix.SendLightningPayment(payInvoiceRequest)
-
-		if err != nil {
-			log.Error("Phoenix error response : ", err)
-		}
-
-		log.Info("payInvoiceResult : ", payInvoiceResult)
-		log.Info("payInvoiceResponse : ", payInvoiceResponse)
-
-		if payInvoiceResponse.PaymentId == "" {
-			log.Info("no PaymentId") // might still be paid if timeout
-		}
-
-		// TODO:
-		// get-outgoing-payment PaymentId
-		// and store in the database
 	}
 }
 
