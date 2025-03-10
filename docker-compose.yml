@@ -11,6 +11,10 @@ services:
   card:
     container_name: card
     build: ./docker/card
+    develop:
+      watch:
+        - path: ./docker/card
+          action: rebuild
     image: boltcard/card:latest
 #    depends_on:
 #      - phoenix
