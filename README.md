@@ -39,6 +39,19 @@ docker compose build
 docker compose up
 ```
 
+- optional stage to remove a Caddy note about buffer sizes and maybe increase performance
+
+```
+sudo nano /etc/sysctl.d/60-custom-network.conf
+```
+
+- add these lines and reboot
+
+```
+net.core.rmem_max=7500000
+net.core.wmem_max=7500000
+```
+
 - wait for a few minutes for the TLS certificate to be installed
 - access the admin web interface at https://domain-name/admin/ to set a password and login
 

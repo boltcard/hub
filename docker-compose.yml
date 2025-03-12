@@ -3,6 +3,7 @@ services:
     container_name: phoenix
     build: ./docker/phoenix
     image: boltcard/phoenix:latest
+    restart: unless-stopped
     volumes:
       - phoenix_data:/root/.phoenix
     networks:
@@ -17,6 +18,7 @@ services:
     image: boltcard/card:latest
     depends_on:
       - phoenix
+    restart: unless-stopped
     volumes:
       - type: volume
         source: phoenix_data

@@ -10,7 +10,6 @@ import (
 	"card/web"
 	"card/web/admin"
 	"net/http"
-	"net/http/httputil"
 	"os"
 	"time"
 
@@ -18,15 +17,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
-
-func dumpRequest(w http.ResponseWriter, req *http.Request) {
-	requestDump, err := httputil.DumpRequest(req, true)
-	if err != nil {
-		log.Info(err.Error())
-	} else {
-		log.Info(string(requestDump))
-	}
-}
 
 func main() {
 
@@ -118,7 +108,7 @@ func main() {
 		router.Path("/pos/getuserinvoices").Methods("GET").HandlerFunc(pos_api.GetUserInvoices)
 	}
 
-	router.NotFoundHandler = http.HandlerFunc(dumpRequest)
+	//router.NotFoundHandler = http.HandlerFunc(dumpRequest)
 
 	server := &http.Server{
 		Handler:      router,
