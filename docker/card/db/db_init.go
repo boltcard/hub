@@ -26,14 +26,18 @@ func Db_init() {
 	}
 
 	if Db_get_setting("schema_version_number") == "1" {
-		update_schema_1(db)
+		update_schema_1(db) // fee_sats columns
 	}
 
 	if Db_get_setting("schema_version_number") == "2" {
-		update_schema_2(db)
+		update_schema_2(db) // group_tag column
 	}
 
-	if Db_get_setting("schema_version_number") != "3" {
+	if Db_get_setting("schema_version_number") == "3" {
+		update_schema_3(db) // program_cards table
+	}
+
+	if Db_get_setting("schema_version_number") != "4" {
 		panic("database schema is not as expected")
 	}
 

@@ -4,7 +4,10 @@ import (
 	"card/db"
 	"card/phoenix"
 	"card/util"
+	"fmt"
+	"net/url"
 	"strconv"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
@@ -19,6 +22,8 @@ func processArgs(args []string) {
 		clearCardBalancesForTag(args)
 	case "SetupCardAmountForTag":
 		setupCardAmountForTag(args)
+	case "ProgramBatch":
+		programBatch(args)
 	default:
 		log.Warn("CLI command not found : " + args[0])
 	}
@@ -60,6 +65,7 @@ func setupCardAmountForTag(args []string) {
 
 	if len(args) < 3 {
 		log.Warn("needs group_tag & amount_sats")
+		return
 	}
 
 	groupTag := args[1]
@@ -95,6 +101,7 @@ func clearCardBalancesForTag(args []string) {
 
 	if len(args) < 2 {
 		log.Warn("needs group_tag")
+		return
 	}
 
 	groupTag := args[1]
@@ -136,4 +143,56 @@ func getBalance(cardId int) int {
 	}
 
 	return balance
+}
+
+// used for programming up cards in a batch
+//
+// $ docker container ps
+// $ docker exec -it ContainerId sh
+// # ./app ProgramBatch group_tag max_group_num initial_balance expiry_hours
+func programBatch(args []string) {
+
+	if len(args) != 5 {
+		log.Warn("needs ProgramBatch group_tag max_group_num initial_balance expiry_hours")
+		return
+	}
+
+	groupTag := args[1]
+	maxGroupNum := args[2]
+	initialBalance := args[3]
+	expiryHours := args[4]
+
+	log.Info("len(args) :", len(args))
+	log.Info("groupTag :", groupTag)
+	log.Info("maxGroupNum :", maxGroupNum)
+	log.Info("initialBalance :", initialBalance)
+	log.Info("expiryHours :", expiryHours)
+
+	// insert program_cards record
+
+	secret := util.Random_hex()
+
+	maxGroupNumInt, err := strconv.Atoi(maxGroupNum)
+	util.Check(err)
+
+	initialBalanceInt, err := strconv.Atoi(initialBalance)
+	util.Check(err)
+
+	expiryHoursInt, err := strconv.Atoi(expiryHours)
+	util.Check(err)
+
+	createTime := int(time.Now().Unix())
+	expireTime := createTime + expiryHoursInt*60*60
+
+	db.Db_insert_program_cards(secret, groupTag, maxGroupNumInt, initialBalanceInt, createTime, expireTime)
+
+	programUrl := `https://` + db.Db_get_setting("host_domain") + `/batch?s=` + secret
+	boltcardLink := "boltcard://program?url=" + url.QueryEscape(programUrl)
+
+	// show a boltcard://program?url=https%3A%2F%2F... link
+
+	fmt.Println("make this link into a QR code for URL")
+	fmt.Println("e.g. with https://www.qrcode-monkey.com/#url")
+	fmt.Println("and scan with your mobile device : ")
+	fmt.Println(boltcardLink)
 }

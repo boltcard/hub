@@ -18,6 +18,7 @@ services:
     image: boltcard/card:latest
     depends_on:
       - phoenix
+      - webproxy
     restart: unless-stopped
     volumes:
       - type: volume

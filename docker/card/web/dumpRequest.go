@@ -7,7 +7,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func dumpRequest(w http.ResponseWriter, req *http.Request) {
+func DumpRequest(w http.ResponseWriter, req *http.Request) {
 	requestDump, err := httputil.DumpRequest(req, true)
 	if err != nil {
 		log.Info(err.Error())

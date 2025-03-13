@@ -3,3 +3,4 @@ Caddyfile
 docker/card/Dockerfile
 # test builds
 docker/card/card
+notes

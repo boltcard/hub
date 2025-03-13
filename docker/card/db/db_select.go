@@ -216,3 +216,49 @@ func Db_select_cards_with_group_tag(group_tag string) (result Cards) {
 
 	return cards
 }
+
+// program_card_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+// secret TEXT NOT NULL DEFAULT '',
+// group_tag TEXT NOT NULL DEFAULT '',
+// max_group_num INTEGER NOT NULL DEFAULT 0,
+// initial_balance INTEGER NOT NULL DEFAULT 0,
+// create_time INTEGER NOT NULL,
+// expire_time INTEGER NOT NULL
+
+type ProgramCard struct {
+	ProgramCardId  int
+	Secret         string
+	GroupTag       string
+	MaxGroupNum    int
+	InitialBalance int
+	CreateTime     int
+	ExpireTime     int
+}
+
+func Db_select_program_card_for_secret(secret string) (result ProgramCard) {
+	var programCard ProgramCard
+
+	// open a database connection
+	db, err := Open()
+	util.Check(err)
+	defer db.Close()
+
+	// get card id
+	sqlStatement := `SELECT secret, group_tag, max_group_num, initial_balance, create_time, expire_time` +
+		` FROM program_cards WHERE secret = $1;`
+	rows, err := db.Query(sqlStatement, secret)
+	util.Check(err)
+
+	if rows.Next() {
+		err := rows.Scan(
+			&programCard.Secret,
+			&programCard.GroupTag,
+			&programCard.MaxGroupNum,
+			&programCard.InitialBalance,
+			&programCard.CreateTime,
+			&programCard.ExpireTime)
+		util.Check(err)
+	}
+
+	return programCard
+}

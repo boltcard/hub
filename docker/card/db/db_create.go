@@ -136,3 +136,27 @@ func update_schema_2(db *sql.DB) {
 		return
 	}
 }
+
+func update_schema_3(db *sql.DB) {
+
+	sqlStmt := `
+		BEGIN TRANSACTION;
+		CREATE TABLE IF NOT EXISTS
+		program_cards (
+			program_card_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+			secret TEXT NOT NULL DEFAULT '',
+			group_tag TEXT NOT NULL DEFAULT '',
+			max_group_num INTEGER NOT NULL DEFAULT 0,
+			initial_balance INTEGER NOT NULL DEFAULT 0,
+			create_time INTEGER NOT NULL,
+			expire_time INTEGER NOT NULL
+		);
+		UPDATE settings SET value='4' WHERE name='schema_version_number';
+		COMMIT TRANSACTION;
+	`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("%q : %s\n", err, sqlStmt)
+		return
+	}
+}

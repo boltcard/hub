@@ -74,7 +74,7 @@ func main() {
 
 	// for Bolt Card Programmer app
 	router.Path("/new").Methods("GET").HandlerFunc(bcp.CreateCard)
-	//router.PathPrefix("/batch/").HandlerFunc(bcp.BatchCreateCard)  //TODO: complete this..
+	router.Path("/batch").Methods("POST").HandlerFunc(bcp.BatchCreateCard)
 
 	// Bolt Card interface (hit from PoS when a card is tapped)
 	router.Path("/ln").Methods("GET").HandlerFunc(lnurlw.LnurlwRequest)
@@ -108,7 +108,7 @@ func main() {
 		router.Path("/pos/getuserinvoices").Methods("GET").HandlerFunc(pos_api.GetUserInvoices)
 	}
 
-	//router.NotFoundHandler = http.HandlerFunc(dumpRequest)
+	// router.NotFoundHandler = http.HandlerFunc(web.DumpRequest)
 
 	server := &http.Server{
 		Handler:      router,
