@@ -104,3 +104,30 @@ df -h
 docker system df
 docker system prune
 ```
+
+### notes
+
+- to enable faster builds with current docker version (March 2025), add `export COMPOSE_BAKE=true` to your .profile
+- to persist the docker compose environment across reboots
+  - `sudo nano /etc/systemd/system/docker-compose-app.service`
+```
+[Unit]
+Description=Docker Compose Application Service
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/path/to/your/docker/compose/directory
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```
+sudo systemctl enable docker-compose-app.service
+sudo systemctl start docker-compose-app.service
+```
