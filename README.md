@@ -105,10 +105,10 @@ docker system df
 docker system prune
 ```
 
-### notes
+### docker configuration
 
 - to enable faster builds with current docker version (March 2025), add `export COMPOSE_BAKE=true` to your .profile
-- to persist the docker compose environment across reboots
+- to persist the docker compose environment across reboots for production use
 
 ```
 sudo nano /etc/systemd/system/docker-compose-app.service
