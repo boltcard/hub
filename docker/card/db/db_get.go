@@ -13,7 +13,7 @@ func Db_get_setting(name string) string {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	sqlStatement := `select value from settings where name=$1;`
 
@@ -31,7 +31,7 @@ func Db_get_card_id_from_access_token(access_token string) (card_id int) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT card_id FROM cards WHERE access_token=$1 AND wiped = 'N';`
@@ -52,7 +52,7 @@ func Db_get_total_paid_receipts(card_id int) int {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT IFNULL(SUM(amount_sats),0) FROM card_receipts` +
@@ -74,7 +74,7 @@ func Db_get_total_paid_payments(card_id int) int {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT IFNULL(SUM(amount_sats) + SUM(fee_sats),0) FROM card_payments` +
@@ -106,7 +106,7 @@ func Db_get_card_keys() CardLookups {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT card_id,` +
@@ -138,7 +138,7 @@ func Db_get_card_counter(cardId int) (counter uint32) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	sqlStatement := `SELECT last_counter_value FROM cards` +
 		` WHERE card_id=$1 AND wiped = 'N';`
@@ -159,7 +159,7 @@ func Db_get_lnurlw_k1(lnurlw_k1 string) (card_id int, lnurlw_k1_expiry uint64) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	sqlStatement := `SELECT card_id, lnurlw_k1_expiry FROM cards` +
 		` WHERE lnurlw_k1=$1 AND wiped = 'N';`
@@ -208,7 +208,7 @@ func Db_get_card(card_id int) (card *Card, err error) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	sqlStatement := `SELECT card_id, key0_auth, key1_enc, ` +
 		`key2_cmac, key3, key4, login, password, access_token, ` +

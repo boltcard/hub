@@ -10,6 +10,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// Bolt Card Programmer app section that uses this data
+// https://github.com/boltcard/bolt-nfc-android-app/blob/ad83c2bf9fe631df38111a272bba2d9ea8e0df4e/src/components/SetupBoltcard.js#L128
 type BcpBatchResponse struct {
 	Lnurlw     string `json:"LNURLW"`
 	K0         string `json:"K0"`

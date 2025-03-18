@@ -24,7 +24,7 @@ func Db_select_card_receipts_with_limit(card_id int, limit int) (result CardRece
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
@@ -61,7 +61,7 @@ func Db_select_card_receipts(card_id int) (result CardReceipts) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
 		` r_hash_hex, amount_sats, paid_flag,` +
@@ -108,7 +108,7 @@ func Db_select_card_payments(card_id int) (result CardPayments) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	sqlStatement := `SELECT card_payment_id,` +
 		` amount_sats, paid_flag,` +
@@ -152,7 +152,7 @@ func Db_select_card_txs(card_id int) (result CardTxs) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// get card txs
 	sqlStatement := `SELECT card_receipt_id, 0, timestamp, amount_sats, fee_sats` +
@@ -195,7 +195,7 @@ func Db_select_cards_with_group_tag(group_tag string) (result Cards) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT card_id` +
@@ -241,7 +241,7 @@ func Db_select_program_card_for_secret(secret string) (result ProgramCard) {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT secret, group_tag, max_group_num, initial_balance, create_time, expire_time` +

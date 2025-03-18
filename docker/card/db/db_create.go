@@ -7,6 +7,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// https://www.sqlite.org/pragma.html#pragma_journal_mode
+// "The WAL journaling mode is persistent; after being set it stays in effect across multiple database connections and after closing and reopening the database."
+func sqlite_wal(db *sql.DB) {
+
+	sqlStmt := `PRAGMA journal_mode=WAL;`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("%q : %s\n", err, sqlStmt)
+		return
+	}
+}
+
 func create_settings_table(db *sql.DB) {
 
 	sqlStmt := `

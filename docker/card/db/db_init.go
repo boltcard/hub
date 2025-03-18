@@ -12,7 +12,10 @@ func Db_init() {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
+
+	// set WAL
+	sqlite_wal(db)
 
 	// ensure tables exist (idempotent)
 	create_settings_table(db)

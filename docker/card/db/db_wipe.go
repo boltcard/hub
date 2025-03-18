@@ -19,7 +19,7 @@ func Db_wipe_card(card_id int) CardKeys {
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// update card record
 	sqlStatement := `UPDATE cards SET wiped = 'Y'` +

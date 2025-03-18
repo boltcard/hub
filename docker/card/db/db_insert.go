@@ -12,7 +12,7 @@ func Db_insert_card(key0 string, key1 string, k2 string, key3 string, key4 strin
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// insert a new card record
 	sqlStatement := `INSERT INTO cards (key0_auth, key1_enc,` +
@@ -33,7 +33,7 @@ func Db_insert_card_with_uid(key0 string, key1 string, k2 string, key3 string, k
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// insert a new card record
 	sqlStatement := `INSERT INTO cards (key0_auth, key1_enc,` +
@@ -55,7 +55,7 @@ func Db_insert_program_cards(secret string,
 	// open a database connection
 	db, err := Open()
 	util.Check(err)
-	defer db.Close()
+	defer Close(db)
 
 	// insert a new card record
 	sqlStatement := `INSERT INTO program_cards (secret, group_tag,` +
