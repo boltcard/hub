@@ -109,7 +109,11 @@ docker system prune
 
 - to enable faster builds with current docker version (March 2025), add `export COMPOSE_BAKE=true` to your .profile
 - to persist the docker compose environment across reboots
-  - `sudo nano /etc/systemd/system/docker-compose-app.service`
+
+```
+sudo nano /etc/systemd/system/docker-compose-app.service
+```
+
 ```
 [Unit]
 Description=Docker Compose Application Service
