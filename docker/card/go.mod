@@ -1,6 +1,7 @@
 module card
 
 go 1.19
+toolchain go1.24.1
 
 require (
 	github.com/aead/cmac v0.0.0-20160719120800-7af84192f0b1
@@ -11,7 +12,7 @@ require (
 	github.com/nbd-wtf/ln-decodepay v1.12.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
-	golang.org/x/text v0.21.0
+	golang.org/x/text v0.22.0
 )
 
 require (
@@ -49,10 +50,10 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/stretchr/testify v1.8.4 // indirect
-	golang.org/x/crypto v0.31.0 // indirect
+	golang.org/x/crypto v0.35.0 // indirect
 	golang.org/x/exp v0.0.0-20230315142452-642cacee5cc0 // indirect
-	golang.org/x/net v0.33.0 // indirect
-	golang.org/x/sys v0.28.0 // indirect
-	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/net v0.36.0 // indirect
+	golang.org/x/sys v0.30.0 // indirect
+	golang.org/x/term v0.29.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
