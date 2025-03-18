@@ -76,7 +76,7 @@ func GetTxs(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	//	log.Info("resJson string ", string(resJson))
 

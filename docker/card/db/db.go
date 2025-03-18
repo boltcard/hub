@@ -33,7 +33,7 @@ func Close(db *sql.DB) {
 
 	sqlStatement := `PRAGMA optimize;`
 	_, err := db.Query(sqlStatement)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	db.Close()
 }

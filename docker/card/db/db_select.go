@@ -23,7 +23,7 @@ func Db_select_card_receipts_with_limit(card_id int, limit int) (result CardRece
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// get card id
@@ -34,7 +34,7 @@ func Db_select_card_receipts_with_limit(card_id int, limit int) (result CardRece
 		` WHERE card_receipts.card_id = $1` +
 		` ORDER BY card_receipt_id DESC LIMIT $2;`
 	rows, err := db.Query(sqlStatement, card_id, limit)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	for rows.Next() {
 		var cardReceipt CardReceipt
@@ -47,7 +47,7 @@ func Db_select_card_receipts_with_limit(card_id int, limit int) (result CardRece
 			&cardReceipt.IsPaid,
 			&cardReceipt.Timestamp,
 			&cardReceipt.ExpireTime)
-		util.Check(err)
+		util.CheckAndPanic(err)
 
 		cardReceipts = append(cardReceipts, cardReceipt)
 	}
@@ -60,7 +60,7 @@ func Db_select_card_receipts(card_id int) (result CardReceipts) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
@@ -70,7 +70,7 @@ func Db_select_card_receipts(card_id int) (result CardReceipts) {
 		` WHERE card_receipts.card_id = $1` +
 		` ORDER BY card_receipt_id DESC;`
 	rows, err := db.Query(sqlStatement, card_id)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	for rows.Next() {
 		var cardReceipt CardReceipt
@@ -83,7 +83,7 @@ func Db_select_card_receipts(card_id int) (result CardReceipts) {
 			&cardReceipt.IsPaid,
 			&cardReceipt.Timestamp,
 			&cardReceipt.ExpireTime)
-		util.Check(err)
+		util.CheckAndPanic(err)
 
 		cardReceipts = append(cardReceipts, cardReceipt)
 	}
@@ -107,7 +107,7 @@ func Db_select_card_payments(card_id int) (result CardPayments) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	sqlStatement := `SELECT card_payment_id,` +
@@ -117,7 +117,7 @@ func Db_select_card_payments(card_id int) (result CardPayments) {
 		` WHERE card_payments.card_id = $1` +
 		` ORDER BY card_payment_id DESC;`
 	rows, err := db.Query(sqlStatement, card_id)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	for rows.Next() {
 		var cardPayment CardPayment
@@ -128,7 +128,7 @@ func Db_select_card_payments(card_id int) (result CardPayments) {
 			&cardPayment.IsPaid,
 			&cardPayment.Timestamp,
 			&cardPayment.ExpireTime)
-		util.Check(err)
+		util.CheckAndPanic(err)
 
 		cardPayments = append(cardPayments, cardPayment)
 	}
@@ -151,7 +151,7 @@ func Db_select_card_txs(card_id int) (result CardTxs) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// get card txs
@@ -164,7 +164,7 @@ func Db_select_card_txs(card_id int) (result CardTxs) {
 		` WHERE card_payments.card_id = $1 AND card_payments.paid_flag='Y'` +
 		` ORDER BY timestamp;`
 	rows, err := db.Query(sqlStatement, card_id)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	for rows.Next() {
 		var cardTx CardTx
@@ -175,7 +175,7 @@ func Db_select_card_txs(card_id int) (result CardTxs) {
 			&cardTx.Timestamp,
 			&cardTx.AmountSats,
 			&cardTx.FeeSats)
-		util.Check(err)
+		util.CheckAndPanic(err)
 
 		cardTxs = append(cardTxs, cardTx)
 	}
@@ -194,7 +194,7 @@ func Db_select_cards_with_group_tag(group_tag string) (result Cards) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// get card id
@@ -202,14 +202,14 @@ func Db_select_cards_with_group_tag(group_tag string) (result Cards) {
 		` FROM cards` +
 		` WHERE group_tag = $1;`
 	rows, err := db.Query(sqlStatement, group_tag)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	for rows.Next() {
 		var cardIdOnly CardIdOnly
 
 		err := rows.Scan(
 			&cardIdOnly.CardId)
-		util.Check(err)
+		util.CheckAndPanic(err)
 
 		cards = append(cards, cardIdOnly)
 	}
@@ -240,14 +240,14 @@ func Db_select_program_card_for_secret(secret string) (result ProgramCard) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT secret, group_tag, max_group_num, initial_balance, create_time, expire_time` +
 		` FROM program_cards WHERE secret = $1;`
 	rows, err := db.Query(sqlStatement, secret)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	if rows.Next() {
 		err := rows.Scan(
@@ -257,7 +257,7 @@ func Db_select_program_card_for_secret(secret string) (result ProgramCard) {
 			&programCard.InitialBalance,
 			&programCard.CreateTime,
 			&programCard.ExpireTime)
-		util.Check(err)
+		util.CheckAndPanic(err)
 	}
 
 	return programCard

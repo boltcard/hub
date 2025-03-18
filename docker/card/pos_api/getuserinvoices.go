@@ -53,7 +53,7 @@ func GetUserInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	respJson, err := json.Marshal(resp)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

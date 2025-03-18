@@ -78,7 +78,7 @@ func LnurlwRequest(w http.ResponseWriter, req *http.Request) {
 
 	// send response
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	w.Write(resJson)
 }

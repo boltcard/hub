@@ -32,7 +32,7 @@ func CreateInvoice(createInvoiceRequest CreateInvoiceRequest) (CreateInvoiceResp
 	var createInvoiceResponse CreateInvoiceResponse
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	hp := cfg.Section("").Key("http-password").String()
 
@@ -56,12 +56,12 @@ func CreateInvoice(createInvoiceRequest CreateInvoiceRequest) (CreateInvoiceResp
 	req.SetBasicAuth("", hp)
 
 	res, err := client.Do(req)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	defer res.Body.Close()
 
 	resBody, err := io.ReadAll(res.Body)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	if res.StatusCode != 200 {
 		log.Warning("CreateInvoice StatusCode ", res.StatusCode)
@@ -72,7 +72,7 @@ func CreateInvoice(createInvoiceRequest CreateInvoiceRequest) (CreateInvoiceResp
 	log.Info(string(resBody))
 
 	err = json.Unmarshal(resBody, &createInvoiceResponse)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	return createInvoiceResponse, nil
 }

@@ -74,7 +74,7 @@ func CreateCard(w http.ResponseWriter, r *http.Request) {
 	resObj.K4 = k4
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	//log.Info("resJson ", string(resJson))
 

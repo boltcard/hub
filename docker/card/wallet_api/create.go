@@ -68,7 +68,7 @@ func Create(w http.ResponseWriter, r *http.Request) {
 	resObj.Password = password
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	w.Write(resJson)
 }

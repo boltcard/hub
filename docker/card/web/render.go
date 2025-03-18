@@ -21,7 +21,7 @@ func InitTemplates() {
 	//iterate the filesystem from /web-content looking for *.html filenames
 
 	err := filepath.WalkDir("/web-content/", visit)
-	util.Check(err)
+	util.CheckAndPanic(err)
 }
 
 func visit(path string, di fs.DirEntry, err error) error {
@@ -35,7 +35,7 @@ func visit(path string, di fs.DirEntry, err error) error {
 	if strings.HasSuffix(template_name, ".html") {
 		// load into template cache
 		ts, err := template.New(template_name).ParseFiles(path)
-		util.Check(err)
+		util.CheckAndPanic(err)
 		templates[template_full_name] = ts
 	}
 
@@ -56,7 +56,7 @@ func RenderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, da
 	template_name := template_names[len(template_names)-1]
 
 	err := t.ExecuteTemplate(w, template_name, data)
-	util.Check(err)
+	util.CheckAndPanic(err)
 }
 
 // TODO: cache these in memory

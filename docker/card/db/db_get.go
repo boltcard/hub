@@ -12,7 +12,7 @@ func Db_get_setting(name string) string {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	sqlStatement := `select value from settings where name=$1;`
@@ -26,17 +26,35 @@ func Db_get_setting(name string) string {
 	return value
 }
 
+func Db_get_card_count() (count int, err error) {
+
+	// open a database connection
+	db, err := Open()
+	util.CheckAndPanic(err)
+	defer Close(db)
+
+	sqlStatement := `select count(*) from cards;`
+
+	row := db.QueryRow(sqlStatement)
+	err = row.Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+
+	return
+}
+
 func Db_get_card_id_from_access_token(access_token string) (card_id int) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT card_id FROM cards WHERE access_token=$1 AND wiped = 'N';`
 	row := db.QueryRow(sqlStatement, access_token)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	value := 0
 	err = row.Scan(&value)
@@ -51,14 +69,14 @@ func Db_get_total_paid_receipts(card_id int) int {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT IFNULL(SUM(amount_sats),0) FROM card_receipts` +
 		` WHERE paid_flag='Y' AND card_id=$1;`
 	row := db.QueryRow(sqlStatement, card_id)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	value := 0
 	err = row.Scan(&value)
@@ -73,14 +91,14 @@ func Db_get_total_paid_payments(card_id int) int {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT IFNULL(SUM(amount_sats) + SUM(fee_sats),0) FROM card_payments` +
 		` WHERE paid_flag='Y' AND card_id=$1;`
 	row := db.QueryRow(sqlStatement, card_id)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	value := 0
 	err = row.Scan(&value)
@@ -105,7 +123,7 @@ func Db_get_card_keys() CardLookups {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// get card id
@@ -115,7 +133,7 @@ func Db_get_card_keys() CardLookups {
 		` FROM cards` +
 		` WHERE wiped = 'N';`
 	rows, err := db.Query(sqlStatement)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	for rows.Next() {
 		var cardLookup CardLookup
@@ -125,7 +143,7 @@ func Db_get_card_keys() CardLookups {
 			&cardLookup.Key1,
 			&cardLookup.Key2,
 			&cardLookup.UID)
-		util.Check(err)
+		util.CheckAndPanic(err)
 
 		cardLookups = append(cardLookups, cardLookup)
 	}
@@ -137,13 +155,13 @@ func Db_get_card_counter(cardId int) (counter uint32) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	sqlStatement := `SELECT last_counter_value FROM cards` +
 		` WHERE card_id=$1 AND wiped = 'N';`
 	row := db.QueryRow(sqlStatement, cardId)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	var value uint32 = 0
 	err = row.Scan(&value)
@@ -158,13 +176,13 @@ func Db_get_lnurlw_k1(lnurlw_k1 string) (card_id int, lnurlw_k1_expiry uint64) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	sqlStatement := `SELECT card_id, lnurlw_k1_expiry FROM cards` +
 		` WHERE lnurlw_k1=$1 AND wiped = 'N';`
 	row := db.QueryRow(sqlStatement, lnurlw_k1)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	card_id = 0
 	lnurlw_k1_expiry = 0
@@ -207,7 +225,7 @@ func Db_get_card(card_id int) (card *Card, err error) {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	sqlStatement := `SELECT card_id, key0_auth, key1_enc, ` +

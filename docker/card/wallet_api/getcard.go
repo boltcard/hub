@@ -45,7 +45,7 @@ func GetCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c, err := db.Db_get_card(card_id)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	var resObj CardResponse
 
@@ -58,7 +58,7 @@ func GetCard(w http.ResponseWriter, r *http.Request) {
 	resObj.PinLimitSats = strconv.Itoa(c.Pin_limit_sats)
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("resJson ", string(resJson))
 

@@ -36,7 +36,7 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("websocket from client is open")
 
@@ -47,7 +47,7 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 	// and pass each one on to the client
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	hp := cfg.Section("").Key("http-password").String()
 
@@ -77,13 +77,13 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 				var webSocketMessage WebSocketMessage
 
 				err = json.Unmarshal(message, &webSocketMessage)
-				util.Check(err)
+				util.CheckAndPanic(err)
 
 				log.Info("webSocketMessage : ", webSocketMessage)
 
 				// look up the payment_hash to look up the description using GetIncomingPayment
 				incomingPayment, err := phoenix.GetIncomingPayment(webSocketMessage.PaymentHash)
-				util.Check(err)
+				util.CheckAndPanic(err)
 
 				log.Info("incomingPayment : ", incomingPayment)
 
@@ -117,7 +117,7 @@ func WebsocketHandler(w http.ResponseWriter, r *http.Request) {
 
 			//send message to client
 			err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
-			util.Check(err)
+			util.CheckAndPanic(err)
 
 			continue
 		}

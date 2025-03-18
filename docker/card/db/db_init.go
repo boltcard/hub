@@ -11,7 +11,7 @@ func Db_init() {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// set WAL

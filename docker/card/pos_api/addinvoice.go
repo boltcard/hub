@@ -60,7 +60,7 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 		ExternalId:  "ext_id",
 	}
 	invoice, err := phoenix.CreateInvoice(invoiceRequest)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("invoice : ", invoice)
 
@@ -76,7 +76,7 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	resp.Hash = invoice.PaymentHash
 
 	respJson, err := json.Marshal(resp)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info(string(respJson))
 

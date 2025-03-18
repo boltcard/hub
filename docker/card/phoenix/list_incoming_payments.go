@@ -32,7 +32,7 @@ func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 	var incomingPayments IncomingPayments
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	hp := cfg.Section("").Key("http-password").String()
 
@@ -52,12 +52,12 @@ func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 	req.SetBasicAuth("", hp)
 
 	res, err := client.Do(req)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	defer res.Body.Close()
 
 	resBody, err := io.ReadAll(res.Body)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	if res.StatusCode != 200 {
 		log.Warning("ListIncomingPayments StatusCode ", res.StatusCode)
@@ -67,7 +67,7 @@ func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 	//log.Info(string(resBody))
 
 	err = json.Unmarshal(resBody, &incomingPayments)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	return incomingPayments, nil
 }

@@ -18,25 +18,25 @@ func Db_wipe_card(card_id int) CardKeys {
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// update card record
 	sqlStatement := `UPDATE cards SET wiped = 'Y'` +
 		` WHERE card_id = $6;`
 	_, err = db.Exec(sqlStatement, card_id)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	// get keys
 	sqlStatement = `SELECT key0_auth, key1_enc, key2_cmac, key3, key4 FROM cards` +
 		` WHERE card_id=$1;`
 	row := db.QueryRow(sqlStatement, card_id)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	var cardKeys CardKeys
 
 	err = row.Scan(&cardKeys.Key0, &cardKeys.Key1, &cardKeys.Key2, &cardKeys.Key3, &cardKeys.Key4)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	return cardKeys
 }

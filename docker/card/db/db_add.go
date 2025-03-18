@@ -10,7 +10,7 @@ func Db_add_card_receipt(card_id int, payment_request string, payment_hash_hex s
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// insert a new record
@@ -18,16 +18,16 @@ func Db_add_card_receipt(card_id int, payment_request string, payment_hash_hex s
 		` timestamp, expire_time)` +
 		` VALUES ($1, $2, $3, $4, unixepoch(), unixepoch() + 86400);`
 	res, err := db.Exec(sqlStatement, card_id, payment_request, payment_hash_hex, amount_sats)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	count, err := res.RowsAffected()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	if count != 1 {
 		panic("expected one record to be inserted")
 	}
 
 	card_receipt_id_int64, err := res.LastInsertId()
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	card_receipt_id = int(card_receipt_id_int64)
 	return card_receipt_id
@@ -37,7 +37,7 @@ func Db_add_card_payment(card_id int, amount_sat int, invoice string) (card_paym
 
 	// open a database connection
 	db, err := Open()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	defer Close(db)
 
 	// insert a new record
@@ -45,16 +45,16 @@ func Db_add_card_payment(card_id int, amount_sat int, invoice string) (card_paym
 		` timestamp, expire_time)` +
 		` VALUES ($1, $2, $3, unixepoch(), unixepoch() + 86400);`
 	res, err := db.Exec(sqlStatement, card_id, amount_sat, invoice)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	count, err := res.RowsAffected()
-	util.Check(err)
+	util.CheckAndPanic(err)
 	if count != 1 {
 		panic("expected one record to be inserted")
 	}
 
 	card_payment_id_int64, err := res.LastInsertId()
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	card_payment_id = int(card_payment_id_int64)
 

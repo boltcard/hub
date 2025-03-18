@@ -72,7 +72,7 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	createInvoiceRequest.ExternalId = "" // could use a unique id here if needed
 
 	createInvoiceResponse, err := phoenix.CreateInvoice(createInvoiceRequest)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("createInvoiceResponse ", createInvoiceResponse)
 
@@ -81,7 +81,7 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	var resObj AddInvoiceResponse
 
 	rHashByteSlice, err := hex.DecodeString(createInvoiceResponse.PaymentHash)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	rHashIntSlice := []int{}
 	for _, rHashByte := range rHashByteSlice {
@@ -113,7 +113,7 @@ func AddInvoice(w http.ResponseWriter, r *http.Request) {
 	resObj.Hash = createInvoiceResponse.PaymentHash
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("resJson ", string(resJson))
 

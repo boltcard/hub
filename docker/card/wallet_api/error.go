@@ -18,6 +18,6 @@ func sendError(w http.ResponseWriter, error string, code int, message string) {
 	errorResponse.Code = code
 	errorResponse.Message = message
 	resJson, err := json.Marshal(errorResponse)
-	util.Check(err)
+	util.CheckAndPanic(err)
 	w.Write(resJson)
 }

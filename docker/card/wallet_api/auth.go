@@ -62,7 +62,7 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 		resObj.AccessToken = AccessToken
 
 		resJson, err := json.Marshal(resObj)
-		util.Check(err)
+		util.CheckAndPanic(err)
 
 		w.Write(resJson) // TODO: not tested yet
 	}
@@ -102,7 +102,7 @@ func Auth(w http.ResponseWriter, r *http.Request) {
 		log.Info("AuthResponse ", resObj)
 
 		resJson, err := json.Marshal(resObj)
-		util.Check(err)
+		util.CheckAndPanic(err)
 
 		w.Write(resJson)
 

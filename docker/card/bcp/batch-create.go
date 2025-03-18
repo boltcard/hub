@@ -80,7 +80,7 @@ func BatchCreateCard(w http.ResponseWriter, r *http.Request) {
 	bcpBatchResponse.K4 = k4
 
 	resJson, err := json.Marshal(bcpBatchResponse)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("resJson ", string(resJson))
 

@@ -9,15 +9,21 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 )
 
-func Check(e error) {
+func CheckAndPanic(e error) {
 	if e != nil {
 		panic(e)
 	}
 }
 
+func CheckAndLog(e error) {
+	if e != nil {
+		log.Error(e)
+	}
+}
+
 func ConvertPaymentHash(paymentHash string) []int {
 	rHashByteSlice, err := hex.DecodeString(paymentHash)
-	Check(err)
+	CheckAndPanic(err)
 
 	rHashIntSlice := []int{}
 	for _, rHashByte := range rHashByteSlice {
@@ -30,7 +36,7 @@ func ConvertPaymentHash(paymentHash string) []int {
 func Random_hex() string {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
-	Check(err)
+	CheckAndPanic(err)
 
 	return hex.EncodeToString(b)
 }

@@ -31,7 +31,7 @@ func GetOutgoingPayment(PaymentId string) (OutgoingPaymentResponse, error) {
 	var outgoingPaymentResponse OutgoingPaymentResponse
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	hp := cfg.Section("").Key("http-password").String()
 
@@ -46,12 +46,12 @@ func GetOutgoingPayment(PaymentId string) (OutgoingPaymentResponse, error) {
 	req.SetBasicAuth("", hp)
 
 	res, err := client.Do(req)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	defer res.Body.Close()
 
 	resBody, err := io.ReadAll(res.Body)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	if res.StatusCode != 200 {
 		log.Warning("GetOutgoingPayment StatusCode ", res.StatusCode)
@@ -61,7 +61,7 @@ func GetOutgoingPayment(PaymentId string) (OutgoingPaymentResponse, error) {
 	//log.Info(string(resBody))
 
 	err = json.Unmarshal(resBody, &outgoingPaymentResponse)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	return outgoingPaymentResponse, nil
 }

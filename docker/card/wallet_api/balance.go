@@ -57,7 +57,7 @@ func Balance(w http.ResponseWriter, r *http.Request) {
 	resObj.BTC.AvailableBalance = total_card_balance
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	//	log.Info("resJson string ", string(resJson))
 

@@ -55,7 +55,7 @@ func main() {
 	var router = mux.NewRouter()
 
 	// status monitoring
-	router.Path("/").Methods("HEAD").HandlerFunc(web.HomePage)
+	router.Path("/").Methods("HEAD").HandlerFunc(web.StatusResponse)
 
 	// web pages
 	router.Path("/").Methods("GET").HandlerFunc(web.HomePage)

@@ -115,7 +115,7 @@ func PayInvoice(w http.ResponseWriter, r *http.Request) {
 	resObj.Status = "OK"
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("resJson ", string(resJson))
 

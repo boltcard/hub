@@ -66,7 +66,7 @@ func WipeCard(w http.ResponseWriter, r *http.Request) {
 	resObj.Uid = "12345678"
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("resJson ", string(resJson))
 

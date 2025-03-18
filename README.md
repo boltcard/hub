@@ -107,7 +107,7 @@ docker system prune
 
 ### docker configuration
 
-- to enable faster builds with current docker version (March 2025), add `export COMPOSE_BAKE=true` to your .profile
+- docker compose suggests adding `export COMPOSE_BAKE=true` to your .profile, don't do this (March 2025), it doesn't alway pick up changes
 - to persist the docker compose environment across reboots for production use
 
 ```

@@ -71,7 +71,7 @@ func GetCardKeys(w http.ResponseWriter, r *http.Request) {
 	resObj.UidPrivacy = "false"
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	log.Info("resJson ", string(resJson))
 

@@ -33,7 +33,7 @@ func GetIncomingPayment(PaymentHash string) (IncomingPayment, error) {
 	var incomingPayment IncomingPayment
 
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	hp := cfg.Section("").Key("http-password").String()
 
@@ -48,12 +48,12 @@ func GetIncomingPayment(PaymentHash string) (IncomingPayment, error) {
 	req.SetBasicAuth("", hp)
 
 	res, err := client.Do(req)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	defer res.Body.Close()
 
 	resBody, err := io.ReadAll(res.Body)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	if res.StatusCode != 200 {
 		log.Warning("GetIncomingPayment StatusCode ", res.StatusCode)
@@ -63,7 +63,7 @@ func GetIncomingPayment(PaymentHash string) (IncomingPayment, error) {
 	//log.Info(string(resBody))
 
 	err = json.Unmarshal(resBody, &incomingPayment)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	return incomingPayment, nil
 }

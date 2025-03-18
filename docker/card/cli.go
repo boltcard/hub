@@ -70,7 +70,7 @@ func setupCardAmountForTag(args []string) {
 
 	groupTag := args[1]
 	amountSats, err := strconv.Atoi(args[2])
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	cards := db.Db_select_cards_with_group_tag(groupTag)
 
@@ -173,13 +173,13 @@ func programBatch(args []string) {
 	secret := util.Random_hex()
 
 	maxGroupNumInt, err := strconv.Atoi(maxGroupNum)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	initialBalanceInt, err := strconv.Atoi(initialBalance)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	expiryHoursInt, err := strconv.Atoi(expiryHours)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	createTime := int(time.Now().Unix())
 	expireTime := createTime + expiryHoursInt*60*60

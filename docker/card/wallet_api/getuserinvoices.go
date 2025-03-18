@@ -38,7 +38,7 @@ func updateInvoiceStatus(paymentHash string) {
 
 	// get status from phoenix server
 	incomingPayment, err := phoenix.GetIncomingPayment(paymentHash)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	//	log.Info("incomingPayment ", incomingPayment)
 
@@ -122,7 +122,7 @@ func GetUserInvoices(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resJson, err := json.Marshal(resObj)
-	util.Check(err)
+	util.CheckAndPanic(err)
 
 	//	log.Info("resJson string ", string(resJson))
 
