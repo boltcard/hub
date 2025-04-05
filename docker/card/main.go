@@ -11,6 +11,7 @@ import (
 	"card/web/admin"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -29,6 +30,11 @@ func main() {
 	log.Info("build version : ", build.Version)
 	log.Info("build date : ", build.Date)
 	log.Info("build time : ", build.Time)
+
+	// https://goperf.dev/01-common-patterns/gc/#memory-limiting-with-gomemlimit
+	// to avoid occasional container termination by docker OOM killer
+	// docker-compose is set up to restart but this could still cause some downtime
+	debug.SetMemoryLimit(2 << 27) // 256 Mb
 
 	if db.Db_get_setting("log_level") == "debug" {
 		log.SetLevel(log.DebugLevel)

@@ -84,6 +84,12 @@ sqlite> update settings set value='' where name='admin_password_hash';
 sqlite> .quit
 ```
 
+### to backup card keys
+
+```bash
+sqlite> .dump cards
+```
+
 ### to delete the database
 
 ```bash
