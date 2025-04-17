@@ -6,6 +6,7 @@ import (
 	"card/db"
 	"card/lnurlw"
 	"card/pos_api"
+	"card/util"
 	"card/wallet_api"
 	"card/web"
 	"card/web/admin"
@@ -34,7 +35,9 @@ func main() {
 	// https://goperf.dev/01-common-patterns/gc/#memory-limiting-with-gomemlimit
 	// to avoid occasional container termination by docker OOM killer
 	// docker-compose is set up to restart but this could still cause some downtime
+	// also ensure memory is regularly freed to the OS
 	debug.SetMemoryLimit(2 << 27) // 256 Mb
+	go util.FreeMemory()
 
 	if db.Db_get_setting("log_level") == "debug" {
 		log.SetLevel(log.DebugLevel)

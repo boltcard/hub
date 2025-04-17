@@ -4,6 +4,9 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"runtime"
+	"runtime/debug"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	qrcode "github.com/skip2/go-qrcode"
@@ -62,4 +65,13 @@ func QrPngBase64Encode(data string) (encoded string) {
 	encoded = base64.StdEncoding.EncodeToString(data_qr_png)
 
 	return encoded
+}
+
+// free memory to the OS regularly so that docker container memory remains reasonable
+func FreeMemory() {
+	for {
+		time.Sleep(1 * time.Minute)
+		runtime.GC()
+		debug.FreeOSMemory()
+	}
 }
