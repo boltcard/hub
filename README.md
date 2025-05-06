@@ -62,6 +62,8 @@ docker compose up -d
 docker compose logs -f
 ```
 
+- this will also restart the service after a host reboot
+
 ### to get the phoenix server seed words
 
 ```bash
