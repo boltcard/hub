@@ -4,6 +4,7 @@ import (
 	"card/db"
 	"card/phoenix"
 	"card/util"
+	"database/sql"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -13,17 +14,17 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func processArgs(args []string) {
+func processArgs(db_conn *sql.DB, args []string) {
 
 	switch args[0] {
 	case "SendLightningPayment":
 		sendLightningPayment(args)
 	case "ClearCardBalancesForTag":
-		clearCardBalancesForTag(args)
+		clearCardBalancesForTag(db_conn, args)
 	case "SetupCardAmountForTag":
-		setupCardAmountForTag(args)
+		setupCardAmountForTag(db_conn, args)
 	case "ProgramBatch":
-		programBatch(args)
+		programBatch(db_conn, args)
 	default:
 		log.Warn("CLI command not found : " + args[0])
 	}
@@ -61,7 +62,7 @@ func sendLightningPayment(args []string) {
 // $ docker container ps
 // $ docker exec -it ContainerId sh
 // # ./app SetupCardAmountForTag set1 10000
-func setupCardAmountForTag(args []string) {
+func setupCardAmountForTag(db_conn *sql.DB, args []string) {
 
 	if len(args) < 3 {
 		log.Warn("needs group_tag & amount_sats")
@@ -72,11 +73,11 @@ func setupCardAmountForTag(args []string) {
 	amountSats, err := strconv.Atoi(args[2])
 	util.CheckAndPanic(err)
 
-	cards := db.Db_select_cards_with_group_tag(groupTag)
+	cards := db.Db_select_cards_with_group_tag(db_conn, groupTag)
 
 	for _, card := range cards {
 
-		receipts := db.Db_get_total_paid_receipts(card.CardId)
+		receipts := db.Db_get_total_paid_receipts(db_conn, card.CardId)
 
 		if receipts > 0 {
 			log.Error("unexpected card receipts for cardId ", card.CardId)
@@ -85,8 +86,8 @@ func setupCardAmountForTag(args []string) {
 
 		// a unique payment_hash is needed so we put a unique description in here
 		// there is expected to be only one loading per card
-		card_receipt_id := db.Db_add_card_receipt(card.CardId, "", strconv.Itoa(card.CardId), amountSats)
-		db.Db_update_receipt_paid(card_receipt_id)
+		card_receipt_id := db.Db_add_card_receipt(db_conn, card.CardId, "", strconv.Itoa(card.CardId), amountSats)
+		db.Db_update_receipt_paid(db_conn, card_receipt_id)
 	}
 
 	log.Info("card setup has been successful for group : ", groupTag)
@@ -97,7 +98,7 @@ func setupCardAmountForTag(args []string) {
 // $ docker container ps
 // $ docker exec -it ContainerId sh
 // # ./app ClearCardBalancesForTag set1
-func clearCardBalancesForTag(args []string) {
+func clearCardBalancesForTag(db_conn *sql.DB, args []string) {
 
 	if len(args) < 2 {
 		log.Warn("needs group_tag")
@@ -106,20 +107,20 @@ func clearCardBalancesForTag(args []string) {
 
 	groupTag := args[1]
 
-	cards := db.Db_select_cards_with_group_tag(groupTag)
+	cards := db.Db_select_cards_with_group_tag(db_conn, groupTag)
 
 	for _, card := range cards {
 
-		balance := getBalance(card.CardId)
+		balance := getBalance(db_conn, card.CardId)
 
 		if balance > 0 {
 			log.Info("card.CardId : ", card.CardId)
 			log.Info("balance : ", balance)
 
 			// add the reducing payment record with the current timestamp
-			db.Db_add_card_payment(card.CardId, balance, "")
+			db.Db_add_card_payment(db_conn, card.CardId, balance, "")
 
-			balance = getBalance(card.CardId)
+			balance = getBalance(db_conn, card.CardId)
 
 			// verify that the card balance is <= 0
 			if balance > 0 {
@@ -132,9 +133,9 @@ func clearCardBalancesForTag(args []string) {
 	log.Info("card balances have been successfully cleared for group : ", groupTag)
 }
 
-func getBalance(cardId int) int {
+func getBalance(db_conn *sql.DB, cardId int) int {
 	// get all transactions on the card
-	txs := db.Db_select_card_txs(cardId)
+	txs := db.Db_select_card_txs(db_conn, cardId)
 
 	// calculate the card balance
 	balance := 0
@@ -150,7 +151,7 @@ func getBalance(cardId int) int {
 // $ docker container ps
 // $ docker exec -it ContainerId sh
 // # ./app ProgramBatch group_tag max_group_num initial_balance expiry_hours
-func programBatch(args []string) {
+func programBatch(db_conn *sql.DB, args []string) {
 
 	if len(args) != 5 {
 		log.Warn("needs ProgramBatch group_tag max_group_num initial_balance expiry_hours")
@@ -184,9 +185,9 @@ func programBatch(args []string) {
 	createTime := int(time.Now().Unix())
 	expireTime := createTime + expiryHoursInt*60*60
 
-	db.Db_insert_program_cards(secret, groupTag, maxGroupNumInt, initialBalanceInt, createTime, expireTime)
+	db.Db_insert_program_cards(db_conn, secret, groupTag, maxGroupNumInt, initialBalanceInt, createTime, expireTime)
 
-	programUrl := `https://` + db.Db_get_setting("host_domain") + `/batch?s=` + secret
+	programUrl := `https://` + db.Db_get_setting(db_conn, "host_domain") + `/batch?s=` + secret
 	boltcardLink := "boltcard://program?url=" + url.QueryEscape(programUrl)
 
 	// show a boltcard://program?url=https%3A%2F%2F... link

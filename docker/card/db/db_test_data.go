@@ -1,10 +1,12 @@
 package db
 
 import (
+	"database/sql"
+
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func add_test_data() {
+func add_test_data(db_conn *sql.DB) {
 
 	// can set up some test data here
 

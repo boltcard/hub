@@ -7,7 +7,7 @@ domain_name {
 	}
 
 	handle {
-		encode zstd gzip
+		encode zstd
 		reverse_proxy card:8000
 	}
 }

@@ -2,6 +2,7 @@ package db
 
 import (
 	"card/util"
+	"database/sql"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -18,13 +19,8 @@ type CardReceipt struct {
 
 type CardReceipts []CardReceipt
 
-func Db_select_card_receipts_with_limit(card_id int, limit int) (result CardReceipts) {
+func Db_select_card_receipts_with_limit(db_conn *sql.DB, card_id int, limit int) (result CardReceipts) {
 	var cardReceipts CardReceipts
-
-	// open a database connection
-	db, err := Open()
-	util.CheckAndPanic(err)
-	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
@@ -33,7 +29,7 @@ func Db_select_card_receipts_with_limit(card_id int, limit int) (result CardRece
 		` FROM card_receipts` +
 		` WHERE card_receipts.card_id = $1` +
 		` ORDER BY card_receipt_id DESC LIMIT $2;`
-	rows, err := db.Query(sqlStatement, card_id, limit)
+	rows, err := db_conn.Query(sqlStatement, card_id, limit)
 	util.CheckAndPanic(err)
 
 	for rows.Next() {
@@ -55,13 +51,8 @@ func Db_select_card_receipts_with_limit(card_id int, limit int) (result CardRece
 	return cardReceipts
 }
 
-func Db_select_card_receipts(card_id int) (result CardReceipts) {
+func Db_select_card_receipts(db_conn *sql.DB, card_id int) (result CardReceipts) {
 	var cardReceipts CardReceipts
-
-	// open a database connection
-	db, err := Open()
-	util.CheckAndPanic(err)
-	defer Close(db)
 
 	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
 		` r_hash_hex, amount_sats, paid_flag,` +
@@ -69,7 +60,7 @@ func Db_select_card_receipts(card_id int) (result CardReceipts) {
 		` FROM card_receipts` +
 		` WHERE card_receipts.card_id = $1` +
 		` ORDER BY card_receipt_id DESC;`
-	rows, err := db.Query(sqlStatement, card_id)
+	rows, err := db_conn.Query(sqlStatement, card_id)
 	util.CheckAndPanic(err)
 
 	for rows.Next() {
@@ -102,13 +93,8 @@ type CardPayment struct {
 
 type CardPayments []CardPayment
 
-func Db_select_card_payments(card_id int) (result CardPayments) {
+func Db_select_card_payments(db_conn *sql.DB, card_id int) (result CardPayments) {
 	var cardPayments CardPayments
-
-	// open a database connection
-	db, err := Open()
-	util.CheckAndPanic(err)
-	defer Close(db)
 
 	sqlStatement := `SELECT card_payment_id,` +
 		` amount_sats, paid_flag,` +
@@ -116,7 +102,7 @@ func Db_select_card_payments(card_id int) (result CardPayments) {
 		` FROM card_payments` +
 		` WHERE card_payments.card_id = $1` +
 		` ORDER BY card_payment_id DESC;`
-	rows, err := db.Query(sqlStatement, card_id)
+	rows, err := db_conn.Query(sqlStatement, card_id)
 	util.CheckAndPanic(err)
 
 	for rows.Next() {
@@ -146,13 +132,8 @@ type CardTx struct {
 
 type CardTxs []CardTx
 
-func Db_select_card_txs(card_id int) (result CardTxs) {
+func Db_select_card_txs(db_conn *sql.DB, card_id int) (result CardTxs) {
 	var cardTxs CardTxs
-
-	// open a database connection
-	db, err := Open()
-	util.CheckAndPanic(err)
-	defer Close(db)
 
 	// get card txs
 	sqlStatement := `SELECT card_receipt_id, 0, timestamp, amount_sats, fee_sats` +
@@ -163,7 +144,7 @@ func Db_select_card_txs(card_id int) (result CardTxs) {
 		` FROM card_payments` +
 		` WHERE card_payments.card_id = $1 AND card_payments.paid_flag='Y'` +
 		` ORDER BY timestamp;`
-	rows, err := db.Query(sqlStatement, card_id)
+	rows, err := db_conn.Query(sqlStatement, card_id)
 	util.CheckAndPanic(err)
 
 	for rows.Next() {
@@ -189,19 +170,14 @@ type CardIdOnly struct {
 
 type Cards []CardIdOnly
 
-func Db_select_cards_with_group_tag(group_tag string) (result Cards) {
+func Db_select_cards_with_group_tag(db_conn *sql.DB, group_tag string) (result Cards) {
 	var cards Cards
-
-	// open a database connection
-	db, err := Open()
-	util.CheckAndPanic(err)
-	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT card_id` +
 		` FROM cards` +
 		` WHERE group_tag = $1;`
-	rows, err := db.Query(sqlStatement, group_tag)
+	rows, err := db_conn.Query(sqlStatement, group_tag)
 	util.CheckAndPanic(err)
 
 	for rows.Next() {
@@ -235,18 +211,13 @@ type ProgramCard struct {
 	ExpireTime     int
 }
 
-func Db_select_program_card_for_secret(secret string) (result ProgramCard) {
+func Db_select_program_card_for_secret(db_conn *sql.DB, secret string) (result ProgramCard) {
 	var programCard ProgramCard
-
-	// open a database connection
-	db, err := Open()
-	util.CheckAndPanic(err)
-	defer Close(db)
 
 	// get card id
 	sqlStatement := `SELECT secret, group_tag, max_group_num, initial_balance, create_time, expire_time` +
 		` FROM program_cards WHERE secret = $1;`
-	rows, err := db.Query(sqlStatement, secret)
+	rows, err := db_conn.Query(sqlStatement, secret)
 	util.CheckAndPanic(err)
 
 	if rows.Next() {

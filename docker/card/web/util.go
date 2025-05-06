@@ -3,6 +3,7 @@ package web
 import (
 	"card/db"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"net/http"
 	"time"
@@ -17,8 +18,8 @@ func ClearSessionToken(w http.ResponseWriter) {
 	})
 }
 
-func GetPwHash(passwordStr string) (passwordHashStr string) {
-	passwordSalt := db.Db_get_setting("admin_password_salt")
+func GetPwHash(db_conn *sql.DB, passwordStr string) (passwordHashStr string) {
+	passwordSalt := db.Db_get_setting(db_conn, "admin_password_salt")
 
 	hasher := sha256.New()
 	hasher.Write([]byte(passwordSalt))

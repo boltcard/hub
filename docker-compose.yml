@@ -3,6 +3,10 @@ services:
     container_name: phoenix
     build: ./docker/phoenix
     image: boltcard/phoenix:latest
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     restart: unless-stopped
     volumes:
       - phoenix_data:/root/.phoenix
@@ -16,6 +20,10 @@ services:
         - path: ./docker/card
           action: rebuild
     image: boltcard/card:latest
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     depends_on:
       - phoenix
       - webproxy
@@ -32,6 +40,10 @@ services:
       - hubnet
   webproxy:
     image: caddy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
     container_name: webproxy
     restart: unless-stopped
     ports:
