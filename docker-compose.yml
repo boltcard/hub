@@ -1,33 +1,37 @@
 services:
   phoenix:
     container_name: phoenix
-    build: ./docker/phoenix
     image: boltcard/phoenix:latest
+    restart: unless-stopped
+    build: ./docker/phoenix
     deploy:
       resources:
         limits:
           memory: 256M
-    restart: unless-stopped
+        reservations:
+          memory: 256M
     volumes:
       - phoenix_data:/root/.phoenix
     networks:
       - hubnet
   card:
+    image: boltcard/card:latest
     container_name: card
+    restart: unless-stopped
     build: ./docker/card
     develop:
       watch:
         - path: ./docker/card
           action: rebuild
-    image: boltcard/card:latest
     deploy:
       resources:
         limits:
           memory: 256M
+        reservations:
+          memory: 256M
     depends_on:
       - phoenix
       - webproxy
-    restart: unless-stopped
     volumes:
       - type: volume
         source: phoenix_data
@@ -39,18 +43,20 @@ services:
     networks:
       - hubnet
   webproxy:
-    image: caddy
+    image: caddy:latest
+    container_name: webproxy
+    restart: unless-stopped
     deploy:
       resources:
         limits:
           memory: 256M
-    container_name: webproxy
-    restart: unless-stopped
+        reservations:
+          memory: 256M
     ports:
       - "80:80"
       - "443:443"
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     networks:
