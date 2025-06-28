@@ -7,7 +7,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 256M
+          memory: 512M
         reservations:
           memory: 256M
     volumes:
@@ -28,7 +28,7 @@ services:
         limits:
           memory: 256M
         reservations:
-          memory: 256M
+          memory: 128M
     depends_on:
       - phoenix
       - webproxy

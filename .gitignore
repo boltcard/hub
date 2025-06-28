@@ -5,3 +5,4 @@ docker/card/Dockerfile
 docker/card/card
 notes
 CLAUDE.md
+.github/prompts/*

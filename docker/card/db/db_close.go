@@ -10,8 +10,9 @@ import (
 func Close(db *sql.DB) {
 
 	sqlStatement := `PRAGMA optimize;`
-	_, err := db.Query(sqlStatement)
+	rows, err := db.Query(sqlStatement)
 	util.CheckAndPanic(err)
+	defer rows.Close()
 
 	db.Close()
 }

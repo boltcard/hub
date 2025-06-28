@@ -103,6 +103,7 @@ func Db_get_card_keys(db_conn *sql.DB) CardLookups {
 		` WHERE wiped = 'N';`
 	rows, err := db_conn.Query(sqlStatement)
 	util.CheckAndPanic(err)
+	defer rows.Close()
 
 	for rows.Next() {
 		var cardLookup CardLookup

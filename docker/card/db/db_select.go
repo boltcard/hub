@@ -31,6 +31,7 @@ func Db_select_card_receipts_with_limit(db_conn *sql.DB, card_id int, limit int)
 		` ORDER BY card_receipt_id DESC LIMIT $2;`
 	rows, err := db_conn.Query(sqlStatement, card_id, limit)
 	util.CheckAndPanic(err)
+	defer rows.Close()
 
 	for rows.Next() {
 		var cardReceipt CardReceipt
@@ -62,6 +63,7 @@ func Db_select_card_receipts(db_conn *sql.DB, card_id int) (result CardReceipts)
 		` ORDER BY card_receipt_id DESC;`
 	rows, err := db_conn.Query(sqlStatement, card_id)
 	util.CheckAndPanic(err)
+	defer rows.Close()
 
 	for rows.Next() {
 		var cardReceipt CardReceipt
@@ -104,6 +106,7 @@ func Db_select_card_payments(db_conn *sql.DB, card_id int) (result CardPayments)
 		` ORDER BY card_payment_id DESC;`
 	rows, err := db_conn.Query(sqlStatement, card_id)
 	util.CheckAndPanic(err)
+	defer rows.Close()
 
 	for rows.Next() {
 		var cardPayment CardPayment
@@ -146,6 +149,7 @@ func Db_select_card_txs(db_conn *sql.DB, card_id int) (result CardTxs) {
 		` ORDER BY timestamp;`
 	rows, err := db_conn.Query(sqlStatement, card_id)
 	util.CheckAndPanic(err)
+	defer rows.Close()
 
 	for rows.Next() {
 		var cardTx CardTx
@@ -179,6 +183,7 @@ func Db_select_cards_with_group_tag(db_conn *sql.DB, group_tag string) (result C
 		` WHERE group_tag = $1;`
 	rows, err := db_conn.Query(sqlStatement, group_tag)
 	util.CheckAndPanic(err)
+	defer rows.Close()
 
 	for rows.Next() {
 		var cardIdOnly CardIdOnly
@@ -219,6 +224,7 @@ func Db_select_program_card_for_secret(db_conn *sql.DB, secret string) (result P
 		` FROM program_cards WHERE secret = $1;`
 	rows, err := db_conn.Query(sqlStatement, secret)
 	util.CheckAndPanic(err)
+	defer rows.Close()
 
 	if rows.Next() {
 		err := rows.Scan(
