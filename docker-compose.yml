@@ -19,6 +19,8 @@ services:
     container_name: card
     restart: unless-stopped
     build: ./docker/card
+    environment:
+      - GOMEMLIMIT=200MiB
     develop:
       watch:
         - path: ./docker/card

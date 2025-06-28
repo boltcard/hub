@@ -8,7 +8,6 @@ import (
 	"database/sql"
 	"net/http"
 	"os"
-	"runtime/debug"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -28,13 +27,6 @@ func main() {
 	log.Info("build version : ", build.Version)
 	log.Info("build date : ", build.Date)
 	log.Info("build time : ", build.Time)
-
-	// https://goperf.dev/01-common-patterns/gc/#memory-limiting-with-gomemlimit
-	// to avoid occasional container termination by docker OOM killer
-	// docker-compose is set up to restart but this could still cause some downtime
-	// also ensure memory is regularly freed to the OS
-	debug.SetMemoryLimit(2 << 27) // 256 Mb
-	go util.FreeMemory()
 
 	// ensure a database is available
 	log.Info("init database")
