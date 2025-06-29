@@ -1,9 +1,8 @@
 services:
   phoenix:
     container_name: phoenix
-    image: boltcard/phoenix:latest
+    image: acinq/phoenixd:latest
     restart: unless-stopped
-    build: ./docker/phoenix
     deploy:
       resources:
         limits:
@@ -11,7 +10,7 @@ services:
         reservations:
           memory: 256M
     volumes:
-      - phoenix_data:/root/.phoenix
+      - phoenix_data:/phoenix/.phoenix
     networks:
       - hubnet
   card:
