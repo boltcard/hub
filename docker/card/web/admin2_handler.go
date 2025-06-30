@@ -15,17 +15,8 @@ func (app *App) CreateHandler_Admin2() http.HandlerFunc {
 
 		log.Info("CreateHandler_Admin2 handler with request uri : " + request)
 
-		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
-		w.Header().Add("Cache-Control", "no-cache")
-
-		//HACK: these need authenticating also
-		// items to return without an authenticated session
-		if strings.HasSuffix(request, ".js") || strings.HasSuffix(request, ".css") ||
-			strings.HasSuffix(request, ".png") || strings.HasSuffix(request, ".jpg") ||
-			strings.HasSuffix(request, ".map") {
-			RenderStaticContent(w, request)
-			return
-		}
+		// prevent caching
+		w.Header().Add("Cache-Control", "no-cache, no-store")
 
 		if request == "/admin2/register/" {
 			Register2(app.db_conn, w, r)
@@ -70,6 +61,13 @@ func (app *App) CreateHandler_Admin2() http.HandlerFunc {
 		}
 
 		log.Info("request: ", request)
+
+		if strings.HasSuffix(request, ".js") || strings.HasSuffix(request, ".css") ||
+			strings.HasSuffix(request, ".png") || strings.HasSuffix(request, ".jpg") ||
+			strings.HasSuffix(request, ".map") {
+			RenderStaticContent(w, request)
+			return
+		}
 
 		if request == "/admin2/" {
 			Admin2_Index(w, r)

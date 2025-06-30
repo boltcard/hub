@@ -14,8 +14,7 @@ func (app *App) CreateHandler_Public() http.HandlerFunc {
 		request := r.RequestURI
 		log.Info("CreateHandler_Public handler with request uri : " + request)
 
-		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
-		w.Header().Add("Cache-Control", "no-cache")
+		w.Header().Add("Cache-Control", "max-age=60, must-revalidate")
 
 		RenderStaticContent(w, request)
 	}
