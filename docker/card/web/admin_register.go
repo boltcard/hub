@@ -8,7 +8,7 @@ import (
 
 func Register(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 
-	ClearSessionToken(w)
+	ClearAdminSessionToken(w)
 
 	// this protects from setting a new admin_password_hash when it has already been set
 	if db.Db_get_setting(db_conn, "admin_password_hash") != "" {

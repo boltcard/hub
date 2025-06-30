@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/public/css/simple.css">
+    <title>Bolt Card Hub</title>
+</head>
+
+<body>
+    <header>
+        <nav>
+            <a href="/admin2/">Dashboard</a>
+            <a href="/admin2/phoenix/">Phoenix</a>
+            <a href="/admin2/cards/">Cards</a>
+            <a href="/admin2/settings/">Settings</a>
+            <a href="/admin2/about/">About</a>
+            <a href="/admin2/login/">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <h1>Phoenix</h1>
+
+        <h2>Balance</h2>
+        <table>
+            <tbody>
+                <tr>
+                    <td>phoenix balance sat</td>
+                    <td>{{.BalanceSat}}</td>
+                </tr>
+                <tr>
+                    <td>phoenix fee credit sat</td>
+                    <td>{{.FeeCreditSat}}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Load Sats</h2>
+        <img alt="Bolt 12 Offer QR code" src="data:image/png;base64,{{.OfferQrPngEncoded}}" />
+
+    </main>
+
+    <footer></footer>
+</body>
+
+</html>

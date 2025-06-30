@@ -4,6 +4,7 @@ import (
 	"card/db"
 	"net/http"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -60,7 +61,7 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 		adminSessionToken := db.Db_get_setting(app.db_conn, "session_token")
 
 		if sessionToken != adminSessionToken {
-			ClearSessionToken(w)
+			ClearAdminSessionToken(w)
 			//redirect to "login" page
 			http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 			return
@@ -86,4 +87,13 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 
 		Blank(w, r)
 	}
+}
+
+func ClearAdminSessionToken(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:    "session_token",
+		Value:   "",
+		Path:    "/admin/",
+		Expires: time.Now(),
+	})
 }

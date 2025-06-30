@@ -38,6 +38,12 @@ func (app *App) SetupRoutes() *mux.Router {
 	router.PathPrefix("/admin/").HandlerFunc(app.CreateHandler_Admin())
 	router.PathPrefix("/dist/").HandlerFunc(app.CreateHandler_Admin())
 
+	// admin2 dashboard
+	router.PathPrefix("/admin2/").HandlerFunc(app.CreateHandler_Admin2())
+
+	// public assets that do not need authentication
+	router.PathPrefix("/public/").HandlerFunc(app.CreateHandler_Public())
+
 	// for Bolt Card Programmer app
 	router.Path("/new").Methods("GET").HandlerFunc(app.CreateHandler_CreateCard())
 	router.Path("/batch").Methods("POST").HandlerFunc(app.CreateHandler_BatchCreateCard())
