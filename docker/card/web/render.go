@@ -32,9 +32,9 @@ func visit(path string, di fs.DirEntry, err error) error {
 	template_names := strings.Split(template_full_name, "/")
 	template_name := template_names[len(template_names)-1]
 
+	// load the template cache
 	if strings.HasSuffix(template_name, ".html") {
-		log.Info("loading template cache: " + template_full_name + " : from : " + path)
-		// load into template cache
+		//log.Info("loading template cache: " + template_full_name + " : from : " + path)
 		ts, err := template.New(template_name).ParseFiles(path)
 		util.CheckAndPanic(err)
 		templates[template_full_name] = ts
