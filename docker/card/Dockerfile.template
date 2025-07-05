@@ -1,14 +1,20 @@
-FROM golang:latest AS builder
+FROM golang:1.24 AS builder
 WORKDIR /app
-COPY . .
+
+# Copy dependency files first
+COPY go.mod go.sum ./
 RUN go mod download
+
+# Copy source code
+COPY . .
 ENV GOCACHE=/root/.cache/go-build
-RUN --mount=type=cache,target="/root/.cache/go-build" go build -o app -ldflags="-X 'card/build.Date=$(date +"%a %d %b %Y")' -X 'card/build.Time=$(date +"%H:%M:%S %Z")'"
+RUN --mount=type=cache,target="/root/.cache/go-build" \
+    go build -o app -ldflags="-X 'card/build.Date=$(date +"%a %d %b %Y")' -X 'card/build.Time=$(date +"%H:%M:%S %Z")'"
 
 FROM ubuntu:24.04
 RUN mkdir /app
 WORKDIR /app
-COPY --from=builder /app/app .
 COPY --from=builder /app/web-content/ /web-content/
+COPY --from=builder /app/app .
 ENV HOST_DOMAIN=domain_name
 ENTRYPOINT ["./app"]
