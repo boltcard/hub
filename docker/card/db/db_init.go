@@ -10,9 +10,6 @@ import (
 
 func Db_init(db_conn *sql.DB) {
 
-	// set WAL
-	sqlite_wal(db_conn)
-
 	// ensure tables exist (idempotent)
 	create_settings_table(db_conn)
 	create_cards_table(db_conn)
@@ -36,7 +33,11 @@ func Db_init(db_conn *sql.DB) {
 		update_schema_3(db_conn) // program_cards table
 	}
 
-	if Db_get_setting(db_conn, "schema_version_number") != "4" {
+	if Db_get_setting(db_conn, "schema_version_number") == "4" {
+		update_schema_4(db_conn) // indexes
+	}
+
+	if Db_get_setting(db_conn, "schema_version_number") != "5" {
 		panic("database schema is not as expected")
 	}
 

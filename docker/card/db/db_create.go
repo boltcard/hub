@@ -7,18 +7,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// https://www.sqlite.org/pragma.html#pragma_journal_mode
-// "The WAL journaling mode is persistent; after being set it stays in effect across multiple database connections and after closing and reopening the database."
-func sqlite_wal(db *sql.DB) {
-
-	sqlStmt := `PRAGMA journal_mode=WAL;`
-	_, err := db.Exec(sqlStmt)
-	if err != nil {
-		log.Printf("%q : %s\n", err, sqlStmt)
-		return
-	}
-}
-
 func create_settings_table(db *sql.DB) {
 
 	sqlStmt := `
@@ -164,6 +152,27 @@ func update_schema_3(db *sql.DB) {
 			expire_time INTEGER NOT NULL
 		);
 		UPDATE settings SET value='4' WHERE name='schema_version_number';
+		COMMIT TRANSACTION;
+	`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("%q : %s\n", err, sqlStmt)
+		return
+	}
+}
+
+func update_schema_4(db *sql.DB) {
+
+	sqlStmt := `
+		BEGIN TRANSACTION;
+		CREATE INDEX IF NOT EXISTS idx_cards_uid ON cards(uid);
+		CREATE INDEX IF NOT EXISTS idx_cards_group_tag ON cards(group_tag);
+		CREATE INDEX IF NOT EXISTS idx_card_payments_card_id ON card_payments(card_id);
+		CREATE INDEX IF NOT EXISTS idx_card_receipts_card_id ON card_receipts(card_id);
+		CREATE INDEX IF NOT EXISTS idx_program_cards_group_tag ON program_cards(group_tag);
+		CREATE INDEX IF NOT EXISTS idx_card_payments_timestamp ON card_payments(timestamp);
+		CREATE INDEX IF NOT EXISTS idx_card_receipts_timestamp ON card_receipts(timestamp);
+		UPDATE settings SET value='5' WHERE name='schema_version_number';
 		COMMIT TRANSACTION;
 	`
 	_, err := db.Exec(sqlStmt)
