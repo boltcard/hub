@@ -1,7 +1,7 @@
 services:
   phoenix:
     container_name: phoenix
-    image: acinq/phoenixd:latest
+    image: acinq/phoenixd:0.7.1
     restart: unless-stopped
     deploy:
       resources:
