@@ -102,7 +102,8 @@ sudo rm /var/lib/docker/volumes/hub_card_data/_data/cards.db
 
 ```bash
 docker container ps
-docker exec -it ContainerId sh
+docker exec -it phoenix bash
+$ ./phoenix-cli
 ```
 
 ### after updating - check that docker disk use is reasonable
