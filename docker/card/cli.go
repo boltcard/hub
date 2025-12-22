@@ -5,6 +5,7 @@ import (
 	"card/phoenix"
 	"card/util"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -25,6 +26,8 @@ func processArgs(db_conn *sql.DB, args []string) {
 		setupCardAmountForTag(db_conn, args)
 	case "ProgramBatch":
 		programBatch(db_conn, args)
+	case "WipeCard":
+		wipeCard(db_conn, args)
 	default:
 		log.Warn("CLI command not found : " + args[0])
 	}
@@ -59,8 +62,7 @@ func sendLightningPayment(args []string) {
 
 // used for setting up gift amounts for events
 //
-// $ docker container ps
-// $ docker exec -it ContainerId sh
+// $ docker exec -it card bash
 // # ./app SetupCardAmountForTag set1 10000
 func setupCardAmountForTag(db_conn *sql.DB, args []string) {
 
@@ -95,8 +97,7 @@ func setupCardAmountForTag(db_conn *sql.DB, args []string) {
 
 // used for clearing down balances after events
 //
-// $ docker container ps
-// $ docker exec -it ContainerId sh
+// $ docker exec -it card bash
 // # ./app ClearCardBalancesForTag set1
 func clearCardBalancesForTag(db_conn *sql.DB, args []string) {
 
@@ -148,8 +149,7 @@ func getBalance(db_conn *sql.DB, cardId int) int {
 
 // used for programming up cards in a batch
 //
-// $ docker container ps
-// $ docker exec -it ContainerId sh
+// $ docker exec -it card bash
 // # ./app ProgramBatch group_tag max_group_num initial_balance expiry_hours
 func programBatch(db_conn *sql.DB, args []string) {
 
@@ -196,4 +196,69 @@ func programBatch(db_conn *sql.DB, args []string) {
 	fmt.Println("e.g. with https://www.qrcode-monkey.com/#url")
 	fmt.Println("and scan with your mobile device : ")
 	fmt.Println(boltcardLink)
+}
+
+// used for testing the wipe card function
+//
+// $ docker exec -it card bash
+// # ./app WipeCard card_id
+func wipeCard(db_conn *sql.DB, args []string) {
+
+	if len(args) != 2 {
+		log.Warn("needs WipeCard card_id")
+		return
+	}
+
+	cardIdStr := args[1]
+	cardId, err := strconv.Atoi(cardIdStr)
+	if err != nil {
+		log.Warn("invalid card_id : ", cardIdStr)
+		return
+	}
+	if cardId == 0 {
+		log.Warn("card not found for id : ", cardId)
+		return
+	}
+
+	card, err := db.Db_get_card(db_conn, cardId)
+	if err != nil {
+		log.Error("error getting card for id : ", cardId, " error : ", err)
+		return
+	}
+	if card.Wiped == "Y" {
+		log.Warn("card already wiped for id : ", cardId)
+		return
+	}
+
+	log.Info("len(args) :", len(args))
+	log.Info("cardId :", cardId)
+
+	wipeData := struct {
+		Version int    `json:"version"`
+		Action  string `json:"action"`
+		K0      string `json:"k0"`
+		K1      string `json:"k1"`
+		K2      string `json:"k2"`
+		K3      string `json:"k3"`
+		K4      string `json:"k4"`
+	}{
+		Version: 1,
+		Action:  "wipe",
+		K0:      card.Key0_auth,
+		K1:      card.Key1_enc,
+		K2:      card.Key2_cmac,
+		K3:      card.Key3,
+		K4:      card.Key4,
+	}
+
+	wipeDataJson, err := json.Marshal(wipeData)
+	if err != nil {
+		log.Error("error marshaling wipe data : ", err)
+		return
+	}
+
+	fmt.Println("make this link into a QR code for URL")
+	fmt.Println("e.g. with https://www.qrcode-monkey.com/#text")
+	fmt.Println("and scan with your mobile device : ")
+	fmt.Println(string(wipeDataJson))
 }

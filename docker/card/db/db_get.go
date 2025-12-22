@@ -217,3 +217,17 @@ func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
 
 	return &c, err
 }
+
+func Db_get_card_id_from_card_uid(db_conn *sql.DB, card_uid string) (card_id int) {
+
+	// get card id
+	sqlStatement := `SELECT card_id FROM cards WHERE uid=$1;`
+	row := db_conn.QueryRow(sqlStatement, card_uid)
+	value := 0
+	err := row.Scan(&value)
+	if err != nil {
+		return 0
+	}
+
+	return value
+}

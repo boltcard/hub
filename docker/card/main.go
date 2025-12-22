@@ -32,19 +32,16 @@ func main() {
 	log.Info("init database")
 	sql_db, err := sql.Open("sqlite3", "/card_data/cards.db?"+
 		"_journal=WAL&"+
-		"_timeout=5000&"+
-		"_cache_size=10000&"+
+		"_synchronous=FULL&"+ // ensure commits survive power loss
+		"_timeout=5000&"+ // 5 second timeout for busy
+		"_cache_size=10000&"+ // 5x more memory for caching pages
 		"_temp_store=memory&"+
-		"_foreign_keys=1")
+		"_foreign_keys=1&"+
+		"_secure_delete=1&"+ // overwrite deleted data
+		"_auto_vacuum=INCREMENTAL") // prevent file bloat
 	util.CheckAndPanic(err)
 	defer db.Close(sql_db)
 	db.Db_init(sql_db)
-
-	// set database connection pool parameters
-	sql_db.SetMaxOpenConns(10)
-	sql_db.SetMaxIdleConns(5)
-	sql_db.SetConnMaxLifetime(time.Hour)
-	sql_db.SetConnMaxIdleTime(15 * time.Minute)
 
 	// check for command line arguments
 	args := os.Args[1:] // without program name
