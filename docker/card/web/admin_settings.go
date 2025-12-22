@@ -5,9 +5,9 @@ import (
 	"net/http"
 )
 
-func Admin2_Cards(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
+func Admin_Settings(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 
-	template_path := "/admin2/cards/index.html"
+	template_path := "/admin/settings/index.html"
 
 	data := struct {
 	}{}

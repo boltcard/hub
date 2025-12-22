@@ -6,9 +6,9 @@ import (
 	"net/http"
 )
 
-func Admin2_About(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
+func Admin_About(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 
-	template_path := "/admin2/about/index.html"
+	template_path := "/admin/about/index.html"
 
 	data := struct {
 		SwVersion   string

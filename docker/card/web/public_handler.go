@@ -2,8 +2,6 @@ package web
 
 import (
 	"net/http"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // all requests have a path prefix of /public/
@@ -12,7 +10,7 @@ func (app *App) CreateHandler_Public() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		request := r.RequestURI
-		log.Info("CreateHandler_Public handler with request uri : " + request)
+		//log.Info("CreateHandler_Public handler with request uri : " + request)
 
 		w.Header().Add("Cache-Control", "max-age=60, must-revalidate")
 

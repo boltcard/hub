@@ -4,9 +4,10 @@ import (
 	"card/db"
 	"database/sql"
 	"net/http"
+	"time"
 )
 
-func Register(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
+func Register2(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 
 	ClearAdminSessionToken(w)
 
@@ -36,5 +37,14 @@ func Register(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to set an admin password
-	RenderHtmlFromTemplate(w, "/dist/pages/admin/register/index.html", nil)
+	RenderHtmlFromTemplate(w, "/admin/register/index.html", nil)
+}
+
+func ClearAdminSessionToken(w http.ResponseWriter) {
+	http.SetCookie(w, &http.Cookie{
+		Name:    "admin_session_token",
+		Value:   "",
+		Path:    "/admin/",
+		Expires: time.Now(),
+	})
 }

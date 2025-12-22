@@ -35,7 +35,7 @@ func (app *App) SetupRoutes() *mux.Router {
 	router.Path("/websocket").HandlerFunc(WebsocketHandler)
 
 	// admin dashboard
-	router.PathPrefix("/admin2/").HandlerFunc(app.CreateHandler_Admin2())
+	router.PathPrefix("/admin/").HandlerFunc(app.CreateHandler_Admin())
 
 	// public assets that do not need authentication
 	router.PathPrefix("/public/").HandlerFunc(app.CreateHandler_Public())

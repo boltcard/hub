@@ -10,9 +10,9 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func Admin2_Phoenix(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
+func Admin_Phoenix(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 
-	template_path := "/admin2/phoenix/index.html"
+	template_path := "/admin/phoenix/index.html"
 
 	balance, err := phoenix.GetBalance()
 	if err != nil {

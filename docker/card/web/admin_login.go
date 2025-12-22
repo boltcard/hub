@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func Login(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
+func Login2(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 
 	ClearAdminSessionToken(w)
 
@@ -26,10 +26,10 @@ func Login(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 		if db.Db_get_setting(db_conn, "admin_password_hash") == passwordHashStr {
 			sessionToken := util.Random_hex()
 
-			db.Db_set_setting(db_conn, "session_token", sessionToken)
+			db.Db_set_setting(db_conn, "admin_session_token", sessionToken)
 
 			http.SetCookie(w, &http.Cookie{
-				Name:    "session_token",
+				Name:    "admin_session_token",
 				Value:   sessionToken,
 				Path:    "/admin/",
 				Expires: time.Now().Add(24 * time.Hour),
@@ -49,5 +49,5 @@ func Login(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 	}
 
 	// return page for user to login as admin
-	RenderHtmlFromTemplate(w, "/dist/pages/admin/login/index.html", nil)
+	RenderHtmlFromTemplate(w, "/admin/login/index.html", nil)
 }
