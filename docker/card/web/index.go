@@ -4,16 +4,16 @@ import (
 	"net/http"
 )
 
+// domain home page
 func HomePage(w http.ResponseWriter, r *http.Request) {
-	// TODO: return QR code for BOLT 12 Offer
 
-	template_path := "/dist/pages/index.html"
+	template_path := "/index.html"
 	RenderHtmlFromTemplate(w, template_path, nil)
 }
 
+// get card balance & transaction table
 func BalancePage(w http.ResponseWriter, r *http.Request) {
-	// get card balance & transaction table
 
-	template_path := "/dist/pages/balance/index.html"
+	template_path := "/balance/index.html"
 	RenderHtmlFromTemplate(w, template_path, nil)
 }
