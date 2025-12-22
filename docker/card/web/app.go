@@ -35,18 +35,15 @@ func (app *App) SetupRoutes() *mux.Router {
 	router.Path("/websocket").HandlerFunc(WebsocketHandler)
 
 	// admin dashboard
-	router.PathPrefix("/admin/").HandlerFunc(app.CreateHandler_Admin())
-	router.PathPrefix("/dist/").HandlerFunc(app.CreateHandler_Admin())
-
-	// admin2 dashboard
 	router.PathPrefix("/admin2/").HandlerFunc(app.CreateHandler_Admin2())
 
 	// public assets that do not need authentication
 	router.PathPrefix("/public/").HandlerFunc(app.CreateHandler_Public())
 
 	// for Bolt Card Programmer app
-	router.Path("/new").Methods("GET").HandlerFunc(app.CreateHandler_CreateCard())
-	router.Path("/batch").Methods("POST").HandlerFunc(app.CreateHandler_BatchCreateCard())
+	router.Path("/new").Methods("GET", "POST").HandlerFunc(app.CreateHandler_CreateCard())
+	router.Path("/wipe").Methods("POST").HandlerFunc(app.CreateHandler_WipeCard())
+	//router.Path("/batch").Methods("POST").HandlerFunc(app.CreateHandler_BatchCreateCard())
 
 	// Bolt Card interface (hit from PoS when a card is tapped)
 	router.Path("/ln").Methods("GET").HandlerFunc(app.CreateHandler_LnurlwRequest())
