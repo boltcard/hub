@@ -13,6 +13,7 @@ import (
 
 type NodeInfo struct {
 	NodeID   string `json:"nodeId"`
+	Version  string `json:"version"`
 	Channels []struct {
 		State               string `json:"state"`
 		ChannelID           string `json:"channelId"`

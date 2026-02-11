@@ -27,15 +27,39 @@
         <table>
             <tbody>
                 <tr>
-                    <td>phoenix balance sat</td>
+                    <td>balance sat</td>
                     <td>{{.BalanceSat}}</td>
                 </tr>
                 <tr>
-                    <td>phoenix fee credit sat</td>
+                    <td>fee credit sat</td>
                     <td>{{.FeeCreditSat}}</td>
                 </tr>
             </tbody>
         </table>
+
+        <h2>Channels</h2>
+        {{if .Channels}}
+        <table>
+            <thead>
+                <tr>
+                    <th>state</th>
+                    <th>inbound liquidity msat</th>
+                    <th>outbound liquidity msat</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Channels}}
+                <tr>
+                    <td>{{.State}}</td>
+                    <td>{{.InboundLiquidMsat}}</td>
+                    <td>{{.BalanceMsat}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p>No channels found.</p>
+        {{end}}
 
         <h2>Load Sats</h2>
         <img alt="Bolt 12 Offer QR code" src="data:image/png;base64,{{.OfferQrPngEncoded}}" />
