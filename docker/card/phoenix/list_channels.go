@@ -12,10 +12,10 @@ import (
 )
 
 type Channel struct {
-	State              string
-	ChannelID          string
-	BalanceMsat        int64
-	InboundLiquidMsat  int64
+	State             string
+	ChannelID         string
+	BalanceMsat       int64
+	InboundLiquidMsat int64
 }
 
 type listChannelRaw struct {
