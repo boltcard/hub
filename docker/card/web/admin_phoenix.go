@@ -7,14 +7,19 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/shopspring/decimal"
 	log "github.com/sirupsen/logrus"
 )
 
+func msatToSatStr(msat int64) string {
+	return decimal.NewFromInt(msat).Div(decimal.NewFromInt(1000)).String() + " sat"
+}
+
 type ChannelInfo struct {
-	State             string
-	ChannelID         string
-	BalanceMsat       string
-	InboundLiquidMsat string
+	State         string
+	ChannelID     string
+	Balance       string
+	InboundLiquid string
 }
 
 func Admin_Phoenix(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
@@ -41,21 +46,21 @@ func Admin_Phoenix(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 	var channels []ChannelInfo
 	for _, ch := range phoenixChannels {
 		channels = append(channels, ChannelInfo{
-			State:             ch.State,
-			ChannelID:         ch.ChannelID,
-			BalanceMsat:       strconv.FormatInt(ch.BalanceMsat, 10),
-			InboundLiquidMsat: strconv.FormatInt(ch.InboundLiquidMsat, 10),
+			State:         ch.State,
+			ChannelID:     ch.ChannelID,
+			Balance:       msatToSatStr(ch.BalanceMsat),
+			InboundLiquid: msatToSatStr(ch.InboundLiquidMsat),
 		})
 	}
 
 	data := struct {
-		BalanceSat        string
-		FeeCreditSat      string
+		Balance           string
+		FeeCredit         string
 		OfferQrPngEncoded string
 		Channels          []ChannelInfo
 	}{
-		BalanceSat:        strconv.Itoa(balance.BalanceSat),
-		FeeCreditSat:      strconv.Itoa(balance.FeeCreditSat),
+		Balance:           strconv.Itoa(balance.BalanceSat) + " sat",
+		FeeCredit:         strconv.Itoa(balance.FeeCreditSat) + " sat",
 		OfferQrPngEncoded: OfferQrPngEncoded,
 		Channels:          channels,
 	}

@@ -27,12 +27,12 @@
         <table>
             <tbody>
                 <tr>
-                    <td>balance sat</td>
-                    <td>{{.BalanceSat}}</td>
+                    <td>balance</td>
+                    <td>{{.Balance}}</td>
                 </tr>
                 <tr>
-                    <td>fee credit sat</td>
-                    <td>{{.FeeCreditSat}}</td>
+                    <td>fee credit</td>
+                    <td>{{.FeeCredit}}</td>
                 </tr>
             </tbody>
         </table>
@@ -43,16 +43,16 @@
             <thead>
                 <tr>
                     <th>state</th>
-                    <th>inbound liquidity msat</th>
-                    <th>outbound liquidity msat</th>
+                    <th>inbound liquidity</th>
+                    <th>outbound liquidity</th>
                 </tr>
             </thead>
             <tbody>
                 {{range .Channels}}
                 <tr>
                     <td>{{.State}}</td>
-                    <td>{{.InboundLiquidMsat}}</td>
-                    <td>{{.BalanceMsat}}</td>
+                    <td>{{.InboundLiquid}}</td>
+                    <td>{{.Balance}}</td>
                 </tr>
                 {{end}}
             </tbody>
