@@ -1,6 +1,7 @@
 # will be overwritten by docker_init.sh
 Caddyfile
-docker/card/Dockerfile
+# environment config (contains domain)
+.env
 # test builds
 docker/card/card
 notes

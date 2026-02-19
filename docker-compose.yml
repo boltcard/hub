@@ -16,6 +16,7 @@ services:
     container_name: card
     restart: unless-stopped
     build: ./docker/card
+    env_file: .env
     environment:
       - GOMEMLIMIT=100MiB
     develop:
@@ -29,6 +30,12 @@ services:
     depends_on:
       - phoenix
       - webproxy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--head", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     volumes:
       - type: volume
         source: phoenix_data
@@ -40,8 +47,8 @@ services:
     networks:
       - hubnet
   webproxy:
-    image: caddy:latest
     container_name: webproxy
+    build: ./docker/webproxy
     restart: unless-stopped
     deploy:
       resources:

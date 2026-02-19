@@ -12,9 +12,9 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
     go build -o app -ldflags="-X 'card/build.Date=$(date +"%a %d %b %Y")' -X 'card/build.Time=$(date +"%H:%M:%S %Z")'"
 
 FROM ubuntu:24.04
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN mkdir /app
 WORKDIR /app
 COPY --from=builder /app/web-content/ /web-content/
 COPY --from=builder /app/app .
-ENV HOST_DOMAIN=domain_name
 ENTRYPOINT ["./app"]

@@ -5,9 +5,12 @@ import (
 	"card/db"
 	"card/util"
 	"card/web"
+	"context"
 	"database/sql"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -67,5 +70,27 @@ func main() {
 		ReadTimeout:  10 * time.Second,
 	}
 
-	log.Fatal(server.ListenAndServe())
+	// graceful shutdown on SIGINT/SIGTERM
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatal(err)
+		}
+	}()
+
+	log.Info("card service started")
+
+	<-stop
+	log.Info("shutting down")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(ctx); err != nil {
+		log.Error("shutdown error: ", err)
+	}
+
+	log.Info("shutdown complete")
 }

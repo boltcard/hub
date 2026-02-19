@@ -1,9 +1,31 @@
+{
+	order rate_limit before basicauth
+}
+
 domain_name {
 	header {
 		Access-Control-Allow-Origin *
 		Access-Control-Allow-Credentials true
 		Access-Control-Allow-Methods *
 		Access-Control-Allow-Headers *
+	}
+
+	rate_limit {
+		zone auth_zone {
+			key {remote_host}
+			events 10
+			window 1m
+		}
+	}
+
+	@auth_paths {
+		path /admin/login/ /auth /pos/auth
+	}
+	handle @auth_paths {
+		rate_limit {
+			zone auth_zone
+		}
+		reverse_proxy card:8000
 	}
 
 	handle {
