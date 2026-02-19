@@ -4,5 +4,4 @@ docker/card/Dockerfile
 # test builds
 docker/card/card
 notes
-CLAUDE.md
 .github/prompts/*
