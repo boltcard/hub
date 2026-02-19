@@ -9,8 +9,12 @@ Bolt Card Hub (Phoenix Edition) — a lightweight Bitcoin/Lightning payment serv
 ## Build & Run
 
 ```bash
-# First-time setup (generates Caddyfile and Dockerfile from templates with domain name)
+# First-time setup (generates Caddyfile from template and creates .env with domain name)
 ./docker_init.sh
+
+# Or manually create .env from example
+cp .env.example .env
+# Edit .env to set HOST_DOMAIN=hub.yourdomain.com
 
 # Build and run
 docker compose build
@@ -21,9 +25,31 @@ docker compose up -d     # detached
 docker compose watch
 ```
 
-The Go application is in `docker/card/`. It builds via multi-stage Docker build (see `docker/card/Dockerfile.template`). Build flags inject version/date/time into `card/build`.
+The Go application is in `docker/card/`. It builds via multi-stage Docker build (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`.
 
-There is no Makefile — building is done exclusively through Docker. There are no Go tests.
+There is no Makefile — building is done exclusively through Docker.
+
+## Testing
+
+```bash
+# Run all tests (from docker/card/)
+cd docker/card && go test ./...
+
+# Run specific test packages
+go test ./crypto/    # AES-CMAC and AES decrypt tests
+go test ./db/        # Schema migration, settings CRUD, card operations (uses in-memory SQLite)
+```
+
+Tests require CGo (for `go-sqlite3`). CI runs tests automatically via GitHub Actions on push/PR to main.
+
+## CI
+
+GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
+- `go vet ./...`
+- `go build`
+- `go test ./...`
+
+Uses Go 1.25.7 with CGo enabled for sqlite3.
 
 ## CLI Commands (run inside card container)
 
@@ -41,10 +67,10 @@ docker exec -it card bash
 ### Docker Services (docker-compose.yml)
 
 - **phoenix**: acinq/phoenixd:0.7.2 — Lightning node (256M memory)
-- **card**: Custom Go app — card service on `:8000` (128M memory, GOMEMLIMIT=100MiB)
-- **webproxy**: Caddy — reverse proxy with auto-TLS, CORS, zstd compression
+- **card**: Custom Go app — card service on `:8000` (128M memory, GOMEMLIMIT=100MiB). Has Docker healthcheck (HEAD / every 30s). Graceful shutdown on SIGTERM with 10s drain timeout.
+- **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`, `/pos/auth`)
 
-All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access.
+All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access. `HOST_DOMAIN` is passed to the card container via `.env` file (`env_file` in docker-compose.yml).
 
 ### Go Application (`docker/card/`)
 
