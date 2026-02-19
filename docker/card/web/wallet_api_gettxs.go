@@ -2,12 +2,10 @@ package web
 
 import (
 	"card/db"
-	"card/util"
 
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
@@ -41,9 +39,10 @@ func (app *App) CreateHandler_GetTxs() http.HandlerFunc {
 
 		// get access_token
 
-		authToken := r.Header.Get("Authorization")
-		splitToken := strings.Split(authToken, "Bearer ")
-		accessToken := splitToken[1]
+		accessToken, ok := getBearerToken(w, r)
+		if !ok {
+			return
+		}
 
 		// get card_id from access_token
 
@@ -63,11 +62,7 @@ func (app *App) CreateHandler_GetTxs() http.HandlerFunc {
 		var tx Transaction
 
 		for _, cardPayment := range cardPayments {
-			//		tx.XX = cardPayment.YY
-
-			//tx.PaymentPreimage
 			tx.PaymentHash.Type = "Buffer"
-			//tx.PaymentHash.Data = {0}
 			tx.Type = "paid_invoice"
 			tx.Fee = cardPayment.FeeSats
 			tx.Value = cardPayment.AmountSats
@@ -78,9 +73,11 @@ func (app *App) CreateHandler_GetTxs() http.HandlerFunc {
 		}
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
-
-		//	log.Info("resJson string ", string(resJson))
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		w.Write(resJson)
 	}

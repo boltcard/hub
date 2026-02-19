@@ -1,9 +1,11 @@
 package web
 
 import (
-	"card/util"
 	"encoding/json"
 	"net/http"
+	"strings"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type ErrorResponse struct {
@@ -18,6 +20,19 @@ func sendError(w http.ResponseWriter, error string, code int, message string) {
 	errorResponse.Code = code
 	errorResponse.Message = message
 	resJson, err := json.Marshal(errorResponse)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("json marshal error: ", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	w.Write(resJson)
+}
+
+func getBearerToken(w http.ResponseWriter, r *http.Request) (string, bool) {
+	authToken := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authToken, "Bearer ") {
+		sendError(w, "Bad auth", 1, "missing or invalid Authorization header")
+		return "", false
+	}
+	return authToken[7:], true
 }

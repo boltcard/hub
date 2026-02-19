@@ -64,7 +64,11 @@ func (app *App) CreateHandler_Auth() http.HandlerFunc {
 			resObj.AccessToken = AccessToken
 
 			resJson, err := json.Marshal(resObj)
-			util.CheckAndPanic(err)
+			if err != nil {
+				log.Error("json marshal error: ", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
 
 			w.Write(resJson) // TODO: not tested yet
 		}
@@ -82,7 +86,7 @@ func (app *App) CreateHandler_Auth() http.HandlerFunc {
 				return
 			}
 
-			log.Info("AuthRequest ", reqObj)
+			log.Info("AuthRequest received for login")
 
 			// create new refresh_token & access_token
 			AccessToken := util.Random_hex()
@@ -101,10 +105,14 @@ func (app *App) CreateHandler_Auth() http.HandlerFunc {
 			resObj.RefreshToken = RefreshToken
 			resObj.AccessToken = AccessToken
 
-			log.Info("AuthResponse ", resObj)
+			log.Info("AuthResponse sent")
 
 			resJson, err := json.Marshal(resObj)
-			util.CheckAndPanic(err)
+			if err != nil {
+				log.Error("json marshal error: ", err)
+				http.Error(w, "internal error", http.StatusInternalServerError)
+				return
+			}
 
 			w.Write(resJson)
 

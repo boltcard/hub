@@ -82,6 +82,19 @@ func Db_get_total_paid_payments(db_conn *sql.DB, card_id int) int {
 	return value
 }
 
+func Db_get_card_balance(db_conn *sql.DB, card_id int) int {
+	sqlStatement := `SELECT
+		IFNULL((SELECT SUM(amount_sats) FROM card_receipts WHERE paid_flag='Y' AND card_id=$1), 0) -
+		IFNULL((SELECT SUM(amount_sats) + SUM(fee_sats) FROM card_payments WHERE paid_flag='Y' AND card_id=$1), 0)`
+	row := db_conn.QueryRow(sqlStatement, card_id)
+	value := 0
+	err := row.Scan(&value)
+	if err != nil {
+		return 0
+	}
+	return value
+}
+
 type CardLookup struct {
 	CardId int
 	Key1   string

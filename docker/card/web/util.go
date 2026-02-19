@@ -5,8 +5,12 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
+	"strings"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
+// GetPwHash is the legacy SHA256 password hash (kept for migration)
 func GetPwHash(db_conn *sql.DB, passwordStr string) (passwordHashStr string) {
 	passwordSalt := db.Db_get_setting(db_conn, "admin_password_salt")
 
@@ -17,4 +21,17 @@ func GetPwHash(db_conn *sql.DB, passwordStr string) (passwordHashStr string) {
 	passwordHashStr = hex.EncodeToString(passwordHash)
 
 	return passwordHashStr
+}
+
+func HashPassword(passwordStr string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(passwordStr), bcrypt.DefaultCost)
+	return string(hash), err
+}
+
+func CheckPassword(passwordStr string, hashStr string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(hashStr), []byte(passwordStr)) == nil
+}
+
+func isBcryptHash(hash string) bool {
+	return strings.HasPrefix(hash, "$2a$") || strings.HasPrefix(hash, "$2b$")
 }

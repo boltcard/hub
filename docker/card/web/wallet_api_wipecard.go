@@ -2,11 +2,9 @@ package web
 
 import (
 	"card/db"
-	"card/util"
 
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
@@ -37,9 +35,10 @@ func (app *App) CreateHandler_WalletApi_WipeCard() http.HandlerFunc {
 
 		// get access_token
 
-		authToken := r.Header.Get("Authorization")
-		splitToken := strings.Split(authToken, "Bearer ")
-		accessToken := splitToken[1]
+		accessToken, ok := getBearerToken(w, r)
+		if !ok {
+			return
+		}
 
 		// get card_id from access_token
 
@@ -68,7 +67,11 @@ func (app *App) CreateHandler_WalletApi_WipeCard() http.HandlerFunc {
 		resObj.Uid = "12345678"
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		log.Info("resJson ", string(resJson))
 

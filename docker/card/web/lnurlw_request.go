@@ -79,7 +79,11 @@ func (app *App) CreateHandler_LnurlwRequest() http.HandlerFunc {
 
 		// send response
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		w.Write(resJson)
 	}

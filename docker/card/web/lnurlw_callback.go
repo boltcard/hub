@@ -51,9 +51,7 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 		}
 
 		// check the card balance
-		total_paid_receipts := db.Db_get_total_paid_receipts(app.db_conn, cardId)
-		total_paid_payments := db.Db_get_total_paid_payments(app.db_conn, cardId)
-		total_card_balance := total_paid_receipts - total_paid_payments
+		total_card_balance := db.Db_get_card_balance(app.db_conn, cardId)
 
 		// calculate the max network fee possible
 		// https://phoenix.acinq.co/faq#what-are-the-fees

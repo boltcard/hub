@@ -3,12 +3,10 @@ package web
 import (
 	"card/db"
 	"card/phoenix"
-	"card/util"
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
@@ -41,11 +39,10 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 
 		// get access_token
 
-		authToken := r.Header.Get("Authorization")
-		splitToken := strings.Split(authToken, "Bearer ")
-		accessToken := splitToken[1]
-
-		// log.Info("access_token ", accessToken)
+		accessToken, ok := getBearerToken(w, r)
+		if !ok {
+			return
+		}
 
 		// get details from request body
 
@@ -73,7 +70,11 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 		createInvoiceRequest.ExternalId = "" // could use a unique id here if needed
 
 		createInvoiceResponse, err := phoenix.CreateInvoice(createInvoiceRequest)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("phoenix CreateInvoice error: ", err)
+			sendError(w, "Error", 999, "failed to create invoice")
+			return
+		}
 
 		log.Info("createInvoiceResponse ", createInvoiceResponse)
 
@@ -82,7 +83,11 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 		var resObj AddInvoiceResponse
 
 		rHashByteSlice, err := hex.DecodeString(createInvoiceResponse.PaymentHash)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("hex decode error: ", err)
+			sendError(w, "Error", 999, "failed to decode payment hash")
+			return
+		}
 
 		rHashIntSlice := []int{}
 		for _, rHashByte := range rHashByteSlice {
@@ -115,7 +120,11 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 		resObj.Hash = createInvoiceResponse.PaymentHash
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		log.Info("resJson ", string(resJson))
 
