@@ -19,9 +19,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25.7"
-
-      - name: Install CGo dependencies
-        run: sudo apt-get update && sudo apt-get install -y gcc
+          cache-dependency-path: docker/card/go.sum
 
       - name: Vet
         run: go vet ./...
@@ -30,4 +28,18 @@ jobs:
         run: go build -o app
 
       - name: Test
-        run: go test ./...
+        run: go test -race -count=1 ./...
+
+      - name: Vulnerability check
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build card image
+        run: docker build -t boltcard/card:ci docker/card
+
+      - name: Build webproxy image
+        run: docker build -t boltcard/webproxy:ci docker/webproxy
