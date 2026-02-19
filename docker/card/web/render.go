@@ -1,7 +1,6 @@
 package web
 
 import (
-	"card/util"
 	"html/template"
 	"io"
 	"io/fs"
@@ -21,7 +20,9 @@ func InitTemplates() {
 	//iterate the filesystem from /web-content looking for *.html filenames
 
 	err := filepath.WalkDir("/web-content/", visit)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("template walk error: ", err)
+	}
 }
 
 func visit(path string, di fs.DirEntry, err error) error {
@@ -36,7 +37,10 @@ func visit(path string, di fs.DirEntry, err error) error {
 	if strings.HasSuffix(template_name, ".html") {
 		//log.Info("loading template cache: " + template_full_name + " : from : " + path)
 		ts, err := template.New(template_name).ParseFiles(path)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("template parse error: ", err)
+			return err
+		}
 		templates[template_full_name] = ts
 	}
 
@@ -57,13 +61,24 @@ func RenderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, da
 	template_name := template_names[len(template_names)-1]
 
 	err := t.ExecuteTemplate(w, template_name, data)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("template execution error: ", err)
+	}
 }
 
-// TODO: cache these in memory
 func RenderStaticContent(w http.ResponseWriter, request string) {
+	cleanPath := filepath.Clean(request)
+	if strings.HasPrefix(cleanPath, "..") || filepath.IsAbs(cleanPath) {
+		Blank(w, nil)
+		return
+	}
+	fullPath := filepath.Join("/web-content", cleanPath)
+	if !strings.HasPrefix(fullPath, "/web-content/") {
+		Blank(w, nil)
+		return
+	}
 
-	content, err := os.Open("/web-content/" + request)
+	content, err := os.Open(fullPath)
 
 	if err != nil {
 		log.Info(err.Error())
@@ -73,7 +88,6 @@ func RenderStaticContent(w http.ResponseWriter, request string) {
 
 	defer content.Close()
 
-	// https://stackoverflow.com/questions/19911929/what-mime-type-should-i-use-for-javascript-source-map-files
 	switch {
 	case strings.HasSuffix(request, ".js"):
 		w.Header().Add("Content-Type", "application/json")

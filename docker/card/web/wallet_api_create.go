@@ -43,9 +43,6 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 		db_invite_secret := db.Db_get_setting(app.db_conn, "invite_secret")
 		req_invite_secret := t.InviteSecret
 
-		log.Info("db_invite_secret " + db_invite_secret)
-		log.Info("req_invite_secret " + req_invite_secret)
-
 		if req_invite_secret != db_invite_secret {
 			sendError(w, "Bad auth", 1, "incorrect invite_secret")
 			return
@@ -70,7 +67,11 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 		resObj.Password = password
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		w.Write(resJson)
 	}

@@ -2,7 +2,6 @@ package web
 
 import (
 	"card/db"
-	"card/util"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -76,7 +75,11 @@ func (app *App) CreateHandler_CreateCard() http.HandlerFunc {
 		resObj.K4 = k4
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		//log.Info("resJson ", string(resJson))
 

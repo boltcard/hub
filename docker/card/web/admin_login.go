@@ -20,10 +20,27 @@ func Login2(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 
 		passwordStr := r.Form.Get("password")
-		passwordHashStr := GetPwHash(db_conn, passwordStr)
+		storedHash := db.Db_get_setting(db_conn, "admin_password_hash")
 
-		// check password
-		if db.Db_get_setting(db_conn, "admin_password_hash") == passwordHashStr {
+		// check password (supports both bcrypt and legacy SHA256)
+		passwordValid := false
+		if isBcryptHash(storedHash) {
+			passwordValid = CheckPassword(passwordStr, storedHash)
+		} else {
+			// legacy SHA256 check
+			passwordHashStr := GetPwHash(db_conn, passwordStr)
+			if storedHash == passwordHashStr {
+				passwordValid = true
+				// migrate to bcrypt
+				newHash, err := HashPassword(passwordStr)
+				if err == nil {
+					db.Db_set_setting(db_conn, "admin_password_hash", newHash)
+					log.Info("migrated admin password to bcrypt")
+				}
+			}
+		}
+
+		if passwordValid {
 			sessionToken := util.Random_hex()
 
 			db.Db_set_setting(db_conn, "admin_session_token", sessionToken)

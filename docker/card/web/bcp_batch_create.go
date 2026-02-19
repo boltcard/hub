@@ -2,7 +2,6 @@ package web
 
 import (
 	"card/db"
-	"card/util"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -32,8 +31,6 @@ func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
 
 		// get secret param
 		secret := r.URL.Query().Get("s")
-
-		log.Info("secret : ", secret)
 
 		// get UID param
 		decoder := json.NewDecoder(r.Body)
@@ -82,7 +79,11 @@ func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
 		bcpBatchResponse.K4 = k4
 
 		resJson, err := json.Marshal(bcpBatchResponse)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		log.Info("resJson ", string(resJson))
 

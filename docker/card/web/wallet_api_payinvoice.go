@@ -2,13 +2,12 @@ package web
 
 import (
 	"card/db"
-	"card/util"
 
 	"card/phoenix"
+	"card/util"
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	decodepay "github.com/nbd-wtf/ln-decodepay"
@@ -36,9 +35,10 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 
 		// get access_token
 
-		authToken := r.Header.Get("Authorization")
-		splitToken := strings.Split(authToken, "Bearer ")
-		accessToken := splitToken[1]
+		accessToken, ok := getBearerToken(w, r)
+		if !ok {
+			return
+		}
 
 		// get card_id from access_token
 
@@ -76,11 +76,9 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 
 		actualAmtSat := util.Max(invAmtSat, reqObj.Amount)
 
-		// check if there is sufficient balance
+		// check if there is sufficient balance (atomic query)
 
-		total_paid_receipts := db.Db_get_total_paid_receipts(app.db_conn, card_id)
-		total_paid_payments := db.Db_get_total_paid_payments(app.db_conn, card_id)
-		total_card_balance := total_paid_receipts - total_paid_payments
+		total_card_balance := db.Db_get_card_balance(app.db_conn, card_id)
 
 		if actualAmtSat > total_card_balance {
 			sendError(w, "Error", 999, "invoice amount too large")
@@ -116,7 +114,11 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 		resObj.Status = "OK"
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		log.Info("resJson ", string(resJson))
 

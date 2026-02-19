@@ -48,6 +48,9 @@ func Db_init(db_conn *sql.DB) {
 		Db_set_setting(db_conn, "invite_secret", "")
 
 		hostDomain := os.Getenv("HOST_DOMAIN")
+		if hostDomain == "" {
+			panic("HOST_DOMAIN environment variable must be set")
+		}
 		Db_set_setting(db_conn, "host_domain", hostDomain)
 		Db_set_setting(db_conn, "gc_url", "")
 		Db_set_setting(db_conn, "log_level", "debug")

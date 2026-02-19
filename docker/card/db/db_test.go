@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"os"
 	"testing"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -9,6 +10,7 @@ import (
 
 func openTestDB(t *testing.T) *sql.DB {
 	t.Helper()
+	os.Setenv("HOST_DOMAIN", "test.example.com")
 	db, err := sql.Open("sqlite3", ":memory:?_foreign_keys=1")
 	if err != nil {
 		t.Fatal(err)

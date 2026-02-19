@@ -2,11 +2,9 @@ package web
 
 import (
 	"card/db"
-	"card/util"
 
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
@@ -29,9 +27,10 @@ func (app *App) CreateHandler_Balance() http.HandlerFunc {
 
 		// get access_token
 
-		authToken := r.Header.Get("Authorization")
-		splitToken := strings.Split(authToken, "Bearer ")
-		accessToken := splitToken[1]
+		accessToken, ok := getBearerToken(w, r)
+		if !ok {
+			return
+		}
 
 		// get card_id from access_token
 
@@ -42,16 +41,9 @@ func (app *App) CreateHandler_Balance() http.HandlerFunc {
 			return
 		}
 
-		// get the totals of paid transactions from the database
+		// get the card balance atomically
 
-		//select IFNULL(SUM(amount_sats),0) from card_receipts where paid_flag='Y';
-
-		//TODO: find out how we can tell if a payment will not get paid (hard fail)
-		//select IFNULL(SUM(amount_sats),0) from card_payments;
-
-		total_paid_receipts := db.Db_get_total_paid_receipts(app.db_conn, card_id)
-		total_paid_payments := db.Db_get_total_paid_payments(app.db_conn, card_id)
-		total_card_balance := total_paid_receipts - total_paid_payments
+		total_card_balance := db.Db_get_card_balance(app.db_conn, card_id)
 
 		log.Info("total_card_balance = ", total_card_balance)
 
@@ -59,9 +51,11 @@ func (app *App) CreateHandler_Balance() http.HandlerFunc {
 		resObj.BTC.AvailableBalance = total_card_balance
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
-
-		//	log.Info("resJson string ", string(resJson))
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		w.Write(resJson)
 	}

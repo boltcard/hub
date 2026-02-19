@@ -2,7 +2,6 @@ package web
 
 import (
 	"card/db"
-	"card/util"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -37,9 +36,10 @@ func (app *App) CreateHandler_WalletApi_UpdateCardWithPin() http.HandlerFunc {
 
 		// get access_token
 
-		authToken := r.Header.Get("Authorization")
-		splitToken := strings.Split(authToken, "Bearer ")
-		accessToken := splitToken[1]
+		accessToken, ok := getBearerToken(w, r)
+		if !ok {
+			return
+		}
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -116,7 +116,11 @@ func (app *App) CreateHandler_WalletApi_UpdateCardWithPin() http.HandlerFunc {
 		resObj.Status = "OK"
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		w.Write(resJson)
 	}

@@ -2,7 +2,6 @@ package web
 
 import (
 	"card/phoenix"
-	"card/util"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -62,7 +61,11 @@ func (app *App) CreateHandler_PosApi_AddInvoice() http.HandlerFunc {
 			ExternalId:  "ext_id",
 		}
 		invoice, err := phoenix.CreateInvoice(invoiceRequest)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("phoenix error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		log.Info("invoice : ", invoice)
 
@@ -78,7 +81,11 @@ func (app *App) CreateHandler_PosApi_AddInvoice() http.HandlerFunc {
 		resp.Hash = invoice.PaymentHash
 
 		respJson, err := json.Marshal(resp)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		log.Info(string(respJson))
 

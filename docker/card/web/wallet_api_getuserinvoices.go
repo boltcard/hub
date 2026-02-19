@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
@@ -35,13 +34,12 @@ type UserInvoice struct {
 type UserInvoicesResponse []UserInvoice
 
 func updateInvoiceStatus(db_conn *sql.DB, paymentHash string) {
-	//log.Info("update invoice for paymentHash ", paymentHash)
-
 	// get status from phoenix server
 	incomingPayment, err := phoenix.GetIncomingPayment(paymentHash)
-	util.CheckAndPanic(err)
-
-	//	log.Info("incomingPayment ", incomingPayment)
+	if err != nil {
+		log.Error("phoenix GetIncomingPayment error: ", err)
+		return
+	}
 
 	// update status in the database if paid
 	if incomingPayment.IsPaid {
@@ -61,9 +59,10 @@ func (app *App) CreateHandler_WalletApi_GetUserInvoices() http.HandlerFunc {
 
 		// get access_token
 
-		authToken := r.Header.Get("Authorization")
-		splitToken := strings.Split(authToken, "Bearer ")
-		accessToken := splitToken[1]
+		accessToken, ok := getBearerToken(w, r)
+		if !ok {
+			return
+		}
 
 		// get card_id from access_token
 
@@ -82,9 +81,6 @@ func (app *App) CreateHandler_WalletApi_GetUserInvoices() http.HandlerFunc {
 		if err != nil {
 			limitProvided = false
 		}
-
-		//log.Info("limitProvided ", limitProvided)
-		//log.Info("limit ", limit)
 
 		// query database card receipts for card
 
@@ -125,9 +121,11 @@ func (app *App) CreateHandler_WalletApi_GetUserInvoices() http.HandlerFunc {
 		}
 
 		resJson, err := json.Marshal(resObj)
-		util.CheckAndPanic(err)
-
-		//	log.Info("resJson string ", string(resJson))
+		if err != nil {
+			log.Error("json marshal error: ", err)
+			http.Error(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 
 		w.Write(resJson)
 	}

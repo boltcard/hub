@@ -32,7 +32,7 @@ func (app *App) SetupRoutes() *mux.Router {
 	router.Path("/balance-ajax").Methods("GET").HandlerFunc(app.CreateHandler_BalanceAjaxPage())
 
 	// websocket
-	router.Path("/websocket").HandlerFunc(WebsocketHandler)
+	router.Path("/websocket").HandlerFunc(app.CreateHandler_Websocket())
 
 	// admin dashboard
 	router.PathPrefix("/admin/").HandlerFunc(app.CreateHandler_Admin())
