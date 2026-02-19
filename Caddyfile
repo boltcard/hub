@@ -2,7 +2,7 @@
 	order rate_limit before basicauth
 }
 
-domain_name {
+https://{$HOST_DOMAIN} {
 	header {
 		Access-Control-Allow-Origin *
 		Access-Control-Allow-Credentials true

@@ -1,5 +1,3 @@
-# will be overwritten by docker_init.sh
-Caddyfile
 # environment config (contains domain)
 .env
 # test builds

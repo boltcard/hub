@@ -50,6 +50,7 @@ services:
     container_name: webproxy
     build: ./docker/webproxy
     restart: unless-stopped
+    env_file: .env
     deploy:
       resources:
         limits:

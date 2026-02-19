@@ -9,10 +9,7 @@ Bolt Card Hub (Phoenix Edition) — a lightweight Bitcoin/Lightning payment serv
 ## Build & Run
 
 ```bash
-# First-time setup (generates Caddyfile from template and creates .env with domain name)
-./docker_init.sh
-
-# Or manually create .env from example
+# First-time setup: create .env from example and set your domain
 cp .env.example .env
 # Edit .env to set HOST_DOMAIN=hub.yourdomain.com
 
@@ -70,7 +67,7 @@ docker exec -it card bash
 - **card**: Custom Go app — card service on `:8000` (128M memory, GOMEMLIMIT=100MiB). Has Docker healthcheck (HEAD / every 30s). Graceful shutdown on SIGTERM with 10s drain timeout.
 - **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`, `/pos/auth`)
 
-All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access. `HOST_DOMAIN` is passed to the card container via `.env` file (`env_file` in docker-compose.yml).
+All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access. `HOST_DOMAIN` is set in `.env` and shared with both card and webproxy containers via `env_file`. The Caddyfile uses `{$HOST_DOMAIN}` for the site address — no templating or init scripts needed.
 
 ### Go Application (`docker/card/`)
 
