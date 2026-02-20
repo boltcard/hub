@@ -62,6 +62,9 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    sysctls:
+      - net.core.rmem_max=7500000
+      - net.core.wmem_max=7500000
     networks:
       - hubnet
 networks:
