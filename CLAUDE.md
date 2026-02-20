@@ -30,7 +30,7 @@ There is no Makefile — building is done exclusively through Docker.
 
 ```bash
 # Run all tests (from docker/card/)
-cd docker/card && go test ./...
+cd docker/card && go test -race -count=1 ./...
 
 # Run specific test packages
 go test ./crypto/    # AES-CMAC and AES decrypt tests
@@ -38,14 +38,16 @@ go test ./db/        # Schema migration, settings CRUD, card operations (uses in
 go test ./web/       # HTTP handler tests (auth, balance, path traversal)
 ```
 
-Tests require CGo (for `go-sqlite3`). CI runs tests automatically via GitHub Actions on push/PR to main.
+Tests require CGo (for `go-sqlite3`) and `HOST_DOMAIN` env var (db_init panics without it; test helpers set it automatically). CI runs tests automatically via GitHub Actions on push/PR to main.
 
 ## CI
 
 GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
 - `go vet ./...`
 - `go build`
-- `go test ./...`
+- `go test -race -count=1 ./...`
+- `govulncheck ./...`
+- Docker image builds for both `card` and `webproxy`
 
 Uses Go 1.25.7 with CGo enabled for sqlite3.
 
@@ -117,3 +119,7 @@ Schema version managed by idempotent `update_schema_*` functions in `db_create.g
 - `go-ini/ini` — Phoenix config file parsing
 - `skip2/go-qrcode` — QR code generation
 - `golang.org/x/crypto` — bcrypt password hashing
+
+## Memory File
+
+After completing a set of changes, update the persistent memory file at `~/.claude/projects/-home-user-boltcard-hub/memory/MEMORY.md` with any new patterns, conventions, or project facts discovered during the session. Keep it concise and organized by topic. This helps maintain context across conversations.
