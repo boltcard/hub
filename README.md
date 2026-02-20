@@ -1,146 +1,76 @@
 # Bolt Card Hub - Phoenix Edition
 
-## features
+A lightweight, self-hosted service for hosting NFC Bolt Cards on the Lightning Network, powered by phoenixd.
+
+## Features
 
 - host bolt cards
 - web admin
 - low resource use
 
-## technologies
+## Technologies
 
 - Phoenix Server
 - SQLite database
 - docker deployment
 
-## install
+## Install
 
-- provision an m.1s VPS on [lunanode](https://www.lunanode.com/?r=9026) using the `Debian 12 64-bit` template  
-  ($3.50 per month, LunaNode accept bitcoin and are lighting enabled for payments)
+- provision an m.1s VPS on [lunanode](https://www.lunanode.com/?r=9026) using the `Debian 12 64-bit` template
+  ($3.50 per month, LunaNode accept bitcoin and are lightning enabled for payments)
 - log in to the machine using SSH (Linux) or Putty (Windows)
 - [install docker](https://docs.docker.com/engine/install/debian/)
 - [enable managing docker as a non root user](https://docs.docker.com/engine/install/linux-postinstall/)
-- initialise the system as below
-- enter `hub.yourdomain.com` and set up an A record pointing to the VPS
+- set up a DNS A record pointing `hub.yourdomain.com` to the VPS IP address
 
 ```bash
-docker volume create phoenix_data
-docker volume create caddy_data
-docker volume create caddy_config
-docker volume create card_data
 git clone https://github.com/boltcard/hub
 cd hub
-./docker_init.sh
+cp .env.example .env
+# Edit .env to set HOST_DOMAIN=hub.yourdomain.com
 ```
 
-- for a full local build from source and start
+- build and start the services
 
 ```bash
 docker compose build
-docker compose up
-```
-
-- optional stage to remove a Caddy note about buffer sizes and maybe increase performance
-
-```
-sudo nano /etc/sysctl.d/60-custom-network.conf
-```
-
-- add these lines and reboot
-
-```
-net.core.rmem_max=7500000
-net.core.wmem_max=7500000
+docker compose up -d
 ```
 
 - wait for a few minutes for the TLS certificate to be installed
-- access the admin web interface at https://domain-name/admin/ to set a password and login
+- access the admin web interface at https://hub.yourdomain.com/admin/ to set a password and login
 
-### to keep the service running
+## Operations
+
+### View the Logs
 
 ```bash
-docker compose up -d
-docker compose logs -f
+docker compose logs
 ```
 
-- this will also restart the service after a host reboot
-
-### to get the phoenix server seed words
+### Access the Database
 
 ```bash
-sudo cat /var/lib/docker/volumes/hub_phoenix_data/_data/seed.dat ; echo
+docker compose exec card sqlite3 /card_data/cards.db
 ```
 
-### to access the database
+### Get a Shell on a Container
 
 ```bash
-sudo apt install sqlite3
-sudo sqlite3 /var/lib/docker/volumes/hub_card_data/_data/cards.db
-```
-
-### misc SQLite
-```bash
-sqlite> .tables
-sqlite> .schema settings
-sqlite> select * from settings;
-sqlite> update settings set value='' where name='admin_password_hash';
-sqlite> .quit
-```
-
-### to backup card keys
-
-```bash
-sqlite> .dump cards
-```
-
-### to delete the database
-
-```bash
-sudo rm /var/lib/docker/volumes/hub_card_data/_data/cards.db
-```
-
-### to get a shell on a container
-
-```bash
-docker container ps
 docker exec -it phoenix bash
-$ ./phoenix-cli
+./phoenix-cli
 ```
-
-### after updating - check that docker disk use is reasonable
 
 ```bash
-df -h
-docker system df
+docker exec -it card bash
+./app
+```
+
+### Update
+
+```bash
+git pull
+docker compose build
+docker compose up -d
 docker system prune
-```
-
-### docker configuration
-
-- docker compose suggests adding `export COMPOSE_BAKE=true` to your .profile, don't do this (March 2025), it doesn't alway pick up changes
-- to persist the docker compose environment across reboots for production use
-
-```
-sudo nano /etc/systemd/system/docker-compose-app.service
-```
-
-```
-[Unit]
-Description=Docker Compose Application Service
-Requires=docker.service
-After=docker.service
-
-[Service]
-Type=oneshot
-RemainAfterExit=yes
-WorkingDirectory=/path/to/your/docker/compose/directory
-ExecStart=/usr/bin/docker compose up -d
-ExecStop=/usr/bin/docker compose down
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```
-sudo systemctl enable docker-compose-app.service
-sudo systemctl start docker-compose-app.service
 ```
