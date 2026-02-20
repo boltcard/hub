@@ -21,6 +21,16 @@ A lightweight, self-hosted service for hosting NFC Bolt Cards on the Lightning N
 - log in to the machine using SSH (Linux) or Putty (Windows)
 - [install docker](https://docs.docker.com/engine/install/debian/)
 - [enable managing docker as a non root user](https://docs.docker.com/engine/install/linux-postinstall/)
+- add swap space (the Go build needs more memory than the 1GB VPS provides)
+
+```bash
+sudo fallocate -l 1G /swapfile
+sudo chmod 600 /swapfile
+sudo mkswap /swapfile
+sudo swapon /swapfile
+echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+```
+
 - set up a DNS A record pointing `hub.yourdomain.com` to the VPS IP address
 
 ```bash
@@ -70,6 +80,7 @@ docker exec -it card bash
 
 ```bash
 git pull
+docker compose down
 docker compose build
 docker compose up -d
 docker system prune
