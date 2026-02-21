@@ -1,17 +1,9 @@
 package phoenix
 
 import (
-	"card/util"
-	"strconv"
-
 	"encoding/json"
-	"errors"
-	"io"
 	"net/http"
-	"time"
-
-	"github.com/go-ini/ini"
-	log "github.com/sirupsen/logrus"
+	"strconv"
 )
 
 type IncomingPayments []struct {
@@ -28,19 +20,11 @@ type IncomingPayments []struct {
 }
 
 func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
-
 	var incomingPayments IncomingPayments
 
-	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-	util.CheckAndPanic(err)
-
-	hp := cfg.Section("").Key("http-password").String()
-
-	client := http.Client{Timeout: 5 * time.Second}
-
-	req, err := http.NewRequest(http.MethodGet, "http://phoenix:9740/payments/incoming", http.NoBody)
+	req, err := http.NewRequest(http.MethodGet, phoenixBaseURL+"/payments/incoming", http.NoBody)
 	if err != nil {
-		log.Fatal(err)
+		return incomingPayments, err
 	}
 
 	q := req.URL.Query()
@@ -49,25 +33,15 @@ func ListIncomingPayments(limit int, offset int) (IncomingPayments, error) {
 	q.Add("all", "true") // include unpaid invoices
 	req.URL.RawQuery = q.Encode()
 
-	req.SetBasicAuth("", hp)
-
-	res, err := client.Do(req)
-	util.CheckAndPanic(err)
-
-	defer res.Body.Close()
-
-	resBody, err := io.ReadAll(res.Body)
-	util.CheckAndPanic(err)
-
-	if res.StatusCode != 200 {
-		log.Warning("ListIncomingPayments StatusCode ", res.StatusCode)
-		return incomingPayments, errors.New("failed API call to Phoenix ListIncomingPayments")
+	body, err := doRequest(req, defaultTimeout, "ListIncomingPayments")
+	if err != nil {
+		return incomingPayments, err
 	}
 
-	//log.Info(string(resBody))
-
-	err = json.Unmarshal(resBody, &incomingPayments)
-	util.CheckAndPanic(err)
+	err = json.Unmarshal(body, &incomingPayments)
+	if err != nil {
+		return incomingPayments, err
+	}
 
 	return incomingPayments, nil
 }

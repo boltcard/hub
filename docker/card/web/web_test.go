@@ -9,8 +9,6 @@ import (
 	"os"
 	"strings"
 	"testing"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func openTestDB(t *testing.T) *sql.DB {
