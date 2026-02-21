@@ -3,8 +3,6 @@ package db
 import (
 	"card/util"
 	"database/sql"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func Db_add_card_receipt(db_conn *sql.DB, card_id int, payment_request string, payment_hash_hex string, amount_sats int) (card_receipt_id int) {

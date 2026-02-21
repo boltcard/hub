@@ -2,9 +2,7 @@ package web
 
 import (
 	"card/db"
-
 	"card/phoenix"
-	"card/util"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -56,7 +54,7 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 			return
 		}
 
-		actualAmtSat := util.Max(invAmtSat, reqObj.Amount)
+		actualAmtSat := max(invAmtSat, reqObj.Amount)
 
 		// check if there is sufficient balance (atomic query)
 

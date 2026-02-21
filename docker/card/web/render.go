@@ -35,7 +35,6 @@ func visit(path string, di fs.DirEntry, err error) error {
 
 	// load the template cache
 	if strings.HasSuffix(template_name, ".html") {
-		//log.Info("loading template cache: " + template_full_name + " : from : " + path)
 		ts, err := template.New(template_name).ParseFiles(path)
 		if err != nil {
 			log.Error("template parse error: ", err)
@@ -90,7 +89,7 @@ func RenderStaticContent(w http.ResponseWriter, request string) {
 
 	switch {
 	case strings.HasSuffix(request, ".js"):
-		w.Header().Add("Content-Type", "application/json")
+		w.Header().Add("Content-Type", "application/javascript")
 	case strings.HasSuffix(request, ".css"):
 		w.Header().Add("Content-Type", "text/css")
 	case strings.HasSuffix(request, ".png"):

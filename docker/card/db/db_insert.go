@@ -3,8 +3,6 @@ package db
 import (
 	"card/util"
 	"database/sql"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func Db_insert_card(db_conn *sql.DB, key0 string, key1 string, k2 string, key3 string, key4 string,

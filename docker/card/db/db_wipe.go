@@ -3,8 +3,6 @@ package db
 import (
 	"card/util"
 	"database/sql"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 type CardKeys struct {

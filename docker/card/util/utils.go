@@ -41,16 +41,6 @@ func Random_hex() string {
 	return hex.EncodeToString(b)
 }
 
-func Max(a, b int) int {
-	var max int
-	if a > b {
-		max = a
-	} else {
-		max = b
-	}
-	return max
-}
-
 func QrPngBase64Encode(data string) (encoded string) {
 	var data_qr_png []byte
 	data_qr_png, err := qrcode.Encode(data, qrcode.Medium, 256)

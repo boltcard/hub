@@ -13,8 +13,6 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 
 		request := r.RequestURI
 
-		//log.Info("CreateHandler_Admin handler with request uri : " + request)
-
 		// prevent caching
 		w.Header().Add("Cache-Control", "no-cache, no-store")
 

@@ -4,8 +4,6 @@ import (
 	"card/util"
 	"database/sql"
 	"errors"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func Db_set_setting(db_conn *sql.DB, name string, value string) {
