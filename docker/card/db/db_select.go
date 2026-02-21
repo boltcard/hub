@@ -19,49 +19,31 @@ type CardReceipt struct {
 
 type CardReceipts []CardReceipt
 
-func Db_select_card_receipts_with_limit(db_conn *sql.DB, card_id int, limit int) (result CardReceipts) {
+// Db_select_card_receipts returns card receipts ordered by most recent first.
+// Pass limit=0 to return all receipts.
+func Db_select_card_receipts(db_conn *sql.DB, card_id int, limit int) (result CardReceipts) {
 	var cardReceipts CardReceipts
 
-	// get card id
-	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
-		` r_hash_hex, amount_sats, paid_flag,` +
-		` timestamp, expire_time` +
-		` FROM card_receipts` +
-		` WHERE card_receipts.card_id = $1` +
-		` ORDER BY card_receipt_id DESC LIMIT $2;`
-	rows, err := db_conn.Query(sqlStatement, card_id, limit)
-	util.CheckAndPanic(err)
-	defer rows.Close()
+	var rows *sql.Rows
+	var err error
 
-	for rows.Next() {
-		var cardReceipt CardReceipt
-
-		err := rows.Scan(
-			&cardReceipt.CardReceiptId,
-			&cardReceipt.PaymentRequest,
-			&cardReceipt.PaymentHash,
-			&cardReceipt.AmountSats,
-			&cardReceipt.IsPaid,
-			&cardReceipt.Timestamp,
-			&cardReceipt.ExpireTime)
-		util.CheckAndPanic(err)
-
-		cardReceipts = append(cardReceipts, cardReceipt)
+	if limit > 0 {
+		sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
+			` r_hash_hex, amount_sats, paid_flag,` +
+			` timestamp, expire_time` +
+			` FROM card_receipts` +
+			` WHERE card_receipts.card_id = $1` +
+			` ORDER BY card_receipt_id DESC LIMIT $2;`
+		rows, err = db_conn.Query(sqlStatement, card_id, limit)
+	} else {
+		sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
+			` r_hash_hex, amount_sats, paid_flag,` +
+			` timestamp, expire_time` +
+			` FROM card_receipts` +
+			` WHERE card_receipts.card_id = $1` +
+			` ORDER BY card_receipt_id DESC;`
+		rows, err = db_conn.Query(sqlStatement, card_id)
 	}
-
-	return cardReceipts
-}
-
-func Db_select_card_receipts(db_conn *sql.DB, card_id int) (result CardReceipts) {
-	var cardReceipts CardReceipts
-
-	sqlStatement := `SELECT card_receipt_id, ln_invoice,` +
-		` r_hash_hex, amount_sats, paid_flag,` +
-		` timestamp, expire_time` +
-		` FROM card_receipts` +
-		` WHERE card_receipts.card_id = $1` +
-		` ORDER BY card_receipt_id DESC;`
-	rows, err := db_conn.Query(sqlStatement, card_id)
 	util.CheckAndPanic(err)
 	defer rows.Close()
 

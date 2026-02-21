@@ -2,9 +2,7 @@ package web
 
 import (
 	"card/db"
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
+	"card/util"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
@@ -21,17 +19,6 @@ type BcpResponse struct {
 	K2              string `json:"k2"`
 	K3              string `json:"k3"`
 	K4              string `json:"k4"`
-}
-
-func random_hex() string {
-	b := make([]byte, 16)
-	_, err := rand.Read(b)
-	if err != nil {
-		log.Warn(err.Error())
-		return ""
-	}
-
-	return hex.EncodeToString(b)
 }
 
 func (app *App) CreateHandler_CreateCard() http.HandlerFunc {
@@ -52,19 +39,15 @@ func (app *App) CreateHandler_CreateCard() http.HandlerFunc {
 		}
 
 		// create a new card in the database
-		k0 := random_hex()
-		k1 := random_hex()
-		k2 := random_hex()
-		k3 := random_hex()
-		k4 := random_hex()
-		login := random_hex() // included for LndHub compatibility
-		password := random_hex()
+		k0, k1, k2, k3, k4 := generateCardKeys()
+		login := util.Random_hex()
+		password := util.Random_hex()
 		db.Db_insert_card(app.db_conn, k0, k1, k2, k3, k4, login, password)
 
 		var resObj BcpResponse
 
 		resObj.ProtocolName = "new_bolt_card_response"
-		resObj.ProtocolName = "1"
+		resObj.ProtocolVersion = 1
 		resObj.CardName = "Spending_Card"
 		resObj.LnurlwBase = "lnurlw://" + db.Db_get_setting(app.db_conn, "host_domain") + "/ln"
 		resObj.UIDPrivacy = "Y"
@@ -74,15 +57,6 @@ func (app *App) CreateHandler_CreateCard() http.HandlerFunc {
 		resObj.K3 = k3
 		resObj.K4 = k4
 
-		resJson, err := json.Marshal(resObj)
-		if err != nil {
-			log.Error("json marshal error: ", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		//log.Info("resJson ", string(resJson))
-
-		w.Write(resJson)
+		writeJSON(w, resObj)
 	}
 }

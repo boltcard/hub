@@ -3,7 +3,6 @@ package web
 import (
 	"card/db"
 
-	"encoding/json"
 	"net/http"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -28,24 +27,8 @@ func (app *App) CreateHandler_WalletApi_WipeCard() http.HandlerFunc {
 
 		log.Info("wipeCard request received")
 
-		// set response header
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		// get access_token
-
-		accessToken, ok := getBearerToken(w, r)
+		card_id, ok := app.getAuthenticatedCardID(w, r)
 		if !ok {
-			return
-		}
-
-		// get card_id from access_token
-
-		card_id := db.Db_get_card_id_from_access_token(app.db_conn, accessToken)
-
-		if card_id == 0 {
-			sendError(w, "Bad auth", 1, "no card found for access token")
 			return
 		}
 
@@ -66,15 +49,6 @@ func (app *App) CreateHandler_WalletApi_WipeCard() http.HandlerFunc {
 		resObj.Key4 = cardKeys.Key4
 		resObj.Uid = "12345678"
 
-		resJson, err := json.Marshal(resObj)
-		if err != nil {
-			log.Error("json marshal error: ", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		log.Info("resJson ", string(resJson))
-
-		w.Write(resJson)
+		writeJSON(w, resObj)
 	}
 }

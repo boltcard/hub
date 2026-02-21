@@ -2,7 +2,6 @@ package web
 
 import (
 	"card/db"
-	"encoding/json"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -26,9 +25,6 @@ func (app *App) CreateHandler_BalanceAjaxPage() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		log.Info("balanceAjax request received")
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
 
 		params_p, ok := r.URL.Query()["card"]
 		if !ok || len(params_p[0]) < 1 {
@@ -80,10 +76,6 @@ func (app *App) CreateHandler_BalanceAjaxPage() http.HandlerFunc {
 		// get card transactions
 		cardTxs := db.Db_select_card_txs(app.db_conn, cardId)
 		for _, cardTx := range cardTxs {
-			// log.Info("cardId=" + strconv.Itoa(cardId) +
-			// 	", AmountSats=" + strconv.Itoa(cardTx.AmountSats) +
-			// 	", FeeSats=" + strconv.Itoa(cardTx.FeeSats) +
-			// 	", Timestamp=" + strconv.Itoa(cardTx.Timestamp))
 			var cardTxAppend Tx
 			cardTxAppend.AmountSats = cardTx.AmountSats
 			cardTxAppend.FeeSats = cardTx.FeeSats
@@ -91,13 +83,6 @@ func (app *App) CreateHandler_BalanceAjaxPage() http.HandlerFunc {
 			resObj.Txs = append(resObj.Txs, cardTxAppend)
 		}
 
-		resJson, err := json.Marshal(resObj)
-		if err != nil {
-			return
-		}
-
-		//log.Info("resJson string ", string(resJson))
-
-		w.Write(resJson)
+		writeJSON(w, resObj)
 	}
 }

@@ -29,9 +29,6 @@ func (app *App) CreateHandler_Auth() http.HandlerFunc {
 
 		authType := r.URL.Query().Get("type")
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
 		// handle refresh_token (issue a new access_token)
 		if authType == "refresh_token" {
 			log.Info("auth using refresh_token")
@@ -59,18 +56,11 @@ func (app *App) CreateHandler_Auth() http.HandlerFunc {
 
 			// return access_token
 			var resObj AuthResponse
-
 			resObj.RefreshToken = RefreshToken
 			resObj.AccessToken = AccessToken
 
-			resJson, err := json.Marshal(resObj)
-			if err != nil {
-				log.Error("json marshal error: ", err)
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
-
-			w.Write(resJson) // TODO: not tested yet
+			writeJSON(w, resObj)
+			return
 		}
 
 		// handle login & password (issue a new refresh_token and access_token)
@@ -101,21 +91,12 @@ func (app *App) CreateHandler_Auth() http.HandlerFunc {
 
 			// return refresh_token & access_token
 			var resObj AuthResponse
-
 			resObj.RefreshToken = RefreshToken
 			resObj.AccessToken = AccessToken
 
 			log.Info("AuthResponse sent")
 
-			resJson, err := json.Marshal(resObj)
-			if err != nil {
-				log.Error("json marshal error: ", err)
-				http.Error(w, "internal error", http.StatusInternalServerError)
-				return
-			}
-
-			w.Write(resJson)
-
+			writeJSON(w, resObj)
 			return
 		}
 

@@ -4,7 +4,6 @@ import (
 	"card/db"
 	"strconv"
 
-	"encoding/json"
 	"net/http"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -26,22 +25,8 @@ func (app *App) CreateHandler_WalletApi_GetCard() http.HandlerFunc {
 
 		log.Info("getCard request received")
 
-		// get access_token
-
-		accessToken, ok := getBearerToken(w, r)
+		card_id, ok := app.getAuthenticatedCardID(w, r)
 		if !ok {
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		// get card_id from access_token
-
-		card_id := db.Db_get_card_id_from_access_token(app.db_conn, accessToken)
-
-		if card_id == 0 {
-			sendError(w, "Bad auth", 1, "no card found for access token")
 			return
 		}
 
@@ -62,15 +47,6 @@ func (app *App) CreateHandler_WalletApi_GetCard() http.HandlerFunc {
 		resObj.PinEnable = c.Pin_enable
 		resObj.PinLimitSats = strconv.Itoa(c.Pin_limit_sats)
 
-		resJson, err := json.Marshal(resObj)
-		if err != nil {
-			log.Error("json marshal error: ", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		log.Info("resJson ", string(resJson))
-
-		w.Write(resJson)
+		writeJSON(w, resObj)
 	}
 }

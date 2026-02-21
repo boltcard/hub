@@ -2,9 +2,7 @@ package web
 
 import (
 	"card/db"
-	"card/util"
 
-	"encoding/json"
 	"net/http"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -29,31 +27,13 @@ func (app *App) CreateHandler_WalletApi_GetCardKeys() http.HandlerFunc {
 
 		log.Info("getCardKeys request received")
 
-		// get access_token
-
-		accessToken, ok := getBearerToken(w, r)
+		card_id, ok := app.getAuthenticatedCardID(w, r)
 		if !ok {
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		// get card_id from access_token
-
-		card_id := db.Db_get_card_id_from_access_token(app.db_conn, accessToken)
-
-		if card_id == 0 {
-			sendError(w, "Bad auth", 1, "no card found for access token")
-			return
-		}
-
 		// create new random card keys in database
-		key0 := util.Random_hex()
-		key1 := util.Random_hex()
-		k2 := util.Random_hex()
-		key3 := util.Random_hex()
-		key4 := util.Random_hex()
+		key0, key1, k2, key3, key4 := generateCardKeys()
 
 		// TODO: archive card keys
 
@@ -72,15 +52,8 @@ func (app *App) CreateHandler_WalletApi_GetCardKeys() http.HandlerFunc {
 		resObj.Key4 = key4
 		resObj.UidPrivacy = "false"
 
-		resJson, err := json.Marshal(resObj)
-		if err != nil {
-			log.Error("json marshal error: ", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
+		log.Info("getCardKeys response prepared")
 
-		log.Info("resJson ", string(resJson))
-
-		w.Write(resJson)
+		writeJSON(w, resObj)
 	}
 }

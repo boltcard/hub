@@ -49,7 +49,7 @@ func Db_update_card_payment_fee(db_conn *sql.DB, card_payment_id int, fee_sats i
 func Db_update_card_payment_unpaid(db_conn *sql.DB, card_payment_id int) {
 
 	// update record
-	sqlStatement := `UPDATE card_payments SET paid = 'N' WHERE card_payment_id = $2;`
+	sqlStatement := `UPDATE card_payments SET paid_flag = 'N' WHERE card_payment_id = $1;`
 	_, err := db_conn.Exec(sqlStatement, card_payment_id)
 	util.CheckAndPanic(err)
 }

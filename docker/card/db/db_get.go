@@ -66,22 +66,6 @@ func Db_get_total_paid_receipts(db_conn *sql.DB, card_id int) int {
 	return value
 }
 
-func Db_get_total_paid_payments(db_conn *sql.DB, card_id int) int {
-
-	// get card id
-	sqlStatement := `SELECT IFNULL(SUM(amount_sats) + SUM(fee_sats),0) FROM card_payments` +
-		` WHERE paid_flag='Y' AND card_id=$1;`
-	row := db_conn.QueryRow(sqlStatement, card_id)
-
-	value := 0
-	err := row.Scan(&value)
-	if err != nil {
-		return 0
-	}
-
-	return value
-}
-
 func Db_get_card_balance(db_conn *sql.DB, card_id int) int {
 	sqlStatement := `SELECT
 		IFNULL((SELECT SUM(amount_sats) FROM card_receipts WHERE paid_flag='Y' AND card_id=$1), 0) -
@@ -231,16 +215,3 @@ func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
 	return &c, err
 }
 
-func Db_get_card_id_from_card_uid(db_conn *sql.DB, card_uid string) (card_id int) {
-
-	// get card id
-	sqlStatement := `SELECT card_id FROM cards WHERE uid=$1;`
-	row := db_conn.QueryRow(sqlStatement, card_uid)
-	value := 0
-	err := row.Scan(&value)
-	if err != nil {
-		return 0
-	}
-
-	return value
-}

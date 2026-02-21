@@ -67,26 +67,19 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 			return
 		}
 
-		if request == "/admin/" {
+		switch {
+		case request == "/admin/":
 			Admin_Index(w, r)
-		}
-
-		if strings.HasPrefix(request, "/admin/phoenix/") {
+		case strings.HasPrefix(request, "/admin/phoenix/"):
 			Admin_Phoenix(app.db_conn, w, r)
-		}
-
-		if strings.HasPrefix(request, "/admin/cards/") {
+		case strings.HasPrefix(request, "/admin/cards/"):
 			Admin_Cards(app.db_conn, w, r)
-		}
-
-		if strings.HasPrefix(request, "/admin/settings/") {
+		case strings.HasPrefix(request, "/admin/settings/"):
 			Admin_Settings(app.db_conn, w, r)
-		}
-
-		if strings.HasPrefix(request, "/admin/about/") {
+		case strings.HasPrefix(request, "/admin/about/"):
 			Admin_About(app.db_conn, w, r)
+		default:
+			Blank(w, r)
 		}
-
-		Blank(w, r)
 	}
 }

@@ -49,9 +49,12 @@ func Register2(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
 
 func ClearAdminSessionToken(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:    "admin_session_token",
-		Value:   "",
-		Path:    "/admin/",
-		Expires: time.Now(),
+		Name:     "admin_session_token",
+		Value:    "",
+		Path:     "/admin/",
+		Expires:  time.Now(),
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
 	})
 }

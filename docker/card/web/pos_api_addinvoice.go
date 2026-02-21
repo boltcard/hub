@@ -46,9 +46,13 @@ func (app *App) CreateHandler_PosApi_AddInvoice() http.HandlerFunc {
 		}
 
 		amountSats, err := strconv.Atoi(reqObj.Amt)
+		if err != nil {
+			http.Error(w, "invalid amount", http.StatusBadRequest)
+			return
+		}
 
-		if amountSats <= 0 || err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if amountSats <= 0 {
+			http.Error(w, "amount must be positive", http.StatusBadRequest)
 			return
 		}
 

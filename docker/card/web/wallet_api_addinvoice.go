@@ -34,12 +34,8 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 
 		log.Info("addinvoice request received")
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
-		// get access_token
-
-		accessToken, ok := getBearerToken(w, r)
+		// validate auth before doing anything else
+		card_id, ok := app.getAuthenticatedCardID(w, r)
 		if !ok {
 			return
 		}
@@ -50,14 +46,18 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 		var reqObj AddInvoiceRequest
 		err := decoder.Decode(&reqObj)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			sendError(w, "Error", 8, "invalid request body")
 			return
 		}
 
 		amountSats, err := strconv.Atoi(reqObj.Amt)
+		if err != nil {
+			sendError(w, "Error", 8, "invalid amount")
+			return
+		}
 
-		if amountSats <= 0 || err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		if amountSats <= 0 {
+			sendError(w, "Error", 8, "amount must be positive")
 			return
 		}
 
@@ -94,18 +94,6 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 			rHashIntSlice = append(rHashIntSlice, int(rHashByte))
 		}
 
-		// save in our database
-
-		// get card_id from access_token
-
-		card_id := db.Db_get_card_id_from_access_token(app.db_conn, accessToken)
-		log.Info("card_id ", card_id)
-
-		if card_id == 0 {
-			sendError(w, "Bad auth", 1, "no card found for access token")
-			return
-		}
-
 		// insert card_receipt record
 
 		db.Db_add_card_receipt(app.db_conn, card_id,
@@ -119,15 +107,6 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 		resObj.RHash.Data = rHashIntSlice
 		resObj.Hash = createInvoiceResponse.PaymentHash
 
-		resJson, err := json.Marshal(resObj)
-		if err != nil {
-			log.Error("json marshal error: ", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		log.Info("resJson ", string(resJson))
-
-		w.Write(resJson)
+		writeJSON(w, resObj)
 	}
 }

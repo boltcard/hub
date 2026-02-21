@@ -4,7 +4,6 @@ import (
 	"card/db"
 	"card/util"
 
-	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -77,14 +76,6 @@ func (app *App) CreateHandler_LnurlwRequest() http.HandlerFunc {
 
 		log.Info("sending response for lnurlw request")
 
-		// send response
-		resJson, err := json.Marshal(resObj)
-		if err != nil {
-			log.Error("json marshal error: ", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		w.Write(resJson)
+		writeJSON(w, resObj)
 	}
 }

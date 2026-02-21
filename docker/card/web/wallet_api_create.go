@@ -4,13 +4,11 @@ import (
 	"card/db"
 	"card/util"
 
+	"encoding/json"
 	"net/http"
 
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
-
-	//	"card/phoenix"
-	"encoding/json"
 )
 
 type CreateResponse struct {
@@ -25,7 +23,6 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 		log.Info("create request received")
 
 		decoder := json.NewDecoder(r.Body)
-		//	decoder.DisallowUnknownFields()
 		t := struct {
 			InviteSecret string `json:"invite_secret"`
 		}{}
@@ -35,9 +32,6 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
 
 		// check the 'invite_secret' if configured
 		db_invite_secret := db.Db_get_setting(app.db_conn, "invite_secret")
@@ -49,11 +43,7 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 		}
 
 		// create a new card account in the database
-		key0 := util.Random_hex()
-		key1 := util.Random_hex()
-		k2 := util.Random_hex()
-		key3 := util.Random_hex()
-		key4 := util.Random_hex()
+		key0, key1, k2, key3, key4 := generateCardKeys()
 		login := util.Random_hex()
 		password := util.Random_hex()
 
@@ -66,13 +56,6 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 		resObj.Login = login
 		resObj.Password = password
 
-		resJson, err := json.Marshal(resObj)
-		if err != nil {
-			log.Error("json marshal error: ", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		w.Write(resJson)
+		writeJSON(w, resObj)
 	}
 }

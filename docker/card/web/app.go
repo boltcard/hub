@@ -16,7 +16,6 @@ func NewApp(db_conn *sql.DB) *App {
 }
 
 func (app *App) SetupRoutes() *mux.Router {
-	// mux.HandleFunc("/callback", app.CreateHandler_LnurlwCallback())
 
 	var router = mux.NewRouter()
 
@@ -42,8 +41,6 @@ func (app *App) SetupRoutes() *mux.Router {
 
 	// for Bolt Card Programmer app
 	router.Path("/new").Methods("GET", "POST").HandlerFunc(app.CreateHandler_CreateCard())
-	router.Path("/wipe").Methods("POST").HandlerFunc(app.CreateHandler_WipeCard())
-	//router.Path("/batch").Methods("POST").HandlerFunc(app.CreateHandler_BatchCreateCard())
 
 	// Bolt Card interface (hit from PoS when a card is tapped)
 	router.Path("/ln").Methods("GET").HandlerFunc(app.CreateHandler_LnurlwRequest())
@@ -52,10 +49,8 @@ func (app *App) SetupRoutes() *mux.Router {
 	if db.Db_get_setting(app.db_conn, "bolt_card_hub_api") == "enabled" {
 		// BoltCardHub API
 		// LNDHUB API reference https://github.com/BlueWallet/LndHub/blob/master/doc/Send-requirements.md
-		router.Path("/getinfobolt").Methods("GET").HandlerFunc(app.CreateHandler_GetInfoBolt())
 		router.Path("/create").Methods("POST").HandlerFunc(app.CreateHandler_Create())
 		router.Path("/auth").Methods("POST").HandlerFunc(app.CreateHandler_Auth())
-		router.Path("/getbtc").Methods("GET").HandlerFunc(app.CreateHandler_GetBtc()) // Get user's BTC address to top-up his account
 		router.Path("/balance").Methods("GET").HandlerFunc(app.CreateHandler_Balance())
 		router.Path("/gettxs").Methods("GET").HandlerFunc(app.CreateHandler_GetTxs())         // /gettxs?limit=10&offset=0 (onchain & lightning)
 		router.Path("/getpending").Methods("GET").HandlerFunc(app.CreateHandler_GetPending()) // for onchain txs only
@@ -72,12 +67,9 @@ func (app *App) SetupRoutes() *mux.Router {
 		// for PoS which uses part of an LndHub API
 		// lndhub://a:b@https://somedomain/pos/
 		router.Path("/pos/getinfo").Methods("GET").HandlerFunc(app.CreateHandler_PosApi_GetInfo())
-		router.Path("/pos/auth").Methods("POST").HandlerFunc(app.CreateHandler_PosApi_Auth())
 		router.Path("/pos/addinvoice").Methods("POST").HandlerFunc(app.CreateHandler_PosApi_AddInvoice())
 		router.Path("/pos/getuserinvoices").Methods("GET").HandlerFunc(app.CreateHandler_PosApi_GetUserInvoices())
 	}
-
-	// router.NotFoundHandler = http.HandlerFunc(DumpRequest)
 
 	return router
 }

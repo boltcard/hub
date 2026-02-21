@@ -19,7 +19,7 @@ func Db_wipe_card(db_conn *sql.DB, card_id int) CardKeys {
 
 	// update card record
 	sqlStatement := `UPDATE cards SET wiped = 'Y'` +
-		` WHERE card_id = $6;`
+		` WHERE card_id = $1;`
 	_, err := db_conn.Exec(sqlStatement, card_id)
 	util.CheckAndPanic(err)
 

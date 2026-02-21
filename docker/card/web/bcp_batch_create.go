@@ -2,6 +2,7 @@ package web
 
 import (
 	"card/db"
+	"card/util"
 	"encoding/json"
 	"net/http"
 	"time"
@@ -59,13 +60,9 @@ func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
 		}
 
 		// create a new card in the database
-		k0 := random_hex()
-		k1 := random_hex()
-		k2 := random_hex()
-		k3 := random_hex()
-		k4 := random_hex()
-		login := random_hex() // included for LndHub compatibility
-		password := random_hex()
+		k0, k1, k2, k3, k4 := generateCardKeys()
+		login := util.Random_hex()
+		password := util.Random_hex()
 		db.Db_insert_card_with_uid(app.db_conn, k0, k1, k2, k3, k4, login, password, t.Uid, programCard.GroupTag)
 
 		var bcpBatchResponse BcpBatchResponse
@@ -78,15 +75,6 @@ func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
 		bcpBatchResponse.K3 = k3
 		bcpBatchResponse.K4 = k4
 
-		resJson, err := json.Marshal(bcpBatchResponse)
-		if err != nil {
-			log.Error("json marshal error: ", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-
-		log.Info("resJson ", string(resJson))
-
-		w.Write(resJson)
+		writeJSON(w, bcpBatchResponse)
 	}
 }
