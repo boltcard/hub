@@ -32,9 +32,6 @@ func (app *App) CreateHandler_PosApi_AddInvoice() http.HandlerFunc {
 
 		log.Info("pos_api AddInvoice request received")
 
-		// reqToken := r.Header.Get("Authorization")
-		// log.Info("auth token : ", reqToken)
-
 		// get details from request body
 
 		decoder := json.NewDecoder(r.Body)

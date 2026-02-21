@@ -3,8 +3,6 @@ package db
 import (
 	"card/util"
 	"database/sql"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func Db_update_tokens(db_conn *sql.DB, initial_refresh_token string, new_refresh_token string, access_token string) (success bool) {

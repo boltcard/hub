@@ -46,7 +46,7 @@ func doRequest(req *http.Request, timeout time.Duration, endpointName string) ([
 	}
 
 	if res.StatusCode != 200 {
-		log.Warning(endpointName, " StatusCode ", res.StatusCode)
+		log.Warn(endpointName, " StatusCode ", res.StatusCode)
 		return nil, errors.New("failed API call to Phoenix " + endpointName)
 	}
 

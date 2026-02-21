@@ -3,8 +3,6 @@ package db
 import (
 	"card/util"
 	"database/sql"
-
-	_ "github.com/mattn/go-sqlite3"
 )
 
 func Db_get_setting(db_conn *sql.DB, name string) string {

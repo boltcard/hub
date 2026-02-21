@@ -115,7 +115,7 @@ func (app *App) CreateHandler_Websocket() http.HandlerFunc {
 							strconv.Itoa(incomingPayment.Fees)+" sats fees,"+
 							" message: "+webSocketMessage.PayerNote))
 					if err != nil {
-						log.Warning("websocket write error :", err)
+						log.Warn("websocket write error :", err)
 						return
 					}
 				}

@@ -42,7 +42,7 @@ func SendLightningPayment(
 
 	password, err := loadPassword()
 	if err != nil {
-		log.Warning(err)
+		log.Warn(err)
 		return sendLightningPaymentResponse,
 			"no_config",
 			errors.New("could not load config for SendLightningPayment")
@@ -56,7 +56,7 @@ func SendLightningPayment(
 
 	req, err := http.NewRequest(http.MethodPost, phoenixBaseURL+"/payinvoice", reader)
 	if err != nil {
-		log.Warning(err)
+		log.Warn(err)
 		return sendLightningPaymentResponse,
 			"failed_request_creation",
 			errors.New("could not create request for SendLightningPayment")
@@ -90,7 +90,7 @@ func SendLightningPayment(
 	}
 
 	if res.StatusCode != 200 {
-		log.Warning("SendLightningPayment StatusCode ", res.StatusCode, "ResBody", string(resBody))
+		log.Warn("SendLightningPayment StatusCode ", res.StatusCode, "ResBody", string(resBody))
 		return sendLightningPaymentResponse,
 			"fail_status_code",
 			errors.New("fail status code returned for SendLightningPayment")
