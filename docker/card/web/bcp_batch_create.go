@@ -47,15 +47,13 @@ func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
 
 		log.Info("Uid : ", t.Uid)
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-
 		// check secret in program_cards exists and is not expired, and get group_tag field
 		programCard := db.Db_select_program_card_for_secret(app.db_conn, secret)
 		currentTime := int(time.Now().Unix())
 
 		if currentTime < programCard.CreateTime || currentTime > programCard.ExpireTime {
 			log.Warn("ProgramCard record within expiry time not found")
+			http.Error(w, "program card expired or not found", http.StatusBadRequest)
 			return
 		}
 

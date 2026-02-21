@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"strconv"
 
-	_ "github.com/mattn/go-sqlite3"
 	decodepay "github.com/nbd-wtf/ln-decodepay"
 	log "github.com/sirupsen/logrus"
 )

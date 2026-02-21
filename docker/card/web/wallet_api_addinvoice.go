@@ -3,12 +3,11 @@ package web
 import (
 	"card/db"
 	"card/phoenix"
-	"encoding/hex"
+	"card/util"
 	"encoding/json"
 	"net/http"
 	"strconv"
 
-	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -82,17 +81,7 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 
 		var resObj AddInvoiceResponse
 
-		rHashByteSlice, err := hex.DecodeString(createInvoiceResponse.PaymentHash)
-		if err != nil {
-			log.Error("hex decode error: ", err)
-			sendError(w, "Error", 999, "failed to decode payment hash")
-			return
-		}
-
-		rHashIntSlice := []int{}
-		for _, rHashByte := range rHashByteSlice {
-			rHashIntSlice = append(rHashIntSlice, int(rHashByte))
-		}
+		rHashIntSlice := util.ConvertPaymentHash(createInvoiceResponse.PaymentHash)
 
 		// insert card_receipt record
 

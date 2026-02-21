@@ -1,17 +1,11 @@
 package phoenix
 
 import (
-	"card/util"
-
 	"encoding/json"
-	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 
-	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -28,51 +22,33 @@ type CreateInvoiceResponse struct {
 }
 
 func CreateInvoice(createInvoiceRequest CreateInvoiceRequest) (CreateInvoiceResponse, error) {
-
 	var createInvoiceResponse CreateInvoiceResponse
-
-	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-	util.CheckAndPanic(err)
-
-	hp := cfg.Section("").Key("http-password").String()
-
-	client := http.Client{Timeout: 5 * time.Second}
 
 	formBody := url.Values{
 		"description": []string{createInvoiceRequest.Description},
 		"amountSat":   []string{createInvoiceRequest.AmountSat},
 		"externalId":  []string{createInvoiceRequest.ExternalId},
 	}
-	dataReader := formBody.Encode()
-	reader := strings.NewReader(dataReader)
+	reader := strings.NewReader(formBody.Encode())
 
-	req, err := http.NewRequest(http.MethodPost, "http://phoenix:9740/createinvoice", reader)
+	req, err := http.NewRequest(http.MethodPost, phoenixBaseURL+"/createinvoice", reader)
 	if err != nil {
-		log.Fatal(err)
+		return createInvoiceResponse, err
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
-	req.SetBasicAuth("", hp)
-
-	res, err := client.Do(req)
-	util.CheckAndPanic(err)
-
-	defer res.Body.Close()
-
-	resBody, err := io.ReadAll(res.Body)
-	util.CheckAndPanic(err)
-
-	if res.StatusCode != 200 {
-		log.Warning("CreateInvoice StatusCode ", res.StatusCode)
-		log.Warning(string(resBody))
-		return createInvoiceResponse, errors.New("failed API call to Phoenix CreateInvoice")
+	body, err := doRequest(req, defaultTimeout, "CreateInvoice")
+	if err != nil {
+		return createInvoiceResponse, err
 	}
 
-	log.Info(string(resBody))
+	log.Info(string(body))
 
-	err = json.Unmarshal(resBody, &createInvoiceResponse)
-	util.CheckAndPanic(err)
+	err = json.Unmarshal(body, &createInvoiceResponse)
+	if err != nil {
+		return createInvoiceResponse, err
+	}
 
 	return createInvoiceResponse, nil
 }

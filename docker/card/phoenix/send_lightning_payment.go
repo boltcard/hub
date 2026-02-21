@@ -6,11 +6,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/go-ini/ini"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -40,10 +38,9 @@ func SendLightningPayment(
 	string,
 	error,
 ) {
-
 	var sendLightningPaymentResponse SendLightningPaymentResponse
 
-	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
+	password, err := loadPassword()
 	if err != nil {
 		log.Warning(err)
 		return sendLightningPaymentResponse,
@@ -51,19 +48,13 @@ func SendLightningPayment(
 			errors.New("could not load config for SendLightningPayment")
 	}
 
-	hp := cfg.Section("").Key("http-password").String()
-
-	//client := http.Client{Timeout: 10 * time.Millisecond} // HACK: to fail with client timeout
-	client := http.Client{Timeout: 30 * time.Second}
-
 	formBody := url.Values{
 		"amountSat": []string{sendLightningPaymentRequest.AmountSat},
 		"invoice":   []string{sendLightningPaymentRequest.Invoice},
 	}
-	dataReader := formBody.Encode()
-	reader := strings.NewReader(dataReader)
+	reader := strings.NewReader(formBody.Encode())
 
-	req, err := http.NewRequest(http.MethodPost, "http://phoenix:9740/payinvoice", reader)
+	req, err := http.NewRequest(http.MethodPost, phoenixBaseURL+"/payinvoice", reader)
 	if err != nil {
 		log.Warning(err)
 		return sendLightningPaymentResponse,
@@ -72,9 +63,9 @@ func SendLightningPayment(
 	}
 
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	req.SetBasicAuth("", password)
 
-	req.SetBasicAuth("", hp)
-
+	client := http.Client{Timeout: 30 * time.Second}
 	res, err := client.Do(req)
 	if err != nil {
 		// we never want this error as the payment may or may not be made
@@ -102,7 +93,7 @@ func SendLightningPayment(
 		log.Warning("SendLightningPayment StatusCode ", res.StatusCode, "ResBody", string(resBody))
 		return sendLightningPaymentResponse,
 			"fail_status_code",
-			errors.New("fail status code returned for SendLightningPayment " + strconv.Itoa(res.StatusCode))
+			errors.New("fail status code returned for SendLightningPayment")
 	}
 
 	log.Info(string(resBody))

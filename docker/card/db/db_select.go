@@ -81,7 +81,7 @@ func Db_select_card_payments(db_conn *sql.DB, card_id int) (result CardPayments)
 	var cardPayments CardPayments
 
 	sqlStatement := `SELECT card_payment_id,` +
-		` amount_sats, paid_flag,` +
+		` amount_sats, fee_sats, paid_flag,` +
 		` timestamp, expire_time` +
 		` FROM card_payments` +
 		` WHERE card_payments.card_id = $1` +
@@ -96,6 +96,7 @@ func Db_select_card_payments(db_conn *sql.DB, card_id int) (result CardPayments)
 		err := rows.Scan(
 			&cardPayment.CardPaymentId,
 			&cardPayment.AmountSats,
+			&cardPayment.FeeSats,
 			&cardPayment.IsPaid,
 			&cardPayment.Timestamp,
 			&cardPayment.ExpireTime)

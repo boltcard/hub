@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 
-	_ "github.com/mattn/go-sqlite3"
 	log "github.com/sirupsen/logrus"
 )
 
