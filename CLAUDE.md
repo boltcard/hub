@@ -68,7 +68,7 @@ docker exec -it card bash
 
 - **phoenix**: acinq/phoenixd:0.7.2 — Lightning node (384M memory)
 - **card**: Custom Go app — card service on `:8000` (192M memory, GOMEMLIMIT=150MiB). Has Docker healthcheck (HEAD / every 30s). Graceful shutdown on SIGTERM with 10s drain timeout. Includes `sqlite3` for database access.
-- **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`, `/pos/auth`)
+- **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`)
 
 All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access. `HOST_DOMAIN` is set in `.env` and shared with both card and webproxy containers via `env_file`. The Caddyfile uses `{$HOST_DOMAIN}` for the site address — no templating or init scripts needed.
 
@@ -89,7 +89,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 
 - `/ln`, `/cb` — LNURL-withdraw protocol (NFC card tap → payment)
 - `/admin/` — Admin dashboard (cookie-based session auth)
-- `/new`, `/wipe` — Bolt Card Programmer endpoints
+- `/new` — Bolt Card Programmer endpoint
 - BoltCardHub API (`/create`, `/auth`, `/balance`, `/payinvoice`, etc.) — LndHub-compatible, feature-gated via `bolt_card_hub_api` setting
 - PoS API (`/pos/`) — Point-of-Sale subset of LndHub API, feature-gated via `bolt_card_pos_api` setting
 - `/websocket` — Real-time payment notifications
