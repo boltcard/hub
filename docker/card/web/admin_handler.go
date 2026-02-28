@@ -2,8 +2,11 @@ package web
 
 import (
 	"card/db"
+	"crypto/subtle"
 	"net/http"
+	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -47,15 +50,26 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 			return
 		}
 
-		// validate the session cookie
+		// validate the session cookie (constant-time comparison)
 		sessionToken := c.Value
 		adminSessionToken := db.Db_get_setting(app.db_conn, "admin_session_token")
 
-		if sessionToken != adminSessionToken {
+		if subtle.ConstantTimeCompare([]byte(sessionToken), []byte(adminSessionToken)) != 1 {
 			ClearAdminSessionToken(w)
 			//redirect to "login" page
 			http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 			return
+		}
+
+		// check session expiry (24-hour timeout from creation)
+		sessionCreatedStr := db.Db_get_setting(app.db_conn, "admin_session_created")
+		if sessionCreatedStr != "" {
+			sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
+			if err != nil || time.Now().Unix()-sessionCreated > 24*60*60 {
+				ClearAdminSessionToken(w)
+				http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
+				return
+			}
 		}
 
 		if strings.HasSuffix(request, ".js") || strings.HasSuffix(request, ".css") ||

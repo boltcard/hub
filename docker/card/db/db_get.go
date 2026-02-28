@@ -1,8 +1,9 @@
 package db
 
 import (
-	"card/util"
 	"database/sql"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Db_get_setting(db_conn *sql.DB, name string) string {
@@ -97,7 +98,10 @@ func Db_get_card_keys(db_conn *sql.DB) CardLookups {
 		` FROM cards` +
 		` WHERE wiped = 'N';`
 	rows, err := db_conn.Query(sqlStatement)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_get_card_keys query error: ", err)
+		return cardLookups
+	}
 	defer rows.Close()
 
 	for rows.Next() {
@@ -108,7 +112,10 @@ func Db_get_card_keys(db_conn *sql.DB) CardLookups {
 			&cardLookup.Key1,
 			&cardLookup.Key2,
 			&cardLookup.UID)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("db_get_card_keys scan error: ", err)
+			continue
+		}
 
 		cardLookups = append(cardLookups, cardLookup)
 	}
@@ -254,6 +261,17 @@ func Db_get_top_cards_by_balance(db_conn *sql.DB, limit int) TopCards {
 	}
 
 	return topCards
+}
+
+func Db_get_paid_payment_exists(db_conn *sql.DB, invoice string) bool {
+	sqlStatement := `SELECT COUNT(*) FROM card_payments WHERE ln_invoice = $1 AND paid_flag = 'Y';`
+	row := db_conn.QueryRow(sqlStatement, invoice)
+	count := 0
+	err := row.Scan(&count)
+	if err != nil {
+		return false
+	}
+	return count > 0
 }
 
 func Db_get_card_id_from_card_uid(db_conn *sql.DB, card_uid string) (card_id int) {

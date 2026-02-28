@@ -23,7 +23,10 @@ func CheckAndLog(e error) {
 
 func ConvertPaymentHash(paymentHash string) []int {
 	rHashByteSlice, err := hex.DecodeString(paymentHash)
-	CheckAndPanic(err)
+	if err != nil {
+		log.Error("ConvertPaymentHash decode error: ", err)
+		return nil
+	}
 
 	rHashIntSlice := []int{}
 	for _, rHashByte := range rHashByteSlice {
@@ -36,7 +39,10 @@ func ConvertPaymentHash(paymentHash string) []int {
 func Random_hex() string {
 	b := make([]byte, 16)
 	_, err := rand.Read(b)
-	CheckAndPanic(err)
+	if err != nil {
+		log.Error("Random_hex error: ", err)
+		return ""
+	}
 
 	return hex.EncodeToString(b)
 }

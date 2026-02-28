@@ -1,8 +1,9 @@
 package db
 
 import (
-	"card/util"
 	"database/sql"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func Db_insert_card(db_conn *sql.DB, key0 string, key1 string, k2 string, key3 string, key4 string,
@@ -13,11 +14,17 @@ func Db_insert_card(db_conn *sql.DB, key0 string, key1 string, k2 string, key3 s
 		` key2_cmac, key3, key4, login, password)` +
 		` VALUES ($1, $2, $3, $4, $5, $6, $7);`
 	res, err := db_conn.Exec(sqlStatement, key0, key1, k2, key3, key4, login, password)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_insert_card error: ", err)
+		return
+	}
 	count, err := res.RowsAffected()
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_insert_card rows affected error: ", err)
+		return
+	}
 	if count != 1 {
-		panic("expected one record to be inserted")
+		log.Error("db_insert_card: expected one record to be inserted")
 	}
 }
 
@@ -29,11 +36,17 @@ func Db_insert_card_with_uid(db_conn *sql.DB, key0 string, key1 string, k2 strin
 		` key2_cmac, key3, key4, login, password, uid, group_tag)` +
 		` VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);`
 	res, err := db_conn.Exec(sqlStatement, key0, key1, k2, key3, key4, login, password, uid, group_tag)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_insert_card_with_uid error: ", err)
+		return
+	}
 	count, err := res.RowsAffected()
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_insert_card_with_uid rows affected error: ", err)
+		return
+	}
 	if count != 1 {
-		panic("expected one record to be inserted")
+		log.Error("db_insert_card_with_uid: expected one record to be inserted")
 	}
 }
 
@@ -46,10 +59,16 @@ func Db_insert_program_cards(db_conn *sql.DB, secret string,
 		` max_group_num, initial_balance, create_time, expire_time)` +
 		` VALUES ($1, $2, $3, $4, $5, $6);`
 	res, err := db_conn.Exec(sqlStatement, secret, group_tag, max_group_num, initial_balance, create_time, expire_time)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_insert_program_cards error: ", err)
+		return
+	}
 	count, err := res.RowsAffected()
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_insert_program_cards rows affected error: ", err)
+		return
+	}
 	if count != 1 {
-		panic("expected one record to be inserted")
+		log.Error("db_insert_program_cards: expected one record to be inserted")
 	}
 }

@@ -40,7 +40,7 @@ func SendLightningPayment(
 ) {
 	var sendLightningPaymentResponse SendLightningPaymentResponse
 
-	password, err := loadPassword()
+	password, err := getPassword()
 	if err != nil {
 		log.Warn(err)
 		return sendLightningPaymentResponse,

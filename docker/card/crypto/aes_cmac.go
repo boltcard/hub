@@ -1,8 +1,8 @@
 package crypto
 
 import (
-	"bytes"
 	"crypto/aes"
+	"crypto/subtle"
 
 	"github.com/aead/cmac"
 )
@@ -35,8 +35,7 @@ func Aes_cmac(key_sdm_file_read_mac []byte, sv2 []byte, ba_c []byte) (bool, erro
 	ct[6] = cm[13]
 	ct[7] = cm[15]
 
-	res_cmac := bytes.Compare(ct, ba_c)
-	if res_cmac != 0 {
+	if subtle.ConstantTimeCompare(ct, ba_c) != 1 {
 		return false, nil
 	}
 

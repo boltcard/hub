@@ -72,7 +72,10 @@ func setupCardAmountForTag(db_conn *sql.DB, args []string) {
 
 	groupTag := args[1]
 	amountSats, err := strconv.Atoi(args[2])
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("invalid amount_sats: ", err)
+		return
+	}
 
 	cards := db.Db_select_cards_with_group_tag(db_conn, groupTag)
 
@@ -173,13 +176,22 @@ func programBatch(db_conn *sql.DB, args []string) {
 	secret := util.Random_hex()
 
 	maxGroupNumInt, err := strconv.Atoi(maxGroupNum)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("invalid max_group_num: ", err)
+		return
+	}
 
 	initialBalanceInt, err := strconv.Atoi(initialBalance)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("invalid initial_balance: ", err)
+		return
+	}
 
 	expiryHoursInt, err := strconv.Atoi(expiryHours)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("invalid expiry_hours: ", err)
+		return
+	}
 
 	createTime := int(time.Now().Unix())
 	expireTime := createTime + expiryHoursInt*60*60

@@ -28,7 +28,7 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 
 		err := decoder.Decode(&t)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			sendError(w, "Error", 999, "invalid request body")
 			return
 		}
 

@@ -1,6 +1,6 @@
 package phoenix
 
-func GetOffer() (offer string, err error) {
+func GetOffer() (string, error) {
 	body, err := doGet("/getoffer", "GetOffer")
 	if err != nil {
 		return "", err

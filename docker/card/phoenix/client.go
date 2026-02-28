@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/go-ini/ini"
@@ -14,8 +15,23 @@ import (
 const phoenixBaseURL = "http://phoenix:9740"
 const defaultTimeout = 5 * time.Second
 
-// loadPassword reads the http-password from the phoenix config file.
-func loadPassword() (string, error) {
+var (
+	cachedPassword string
+	passwordOnce   sync.Once
+	passwordErr    error
+)
+
+// InitPassword loads the phoenix password at startup and caches it.
+// Call this once during application initialization.
+func InitPassword() error {
+	passwordOnce.Do(func() {
+		cachedPassword, passwordErr = readPasswordFromFile()
+	})
+	return passwordErr
+}
+
+// readPasswordFromFile reads the http-password from the phoenix config file.
+func readPasswordFromFile() (string, error) {
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
 	if err != nil {
 		return "", fmt.Errorf("load phoenix config: %w", err)
@@ -23,10 +39,21 @@ func loadPassword() (string, error) {
 	return cfg.Section("").Key("http-password").String(), nil
 }
 
+// getPassword returns the cached password, loading it if needed.
+func getPassword() (string, error) {
+	if err := InitPassword(); err != nil {
+		return "", err
+	}
+	if cachedPassword == "" {
+		return "", errors.New("phoenix password is empty")
+	}
+	return cachedPassword, nil
+}
+
 // doRequest executes an HTTP request against the Phoenix API with basic auth.
 // It returns the response body bytes on success, or an error on failure.
 func doRequest(req *http.Request, timeout time.Duration, endpointName string) ([]byte, error) {
-	password, err := loadPassword()
+	password, err := getPassword()
 	if err != nil {
 		return nil, err
 	}

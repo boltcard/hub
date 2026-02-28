@@ -5,17 +5,8 @@
 https://{$HOST_DOMAIN} {
 	header {
 		Access-Control-Allow-Origin *
-		Access-Control-Allow-Credentials true
-		Access-Control-Allow-Methods *
-		Access-Control-Allow-Headers *
-	}
-
-	rate_limit {
-		zone auth_zone {
-			key {remote_host}
-			events 10
-			window 1m
-		}
+		Access-Control-Allow-Methods "GET, POST, OPTIONS"
+		Access-Control-Allow-Headers "Authorization, Content-Type"
 	}
 
 	@auth_paths {
@@ -23,7 +14,25 @@ https://{$HOST_DOMAIN} {
 	}
 	handle @auth_paths {
 		rate_limit {
-			zone auth_zone
+			zone auth_zone {
+				key {remote_host}
+				events 10
+				window 1m
+			}
+		}
+		reverse_proxy card:8000
+	}
+
+	@api_paths {
+		path /create /payinvoice /addinvoice /ln /cb
+	}
+	handle @api_paths {
+		rate_limit {
+			zone api_zone {
+				key {remote_host}
+				events 30
+				window 1m
+			}
 		}
 		reverse_proxy card:8000
 	}

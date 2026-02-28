@@ -49,6 +49,9 @@ func visit(path string, di fs.DirEntry, err error) error {
 func RenderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, data interface{}) {
 
 	w.Header().Add("Content-Type", "text/html")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:")
 
 	t, ok := templates[template_full_name]
 	if !ok {
@@ -67,10 +70,6 @@ func RenderHtmlFromTemplate(w http.ResponseWriter, template_full_name string, da
 
 func RenderStaticContent(w http.ResponseWriter, request string) {
 	cleanPath := filepath.Clean(request)
-	if strings.HasPrefix(cleanPath, "..") || filepath.IsAbs(cleanPath) {
-		Blank(w, nil)
-		return
-	}
 	fullPath := filepath.Join("/web-content", cleanPath)
 	if !strings.HasPrefix(fullPath, "/web-content/") {
 		Blank(w, nil)

@@ -17,13 +17,13 @@ func openTestDB(t *testing.T) *sql.DB {
 	return db
 }
 
-func TestDbInit_SchemaMigratesToVersion5(t *testing.T) {
+func TestDbInit_SchemaMigratesToLatest(t *testing.T) {
 	db := openTestDB(t)
 	Db_init(db)
 
 	version := Db_get_setting(db, "schema_version_number")
-	if version != "5" {
-		t.Fatalf("expected schema version 5, got %q", version)
+	if version != "6" {
+		t.Fatalf("expected schema version 6, got %q", version)
 	}
 }
 

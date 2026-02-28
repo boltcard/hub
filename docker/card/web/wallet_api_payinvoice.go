@@ -4,6 +4,7 @@ import (
 	"card/db"
 	"card/phoenix"
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
 
@@ -40,10 +41,16 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 			return
 		}
 
-		bolt11, _ := decodepay.Decodepay(reqObj.Invoice)
+		bolt11, err := decodepay.Decodepay(reqObj.Invoice)
+		if err != nil {
+			sendError(w, "Error", 999, "invalid invoice")
+			return
+		}
 
-		log.Info("decoded invoice ", bolt11)
-
+		if bolt11.MSatoshi < 0 || bolt11.MSatoshi > math.MaxInt64-999 {
+			sendError(w, "Error", 999, "invalid invoice amount")
+			return
+		}
 		invAmtSat := int(bolt11.MSatoshi / 1000)
 
 		log.Info("invAmtSat ", invAmtSat)
@@ -55,6 +62,12 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 		}
 
 		actualAmtSat := max(invAmtSat, reqObj.Amount)
+
+		// check for duplicate payment
+		if db.Db_get_paid_payment_exists(app.db_conn, reqObj.Invoice) {
+			sendError(w, "Error", 999, "invoice already paid")
+			return
+		}
 
 		// check if there is sufficient balance (atomic query)
 
