@@ -2,14 +2,22 @@ package web
 
 import (
 	"card/db"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/aead/cmac"
 )
 
 func openTestDB(t *testing.T) *sql.DB {
@@ -878,5 +886,457 @@ func TestFeatureFlag_HubApiEnabled(t *testing.T) {
 	}
 	if resp.Login == "" {
 		t.Fatal("expected non-empty login")
+	}
+}
+
+// === NFC Auth Chain Tests ===
+
+// buildNfcTap constructs valid p (encrypted) and c (CMAC) values from raw keys.
+func buildNfcTap(t *testing.T, key1, key2, uid []byte, counter uint32) (p, c []byte) {
+	t.Helper()
+
+	// Build plaintext: [0xC7, uid(7), counter(3 LE), 0x00(5)]
+	plaintext := make([]byte, 16)
+	plaintext[0] = 0xC7
+	copy(plaintext[1:8], uid)
+	plaintext[8] = byte(counter)
+	plaintext[9] = byte(counter >> 8)
+	plaintext[10] = byte(counter >> 16)
+
+	// Encrypt with AES-CBC (zero IV) → p
+	block, err := aes.NewCipher(key1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p = make([]byte, 16)
+	cipher.NewCBCEncrypter(block, make([]byte, 16)).CryptBlocks(p, plaintext)
+
+	// Build SV2 and compute truncated CMAC → c
+	sv2 := make([]byte, 16)
+	sv2[0] = 0x3c
+	sv2[1] = 0xc3
+	sv2[2] = 0x00
+	sv2[3] = 0x01
+	sv2[4] = 0x00
+	sv2[5] = 0x80
+	copy(sv2[6:13], uid)
+	sv2[13] = byte(counter)
+	sv2[14] = byte(counter >> 8)
+	sv2[15] = byte(counter >> 16)
+
+	c2, err := aes.NewCipher(key2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ks, err := cmac.Sum(sv2, c2, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c3, err := aes.NewCipher(ks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cm, err := cmac.Sum([]byte{}, c3, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = []byte{cm[1], cm[3], cm[5], cm[7], cm[9], cm[11], cm[13], cm[15]}
+
+	return p, c
+}
+
+var (
+	nfcTestKey1 = []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF}
+	nfcTestKey2 = []byte{0xFF, 0xEE, 0xDD, 0xCC, 0xBB, 0xAA, 0x99, 0x88, 0x77, 0x66, 0x55, 0x44, 0x33, 0x22, 0x11, 0x00}
+	nfcTestUID  = []byte{0x04, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06}
+)
+
+func TestCheckCmac_Valid(t *testing.T) {
+	_, validC := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 5)
+	ctr := []byte{0x05, 0x00, 0x00}
+
+	ok, err := check_cmac(nfcTestUID, ctr, nfcTestKey2, validC)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !ok {
+		t.Fatal("expected valid CMAC")
+	}
+}
+
+func TestCheckCmac_Invalid(t *testing.T) {
+	ctr := []byte{0x05, 0x00, 0x00}
+	wrongC := make([]byte, 8) // all zeros
+
+	ok, err := check_cmac(nfcTestUID, ctr, nfcTestKey2, wrongC)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if ok {
+		t.Fatal("expected invalid CMAC")
+	}
+}
+
+func TestCheckCardTap_Valid(t *testing.T) {
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 42)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+
+	found, uidStr, counter := check_card_tap(p, c, key1Hex, key2Hex)
+	if !found {
+		t.Fatal("expected card to be found")
+	}
+	expectedUID := hex.EncodeToString(nfcTestUID)
+	if uidStr != expectedUID {
+		t.Fatalf("expected uid %s, got %s", expectedUID, uidStr)
+	}
+	if counter != 42 {
+		t.Fatalf("expected counter 42, got %d", counter)
+	}
+}
+
+func TestCheckCardTap_WrongKey(t *testing.T) {
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
+	wrongKey1 := []byte{0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x00}
+	wrongKey1Hex := hex.EncodeToString(wrongKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+
+	found, _, _ := check_card_tap(p, c, wrongKey1Hex, key2Hex)
+	if found {
+		t.Fatal("expected card NOT to be found with wrong key1")
+	}
+}
+
+func TestCheckCardTap_BadMagicByte(t *testing.T) {
+	// Build plaintext with wrong magic byte, encrypt with correct key1
+	plaintext := make([]byte, 16)
+	plaintext[0] = 0xAA // not 0xC7
+	copy(plaintext[1:8], nfcTestUID)
+	plaintext[8] = 0x01
+
+	block, _ := aes.NewCipher(nfcTestKey1)
+	p := make([]byte, 16)
+	cipher.NewCBCEncrypter(block, make([]byte, 16)).CryptBlocks(p, plaintext)
+
+	// CMAC value doesn't matter since magic byte check fails first
+	dummyC := make([]byte, 8)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+
+	found, _, _ := check_card_tap(p, dummyC, key1Hex, key2Hex)
+	if found {
+		t.Fatal("expected card NOT to be found with bad magic byte")
+	}
+}
+
+func TestCheckCardTap_WrongCmacKey(t *testing.T) {
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	// Pass wrong key2 — decryption succeeds but CMAC won't match
+	wrongKey2 := []byte{0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, 0x11}
+	wrongKey2Hex := hex.EncodeToString(wrongKey2)
+
+	found, _, _ := check_card_tap(p, c, key1Hex, wrongKey2Hex)
+	if found {
+		t.Fatal("expected card NOT to be found with wrong key2")
+	}
+}
+
+func TestFindCard_MatchesCorrectCard(t *testing.T) {
+	db_conn := openTestDB(t)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+
+	// Insert 3 cards; only the 2nd has matching keys
+	db.Db_insert_card(db_conn, "k0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "k3", "k4", "login1", "pass1")
+	db.Db_insert_card(db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "login2", "pass2")
+	db.Db_insert_card(db_conn, "k0", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "k3", "k4", "login3", "pass3")
+
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 7)
+
+	found, cardId, counter := Find_card(db_conn, p, c)
+	if !found {
+		t.Fatal("expected card to be found")
+	}
+	if cardId == 0 {
+		t.Fatal("expected non-zero card_id")
+	}
+	if counter != 7 {
+		t.Fatalf("expected counter 7, got %d", counter)
+	}
+}
+
+func TestFindCard_NoMatch(t *testing.T) {
+	db_conn := openTestDB(t)
+	// Insert cards with keys that don't match the tap
+	db.Db_insert_card(db_conn, "k0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "k3", "k4", "login1", "pass1")
+	db.Db_insert_card(db_conn, "k0", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "k3", "k4", "login2", "pass2")
+
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
+
+	found, _, _ := Find_card(db_conn, p, c)
+	if found {
+		t.Fatal("expected no card match")
+	}
+}
+
+// === Admin Session Auth Tests ===
+
+func TestLogin_CorrectPassword(t *testing.T) {
+	app := openTestApp(t)
+	hash, _ := HashPassword("correctpass")
+	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+
+	handler := app.CreateHandler_Admin()
+	form := url.Values{}
+	form.Set("password", "correctpass")
+	r := httptest.NewRequest("POST", "/admin/login/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/" {
+		t.Fatalf("expected redirect to /admin/, got %s", w.Header().Get("Location"))
+	}
+	// Check session cookie was set (last cookie value wins)
+	var sessionValue string
+	for _, c := range w.Result().Cookies() {
+		if c.Name == "admin_session_token" {
+			sessionValue = c.Value
+		}
+	}
+	if sessionValue == "" {
+		t.Fatal("expected admin_session_token cookie to be set")
+	}
+}
+
+func TestLogin_WrongPassword(t *testing.T) {
+	app := openTestApp(t)
+	hash, _ := HashPassword("correctpass")
+	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+
+	handler := app.CreateHandler_Admin()
+	form := url.Values{}
+	form.Set("password", "wrongpass")
+	r := httptest.NewRequest("POST", "/admin/login/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/login/" {
+		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
+	}
+}
+
+func TestLogin_LegacySHA256Migration(t *testing.T) {
+	app := openTestApp(t)
+	salt := "testsalt123"
+	password := "legacypassword"
+	db.Db_set_setting(app.db_conn, "admin_password_salt", salt)
+
+	hasher := sha256.New()
+	hasher.Write([]byte(salt))
+	hasher.Write([]byte(password))
+	legacyHash := hex.EncodeToString(hasher.Sum(nil))
+	db.Db_set_setting(app.db_conn, "admin_password_hash", legacyHash)
+
+	handler := app.CreateHandler_Admin()
+	form := url.Values{}
+	form.Set("password", password)
+	r := httptest.NewRequest("POST", "/admin/login/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/" {
+		t.Fatalf("expected redirect to /admin/, got %s", w.Header().Get("Location"))
+	}
+	// Verify hash was migrated to bcrypt
+	newHash := db.Db_get_setting(app.db_conn, "admin_password_hash")
+	if !isBcryptHash(newHash) {
+		t.Fatal("expected password hash to be migrated to bcrypt")
+	}
+}
+
+func TestRegister_SetsPassword(t *testing.T) {
+	app := openTestApp(t)
+
+	handler := app.CreateHandler_Admin()
+	form := url.Values{}
+	form.Set("password", "newpassword123")
+	r := httptest.NewRequest("POST", "/admin/register/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/login/" {
+		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
+	}
+	hash := db.Db_get_setting(app.db_conn, "admin_password_hash")
+	if !isBcryptHash(hash) {
+		t.Fatal("expected bcrypt hash to be stored")
+	}
+	if !CheckPassword("newpassword123", hash) {
+		t.Fatal("expected stored hash to match password")
+	}
+}
+
+func TestRegister_BlockedWhenPasswordExists(t *testing.T) {
+	app := openTestApp(t)
+	originalHash, _ := HashPassword("existingpass")
+	db.Db_set_setting(app.db_conn, "admin_password_hash", originalHash)
+
+	handler := app.CreateHandler_Admin()
+	form := url.Values{}
+	form.Set("password", "newpassword")
+	r := httptest.NewRequest("POST", "/admin/register/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/login/" {
+		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
+	}
+	currentHash := db.Db_get_setting(app.db_conn, "admin_password_hash")
+	if currentHash != originalHash {
+		t.Fatal("expected password hash to remain unchanged")
+	}
+}
+
+func TestAdmin_NoPassword_RedirectsToRegister(t *testing.T) {
+	app := openTestApp(t)
+
+	handler := app.CreateHandler_Admin()
+	r := httptest.NewRequest("GET", "/admin/", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/register/" {
+		t.Fatalf("expected redirect to /admin/register/, got %s", w.Header().Get("Location"))
+	}
+}
+
+func TestAdmin_NoCookie_RedirectsToLogin(t *testing.T) {
+	app := openTestApp(t)
+	hash, _ := HashPassword("somepass")
+	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+
+	handler := app.CreateHandler_Admin()
+	r := httptest.NewRequest("GET", "/admin/", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/login/" {
+		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
+	}
+}
+
+func TestAdmin_InvalidCookie_RedirectsToLogin(t *testing.T) {
+	app := openTestApp(t)
+	hash, _ := HashPassword("somepass")
+	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_conn, "admin_session_token", "validtoken123")
+	db.Db_set_setting(app.db_conn, "admin_session_created", fmt.Sprintf("%d", time.Now().Unix()))
+
+	handler := app.CreateHandler_Admin()
+	r := httptest.NewRequest("GET", "/admin/", nil)
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: "wrongtoken"})
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/login/" {
+		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
+	}
+}
+
+func TestAdmin_ExpiredSession_RedirectsToLogin(t *testing.T) {
+	app := openTestApp(t)
+	hash, _ := HashPassword("somepass")
+	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_conn, "admin_session_token", "validtoken123")
+	// Set session created 25 hours ago
+	expired := time.Now().Unix() - 25*60*60
+	db.Db_set_setting(app.db_conn, "admin_session_created", fmt.Sprintf("%d", expired))
+
+	handler := app.CreateHandler_Admin()
+	r := httptest.NewRequest("GET", "/admin/", nil)
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: "validtoken123"})
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303, got %d", w.Code)
+	}
+	if w.Header().Get("Location") != "/admin/login/" {
+		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
+	}
+}
+
+func TestAdmin_ValidSession_Succeeds(t *testing.T) {
+	app := openTestApp(t)
+	hash, _ := HashPassword("somepass")
+	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_conn, "admin_session_token", "validtoken123")
+	db.Db_set_setting(app.db_conn, "admin_session_created", fmt.Sprintf("%d", time.Now().Unix()))
+
+	handler := app.CreateHandler_Admin()
+	r := httptest.NewRequest("GET", "/admin/", nil)
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: "validtoken123"})
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	// Template rendering no-ops in test; check we get 200 (not a redirect)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestGetPwHash_Deterministic(t *testing.T) {
+	db_conn := openTestDB(t)
+	db.Db_set_setting(db_conn, "admin_password_salt", "fixedsalt")
+
+	hash1 := GetPwHash(db_conn, "password1")
+	hash2 := GetPwHash(db_conn, "password1")
+	if hash1 != hash2 {
+		t.Fatal("expected same hash for same input")
+	}
+
+	hash3 := GetPwHash(db_conn, "password2")
+	if hash1 == hash3 {
+		t.Fatal("expected different hash for different password")
 	}
 }
