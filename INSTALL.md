@@ -9,7 +9,7 @@ Select **Ubuntu 24.04 LTS 64-bit** as the OS template.
 ## Prerequisites
 
 - Ubuntu 24.04 LTS 64-bit VPS (1GB+ RAM is sufficient — no build step required)
-- A domain pointing to the server — on LunaNode the rDNS hostname works out of the box, or set a DNS A record for your own domain
+- A hostname — LunaNode's rDNS works by default, or use your own domain and DNS A record
 - Port 443 open for HTTPS (open by default on a new LunaNode VPS)
 
 ## Quick Install
