@@ -171,6 +171,7 @@ type Card struct {
 	Pin_number                 string
 	Pin_limit_sats             int
 	Wiped                      string
+	Note                       string
 }
 
 func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
@@ -183,7 +184,7 @@ func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
 		`lnurlw_request_timeout_sec, lnurlw_enable, ` +
 		`lnurlw_k1, lnurlw_k1_expiry, tx_limit_sats, ` +
 		`day_limit_sats, uid_privacy, pin_enable, pin_number, ` +
-		`pin_limit_sats, wiped FROM cards WHERE card_id=$1 AND wiped = 'N';`
+		`pin_limit_sats, wiped, note FROM cards WHERE card_id=$1 AND wiped = 'N';`
 	row := db_conn.QueryRow(sqlStatement, card_id)
 	err = row.Scan(
 		&c.Card_id,
@@ -208,8 +209,63 @@ func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
 		&c.Pin_enable,
 		&c.Pin_number,
 		&c.Pin_limit_sats,
-		&c.Wiped)
+		&c.Wiped,
+		&c.Note)
 
 	return &c, err
 }
 
+type TopCard struct {
+	CardId      int
+	BalanceSats int
+	Note        string
+}
+
+type TopCards []TopCard
+
+func Db_get_top_cards_by_balance(db_conn *sql.DB, limit int) TopCards {
+
+	var topCards TopCards
+
+	sqlStatement := `SELECT card_id, note, balance_sats FROM (` +
+		` SELECT c.card_id, c.note,` +
+		` IFNULL((SELECT SUM(r.amount_sats) FROM card_receipts r WHERE r.paid_flag='Y' AND r.card_id=c.card_id), 0)` +
+		` - IFNULL((SELECT SUM(p.amount_sats + p.fee_sats) FROM card_payments p WHERE p.paid_flag='Y' AND p.card_id=c.card_id), 0)` +
+		` AS balance_sats` +
+		` FROM cards c` +
+		` WHERE c.wiped = 'N'` +
+		` ) WHERE balance_sats > 0` +
+		` ORDER BY balance_sats DESC` +
+		` LIMIT $1;`
+
+	rows, err := db_conn.Query(sqlStatement, limit)
+	if err != nil {
+		return topCards
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var tc TopCard
+		err := rows.Scan(&tc.CardId, &tc.Note, &tc.BalanceSats)
+		if err != nil {
+			continue
+		}
+		topCards = append(topCards, tc)
+	}
+
+	return topCards
+}
+
+func Db_get_card_id_from_card_uid(db_conn *sql.DB, card_uid string) (card_id int) {
+
+	// get card id
+	sqlStatement := `SELECT card_id FROM cards WHERE uid=$1;`
+	row := db_conn.QueryRow(sqlStatement, card_uid)
+	value := 0
+	err := row.Scan(&value)
+	if err != nil {
+		return 0
+	}
+
+	return value
+}

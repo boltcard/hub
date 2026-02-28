@@ -52,6 +52,14 @@ func Db_update_card_payment_unpaid(db_conn *sql.DB, card_payment_id int) {
 	util.CheckAndPanic(err)
 }
 
+func Db_update_card_note(db_conn *sql.DB, card_id int, note string) {
+
+	// update record
+	sqlStatement := `UPDATE cards SET note = $1 WHERE card_id = $2 AND wiped = 'N';`
+	_, err := db_conn.Exec(sqlStatement, note, card_id)
+	util.CheckAndPanic(err)
+}
+
 func Db_update_receipt_paid(db_conn *sql.DB, card_receipt_id int) {
 
 	// update record

@@ -37,7 +37,11 @@ func Db_init(db_conn *sql.DB) {
 		update_schema_4(db_conn) // indexes
 	}
 
-	if Db_get_setting(db_conn, "schema_version_number") != "5" {
+	if Db_get_setting(db_conn, "schema_version_number") == "5" {
+		update_schema_5(db_conn) // note column
+	}
+
+	if Db_get_setting(db_conn, "schema_version_number") != "6" {
 		panic("database schema is not as expected")
 	}
 

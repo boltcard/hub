@@ -15,6 +15,7 @@
             <a href="/admin/phoenix/">Phoenix</a>
             <a href="/admin/cards/">Cards</a>
             <a href="/admin/settings/">Settings</a>
+            <a href="/admin/database/">Database</a>
             <a href="/admin/about/">About</a>
             <a href="/admin/login/">Logout</a>
         </nav>
@@ -23,7 +24,7 @@
     <main>
         <h1>Dashboard</h1>
 
-        <h2>System</h2>
+        <h2>Overview</h2>
         <table>
             <tbody>
                 <tr>
@@ -32,6 +33,30 @@
                 </tr>
             </tbody>
         </table>
+
+        <h2>Top 10 Cards by Balance</h2>
+        {{if .TopCards}}
+        <table>
+            <thead>
+                <tr>
+                    <th>Card ID</th>
+                    <th>Note</th>
+                    <th>Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .TopCards}}
+                <tr>
+                    <td>{{.CardId}}</td>
+                    <td>{{.Note}}</td>
+                    <td>{{.BalanceSats}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p>No cards found.</p>
+        {{end}}
 
     </main>
 

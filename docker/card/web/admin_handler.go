@@ -67,7 +67,7 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 
 		switch {
 		case request == "/admin/":
-			Admin_Index(w, r)
+			Admin_Index(app.db_conn, w, r)
 		case strings.HasPrefix(request, "/admin/phoenix/"):
 			Admin_Phoenix(app.db_conn, w, r)
 		case strings.HasPrefix(request, "/admin/cards/"):
@@ -76,6 +76,8 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 			Admin_Settings(app.db_conn, w, r)
 		case strings.HasPrefix(request, "/admin/about/"):
 			Admin_About(app.db_conn, w, r)
+		case strings.HasPrefix(request, "/admin/database/"):
+			Admin_Database(app.db_conn, w, r)
 		default:
 			Blank(w, r)
 		}
