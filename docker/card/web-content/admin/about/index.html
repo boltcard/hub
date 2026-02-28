@@ -39,6 +39,21 @@
                     <td>build time</td>
                     <td>{{.SwBuildTime}}</td>
                 </tr>
+                <tr>
+                    <td>latest version</td>
+                    <td>{{if .LatestVersion}}{{.LatestVersion}}{{else}}unable to check{{end}}</td>
+                </tr>
+                {{if .UpdateAvailable}}
+                <tr>
+                    <td>update</td>
+                    <td>
+                        <form method="POST" action="/admin/about/">
+                            <input type="hidden" name="action" value="update">
+                            <button type="submit" onclick="return confirm('Pull latest images and restart containers?')">Update to {{.LatestVersion}}</button>
+                        </form>
+                    </td>
+                </tr>
+                {{end}}
             </tbody>
         </table>
 

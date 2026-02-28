@@ -71,10 +71,10 @@ docker exec -it card bash
 ### Docker Services (docker-compose.yml)
 
 - **phoenix**: acinq/phoenixd:0.7.2 — Lightning node (384M memory)
-- **card**: Custom Go app — card service on `:8000` (192M memory, GOMEMLIMIT=150MiB). Has Docker healthcheck (HEAD / every 30s). Graceful shutdown on SIGTERM with 10s drain timeout. Includes `sqlite3` for database access.
+- **card**: Custom Go app — card service on `:8000` (192M memory, GOMEMLIMIT=150MiB). Has Docker healthcheck (HEAD / every 30s). Graceful shutdown on SIGTERM with 10s drain timeout. Includes `sqlite3` for database access. Mounts Docker socket for admin update feature.
 - **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`)
 
-All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access. `HOST_DOMAIN` is set in `.env` and shared with both card and webproxy containers via `env_file`. The Caddyfile uses `{$HOST_DOMAIN}` for the site address — no templating or init scripts needed.
+All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access and Docker socket for self-update. `HOST_DOMAIN` is set in `.env` and shared with both card and webproxy containers via `env_file`. The Caddyfile uses `{$HOST_DOMAIN}` for the site address — no templating or init scripts needed.
 
 ### Go Application (`docker/card/`)
 
@@ -86,7 +86,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
 - `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
-- `build/` — Version string (currently "0.12.0"), date/time injected at build
+- `build/` — Version string (currently "0.13.0"), date/time injected at build
 - `web-content/` — HTML templates (loaded into memory at startup) and static assets under `public/`
 
 ### Route Groups (`web/app.go`)
@@ -97,6 +97,17 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - BoltCardHub API (`/create`, `/auth`, `/balance`, `/payinvoice`, etc.) — LndHub-compatible, feature-gated via `bolt_card_hub_api` setting
 - PoS API (`/pos/`) — Point-of-Sale subset of LndHub API, feature-gated via `bolt_card_pos_api` setting
 - `/websocket` — Real-time payment notifications
+
+### Admin Update (`web/update.go`)
+
+The About page (`/admin/about/`) checks for new versions by fetching `build.go` from GitHub and comparing version strings. When an update is available, an "Update" button appears. Clicking it triggers the update mechanism:
+
+1. Card container inspects itself via Docker API to find the compose project directory
+2. Pulls `docker:cli` image and creates a disposable `hub-updater` container
+3. The updater runs `docker compose pull && docker compose up -d` with AutoRemove
+4. This avoids the self-update problem — the card container delegates to an independent container
+
+Docker socket (`/var/run/docker.sock`) is mounted into the card container. The update endpoint is admin-only (behind session auth). All Docker API calls use Go stdlib `net/http` with Unix socket transport — no external dependencies.
 
 ### Database
 
