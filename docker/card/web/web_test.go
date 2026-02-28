@@ -1340,3 +1340,544 @@ func TestGetPwHash_Deterministic(t *testing.T) {
 		t.Fatal("expected different hash for different password")
 	}
 }
+
+// === LNURL Withdraw Flow Tests ===
+
+// lnurlStatus is used to parse LNURL error/success JSON responses.
+type lnurlStatus struct {
+	Status string `json:"status"`
+	Reason string `json:"reason"`
+}
+
+// getPaidFlag queries the paid_flag for a given card_payment_id.
+func getPaidFlag(db_conn *sql.DB, card_payment_id int) string {
+	var flag string
+	err := db_conn.QueryRow(
+		`SELECT paid_flag FROM card_payments WHERE card_payment_id = $1`, card_payment_id,
+	).Scan(&flag)
+	if err != nil {
+		return ""
+	}
+	return flag
+}
+
+// insertFundedCard inserts a card with the NFC test keys and funds it with the given balance.
+func insertFundedCard(t *testing.T, db_conn *sql.DB, balanceSats int) int {
+	t.Helper()
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+	db.Db_insert_card(db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	err := db.Db_set_tokens(db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	if err != nil {
+		t.Fatal("failed to set tokens:", err)
+	}
+	cardId := db.Db_get_card_id_from_access_token(db_conn, "lnaccess")
+	if cardId == 0 {
+		t.Fatal("expected non-zero card_id")
+	}
+	if balanceSats > 0 {
+		db.Db_add_card_receipt(db_conn, cardId, "lnbc_fund", "fundhash", balanceSats)
+		db.Db_set_receipt_paid(db_conn, "fundhash")
+	}
+	return cardId
+}
+
+// --- LnurlwRequest Handler Tests ---
+
+func TestLnurlwRequest_ValidTap(t *testing.T) {
+	app := openTestApp(t)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
+
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
+	pHex := hex.EncodeToString(p)
+	cHex := hex.EncodeToString(c)
+
+	handler := app.CreateHandler_LnurlwRequest()
+	r := httptest.NewRequest("GET", "/ln?p="+pHex+"&c="+cHex, nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var resp LnurlwResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("expected JSON response, got: %s", w.Body.String())
+	}
+	if resp.Tag != "withdrawRequest" {
+		t.Fatalf("expected tag 'withdrawRequest', got %q", resp.Tag)
+	}
+	if resp.Callback != "https://test.example.com/cb" {
+		t.Fatalf("expected callback 'https://test.example.com/cb', got %q", resp.Callback)
+	}
+	if resp.Lnurlwk1 == "" {
+		t.Fatal("expected non-empty k1")
+	}
+	if resp.MinWithdrawable != 1000 {
+		t.Fatalf("expected minWithdrawable 1000, got %d", resp.MinWithdrawable)
+	}
+	if resp.MaxWithdrawable != 100_000_000_000 {
+		t.Fatalf("expected maxWithdrawable 100000000000, got %d", resp.MaxWithdrawable)
+	}
+
+	// Verify counter was updated in DB
+	newCounter := db.Db_get_card_counter(app.db_conn, cardId)
+	if newCounter != 1 {
+		t.Fatalf("expected counter 1, got %d", newCounter)
+	}
+
+	// Verify k1 was stored
+	k1CardId, _ := db.Db_get_lnurlw_k1(app.db_conn, resp.Lnurlwk1)
+	if k1CardId != cardId {
+		t.Fatalf("expected k1 to map to card_id %d, got %d", cardId, k1CardId)
+	}
+}
+
+func TestLnurlwRequest_BadParams(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_LnurlwRequest()
+
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"missing both", "/ln"},
+		{"missing c", "/ln?p=00112233445566778899aabbccddeeff"},
+		{"invalid hex", "/ln?p=ZZZZ&c=0011223344556677"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", tt.url, nil)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, r)
+
+			var resp lnurlStatus
+			json.Unmarshal(w.Body.Bytes(), &resp)
+			if resp.Status != "ERROR" || resp.Reason != "badly formatted request" {
+				t.Fatalf("expected 'badly formatted request', got %q", resp.Reason)
+			}
+		})
+	}
+}
+
+func TestLnurlwRequest_CardNotFound(t *testing.T) {
+	app := openTestApp(t)
+	// Insert a card with different keys so the tap won't match
+	db.Db_insert_card(app.db_conn, "k0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "k3", "k4", "login1", "pass1")
+
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
+	pHex := hex.EncodeToString(p)
+	cHex := hex.EncodeToString(c)
+
+	handler := app.CreateHandler_LnurlwRequest()
+	r := httptest.NewRequest("GET", "/ln?p="+pHex+"&c="+cHex, nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Reason != "card not found" {
+		t.Fatalf("expected 'card not found', got %q", resp.Reason)
+	}
+}
+
+func TestLnurlwRequest_CounterReplay(t *testing.T) {
+	app := openTestApp(t)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
+
+	// Set counter to 10 so a tap with counter=10 is a replay
+	db.Db_set_card_counter(app.db_conn, cardId, 10)
+
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 10)
+	pHex := hex.EncodeToString(p)
+	cHex := hex.EncodeToString(c)
+
+	handler := app.CreateHandler_LnurlwRequest()
+	r := httptest.NewRequest("GET", "/ln?p="+pHex+"&c="+cHex, nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Reason != "card counter not incremented" {
+		t.Fatalf("expected 'card counter not incremented', got %q", resp.Reason)
+	}
+}
+
+func TestLnurlwRequest_CounterIncrement(t *testing.T) {
+	app := openTestApp(t)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
+
+	handler := app.CreateHandler_LnurlwRequest()
+
+	// First tap with counter=5
+	p1, c1 := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 5)
+	r1 := httptest.NewRequest("GET", "/ln?p="+hex.EncodeToString(p1)+"&c="+hex.EncodeToString(c1), nil)
+	w1 := httptest.NewRecorder()
+	handler.ServeHTTP(w1, r1)
+
+	var resp1 LnurlwResponse
+	if err := json.Unmarshal(w1.Body.Bytes(), &resp1); err != nil {
+		t.Fatalf("first tap failed: %s", w1.Body.String())
+	}
+	if resp1.Tag != "withdrawRequest" {
+		t.Fatalf("expected withdrawRequest, got %q", resp1.Tag)
+	}
+
+	ctr := db.Db_get_card_counter(app.db_conn, cardId)
+	if ctr != 5 {
+		t.Fatalf("expected counter 5 after first tap, got %d", ctr)
+	}
+
+	// Second tap with counter=6
+	p2, c2 := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 6)
+	r2 := httptest.NewRequest("GET", "/ln?p="+hex.EncodeToString(p2)+"&c="+hex.EncodeToString(c2), nil)
+	w2 := httptest.NewRecorder()
+	handler.ServeHTTP(w2, r2)
+
+	var resp2 LnurlwResponse
+	if err := json.Unmarshal(w2.Body.Bytes(), &resp2); err != nil {
+		t.Fatalf("second tap failed: %s", w2.Body.String())
+	}
+	if resp2.Tag != "withdrawRequest" {
+		t.Fatalf("expected withdrawRequest on second tap, got %q", resp2.Tag)
+	}
+
+	ctr = db.Db_get_card_counter(app.db_conn, cardId)
+	if ctr != 6 {
+		t.Fatalf("expected counter 6 after second tap, got %d", ctr)
+	}
+
+	// k1 values should differ
+	if resp1.Lnurlwk1 == resp2.Lnurlwk1 {
+		t.Fatal("expected different k1 for each tap")
+	}
+}
+
+// --- LnurlwCallback Pre-Validation Tests ---
+
+// BOLT11 test invoice from ln-decodepay test suite (1,500 sats = 1,500,000 msats)
+const testBolt11 = "lnbc15u1p3xnhl2pp5jptserfk3zk4qy42tlucycrfwxhydvlemu9pqr93tuzlv9cc7g3sdqsvfhkcap3xyhx7un8cqzpgxqzjcsp5f8c52y2stc300gl6s4xswtjpc37hrnnr3c9wvtgjfuvqmpm35evq9qyyssqy4lgd8tj637qcjp05rdpxxykjenthxftej7a2zzmwrmrl70fyj9hvj0rewhzj7jfyuwkwcg9g2jpwtk3wkjtwnkdks84hsnu8xps5vsq4gj5hs"
+
+func setupK1(t *testing.T, db_conn *sql.DB, cardId int, k1 string, expiryOffset int64) {
+	t.Helper()
+	expiry := time.Now().Unix() + expiryOffset
+	db.Db_set_lnurlw_k1(db_conn, cardId, k1, expiry)
+}
+
+func TestLnurlwCallback_MissingK1(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_LnurlwCallback()
+
+	r := httptest.NewRequest("GET", "/cb", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Reason != "k1 not found" {
+		t.Fatalf("expected 'k1 not found', got %q", resp.Reason)
+	}
+}
+
+func TestLnurlwCallback_UnknownK1(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_LnurlwCallback()
+
+	r := httptest.NewRequest("GET", "/cb?k1=deadbeef", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Reason != "card not found for k1 value" {
+		t.Fatalf("expected 'card not found for k1 value', got %q", resp.Reason)
+	}
+}
+
+func TestLnurlwCallback_ExpiredK1(t *testing.T) {
+	app := openTestApp(t)
+	cardId := insertFundedCard(t, app.db_conn, 5000)
+
+	// Set k1 with past expiry
+	setupK1(t, app.db_conn, cardId, "expiredk1", -60)
+
+	handler := app.CreateHandler_LnurlwCallback()
+	r := httptest.NewRequest("GET", "/cb?k1=expiredk1&pr="+testBolt11, nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Reason != "k1 value expired" {
+		t.Fatalf("expected 'k1 value expired', got %q", resp.Reason)
+	}
+}
+
+func TestLnurlwCallback_InvalidInvoice(t *testing.T) {
+	app := openTestApp(t)
+	cardId := insertFundedCard(t, app.db_conn, 5000)
+	setupK1(t, app.db_conn, cardId, "validk1", 300)
+
+	handler := app.CreateHandler_LnurlwCallback()
+	r := httptest.NewRequest("GET", "/cb?k1=validk1&pr=notaninvoice", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Reason != "invalid invoice" {
+		t.Fatalf("expected 'invalid invoice', got %q", resp.Reason)
+	}
+}
+
+func TestLnurlwCallback_InsufficientFunds(t *testing.T) {
+	app := openTestApp(t)
+	// Fund with 1000 sats, invoice is 1500 sats
+	cardId := insertFundedCard(t, app.db_conn, 1000)
+	setupK1(t, app.db_conn, cardId, "lowk1", 300)
+
+	handler := app.CreateHandler_LnurlwCallback()
+	r := httptest.NewRequest("GET", "/cb?k1=lowk1&pr="+testBolt11, nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Reason != "Insufficient funds" {
+		t.Fatalf("expected 'Insufficient funds', got %q", resp.Reason)
+	}
+}
+
+func TestLnurlwCallback_InsufficientFundsWithFees(t *testing.T) {
+	app := openTestApp(t)
+	// Fund with 1505 sats; invoice=1500, fee headroom=4+1500*4/1000=10, total needed=1510
+	cardId := insertFundedCard(t, app.db_conn, 1505)
+	setupK1(t, app.db_conn, cardId, "feek1", 300)
+
+	handler := app.CreateHandler_LnurlwCallback()
+	r := httptest.NewRequest("GET", "/cb?k1=feek1&pr="+testBolt11, nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Reason != "Insufficient funds with network fees" {
+		t.Fatalf("expected 'Insufficient funds with network fees', got %q", resp.Reason)
+	}
+}
+
+func TestLnurlwCallback_SufficientFundsReservesPayment(t *testing.T) {
+	app := openTestApp(t)
+	// Fund with 2000 sats; invoice=1500, fee headroom=10, total needed=1510 — passes
+	cardId := insertFundedCard(t, app.db_conn, 2000)
+	setupK1(t, app.db_conn, cardId, "goodk1", 300)
+
+	handler := app.CreateHandler_LnurlwCallback()
+	r := httptest.NewRequest("GET", "/cb?k1=goodk1&pr="+testBolt11, nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	// Phoenix is unavailable in tests → "no_config" → handlePaymentResult unlocks funds
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Status != "ERROR" || resp.Reason != "phoenix config not set" {
+		t.Fatalf("expected 'phoenix config not set' error, got status=%q reason=%q", resp.Status, resp.Reason)
+	}
+
+	// Verify payment record was created and then unlocked (paid_flag='N')
+	var paidFlag string
+	err := app.db_conn.QueryRow(
+		`SELECT paid_flag FROM card_payments WHERE card_id = $1 ORDER BY card_payment_id DESC LIMIT 1`, cardId,
+	).Scan(&paidFlag)
+	if err != nil {
+		t.Fatalf("failed to query payment: %v", err)
+	}
+	if paidFlag != "N" {
+		t.Fatalf("expected paid_flag 'N' (unlocked), got %q", paidFlag)
+	}
+}
+
+// --- handlePaymentResult Tests ---
+
+func TestHandlePaymentResult_UnlocksFunds(t *testing.T) {
+	cases := []struct {
+		result string
+	}{
+		{"no_config"},
+		{"failed_request_creation"},
+		{"failed_read_response"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.result, func(t *testing.T) {
+			db_conn := openTestDB(t)
+			cardId := insertFundedCard(t, db_conn, 5000)
+			paymentId := db.Db_add_card_payment(db_conn, cardId, 100, "lnbc_test")
+
+			w := httptest.NewRecorder()
+			returned := handlePaymentResult(w, db_conn, tc.result, paymentId)
+			if !returned {
+				t.Fatal("expected handlePaymentResult to return true")
+			}
+
+			// Should have written error JSON
+			var resp lnurlStatus
+			json.Unmarshal(w.Body.Bytes(), &resp)
+			if resp.Status != "ERROR" {
+				t.Fatalf("expected ERROR status, got %q", resp.Status)
+			}
+
+			// paid_flag should be 'N' (unlocked)
+			if flag := getPaidFlag(db_conn, paymentId); flag != "N" {
+				t.Fatalf("expected paid_flag 'N', got %q", flag)
+			}
+		})
+	}
+}
+
+func TestHandlePaymentResult_KeepsFundsLocked(t *testing.T) {
+	cases := []struct {
+		result string
+	}{
+		{"phoenix_api_timeout"},
+		{"fail_status_code"},
+		{"failed_decode_response"},
+		{"unknown_result"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.result, func(t *testing.T) {
+			db_conn := openTestDB(t)
+			cardId := insertFundedCard(t, db_conn, 5000)
+			paymentId := db.Db_add_card_payment(db_conn, cardId, 100, "lnbc_test")
+
+			w := httptest.NewRecorder()
+			returned := handlePaymentResult(w, db_conn, tc.result, paymentId)
+			if !returned {
+				t.Fatal("expected handlePaymentResult to return true")
+			}
+
+			var resp lnurlStatus
+			json.Unmarshal(w.Body.Bytes(), &resp)
+			if resp.Status != "ERROR" {
+				t.Fatalf("expected ERROR status, got %q", resp.Status)
+			}
+
+			// paid_flag should remain 'Y' (locked)
+			if flag := getPaidFlag(db_conn, paymentId); flag != "Y" {
+				t.Fatalf("expected paid_flag 'Y', got %q", flag)
+			}
+		})
+	}
+}
+
+func TestHandlePaymentResult_NoError(t *testing.T) {
+	db_conn := openTestDB(t)
+	cardId := insertFundedCard(t, db_conn, 5000)
+	paymentId := db.Db_add_card_payment(db_conn, cardId, 100, "lnbc_test")
+
+	w := httptest.NewRecorder()
+	returned := handlePaymentResult(w, db_conn, "no_error", paymentId)
+	if returned {
+		t.Fatal("expected handlePaymentResult to return false for 'no_error'")
+	}
+
+	// No JSON written
+	if w.Body.Len() != 0 {
+		t.Fatalf("expected no response body, got %q", w.Body.String())
+	}
+
+	// paid_flag should remain 'Y'
+	if flag := getPaidFlag(db_conn, paymentId); flag != "Y" {
+		t.Fatalf("expected paid_flag 'Y', got %q", flag)
+	}
+}
+
+// --- handlePaymentReason Tests ---
+
+func TestHandlePaymentReason_UnlocksFunds(t *testing.T) {
+	cases := []struct {
+		reason string
+	}{
+		{"this invoice has already been paid"},
+		{"recipient node rejected the payment"},
+		{"not enough funds in wallet to afford payment"},
+		{"routing fees are insufficient"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.reason, func(t *testing.T) {
+			db_conn := openTestDB(t)
+			cardId := insertFundedCard(t, db_conn, 5000)
+			paymentId := db.Db_add_card_payment(db_conn, cardId, 100, "lnbc_test")
+
+			w := httptest.NewRecorder()
+			returned := handlePaymentReason(w, db_conn, tc.reason, paymentId)
+			if !returned {
+				t.Fatal("expected handlePaymentReason to return true")
+			}
+
+			var resp lnurlStatus
+			json.Unmarshal(w.Body.Bytes(), &resp)
+			if resp.Status != "ERROR" {
+				t.Fatalf("expected ERROR status, got %q", resp.Status)
+			}
+
+			if flag := getPaidFlag(db_conn, paymentId); flag != "N" {
+				t.Fatalf("expected paid_flag 'N', got %q", flag)
+			}
+		})
+	}
+}
+
+func TestHandlePaymentReason_KeepsFundsLocked(t *testing.T) {
+	db_conn := openTestDB(t)
+	cardId := insertFundedCard(t, db_conn, 5000)
+	paymentId := db.Db_add_card_payment(db_conn, cardId, 100, "lnbc_test")
+
+	w := httptest.NewRecorder()
+	returned := handlePaymentReason(w, db_conn, "some unknown reason", paymentId)
+	if !returned {
+		t.Fatal("expected handlePaymentReason to return true for unknown reason")
+	}
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Status != "ERROR" {
+		t.Fatalf("expected ERROR status, got %q", resp.Status)
+	}
+
+	if flag := getPaidFlag(db_conn, paymentId); flag != "Y" {
+		t.Fatalf("expected paid_flag 'Y', got %q", flag)
+	}
+}
+
+func TestHandlePaymentReason_EmptyReason(t *testing.T) {
+	db_conn := openTestDB(t)
+	cardId := insertFundedCard(t, db_conn, 5000)
+	paymentId := db.Db_add_card_payment(db_conn, cardId, 100, "lnbc_test")
+
+	w := httptest.NewRecorder()
+	returned := handlePaymentReason(w, db_conn, "", paymentId)
+	if returned {
+		t.Fatal("expected handlePaymentReason to return false for empty reason")
+	}
+
+	if w.Body.Len() != 0 {
+		t.Fatalf("expected no response body, got %q", w.Body.String())
+	}
+
+	if flag := getPaidFlag(db_conn, paymentId); flag != "Y" {
+		t.Fatalf("expected paid_flag 'Y', got %q", flag)
+	}
+}

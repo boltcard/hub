@@ -38,7 +38,7 @@ cd docker/card && go test -race -count=1 ./...
 # Run specific test packages
 go test ./crypto/    # AES-CMAC and AES decrypt tests
 go test ./db/        # Schema migration, settings CRUD, card operations (uses in-memory SQLite)
-go test ./web/       # HTTP handler tests (auth, balance, path traversal)
+go test ./web/       # HTTP handler tests (auth, balance, path traversal, LNURL withdraw flow)
 ```
 
 Tests require CGo (for `go-sqlite3`) and `HOST_DOMAIN` env var (db_init panics without it; test helpers set it automatically). CI runs tests automatically via GitHub Actions on push/PR to main.
