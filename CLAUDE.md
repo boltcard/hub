@@ -9,11 +9,14 @@ Bolt Card Hub (Phoenix Edition) — a lightweight Bitcoin/Lightning payment serv
 ## Build & Run
 
 ```bash
-# First-time setup: create .env from example and set your domain
+# Production: pull pre-built images from Docker Hub and run
+echo "HOST_DOMAIN=hub.yourdomain.com" > .env
+docker compose pull
+docker compose up -d
+
+# Development: build locally and run
 cp .env.example .env
 # Edit .env to set HOST_DOMAIN=hub.yourdomain.com
-
-# Build and run
 docker compose build
 docker compose up        # foreground
 docker compose up -d     # detached
@@ -22,7 +25,7 @@ docker compose up -d     # detached
 docker compose watch
 ```
 
-The Go application is in `docker/card/`. It builds via multi-stage Docker build (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`.
+The Go application is in `docker/card/`. It builds via multi-stage Docker build (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`. Pre-built images are published to Docker Hub (`boltcard/card:latest`, `boltcard/webproxy:latest`).
 
 There is no Makefile — building is done exclusively through Docker.
 
@@ -48,8 +51,9 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
 - `go test -race -count=1 ./...`
 - `govulncheck ./...`
 - Docker image builds for both `card` and `webproxy`
+- On push to `main` (not PRs): pushes images to Docker Hub as `latest`
 
-Uses Go 1.25.7 with CGo enabled for sqlite3.
+Uses Go 1.25.7 with CGo enabled for sqlite3. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
 
 ## CLI Commands (run inside card container)
 
