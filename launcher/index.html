@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Launch Bolt Card Hub on LunaNode</title>
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #212121;
+            --accent: #0d47a1;
+            --accent-hover: #1266e2;
+            --border: #898EA4;
+            --bg-secondary: #f5f5f5;
+            --error: #c62828;
+            --success: #2e7d32;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #212121;
+                --text: #dcdcdc;
+                --accent: #ffb300;
+                --accent-hover: #ffe099;
+                --border: #898EA4;
+                --bg-secondary: #2c2c2c;
+                --error: #ef5350;
+                --success: #66bb6a;
+            }
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            display: grid;
+            grid-template-columns: 1fr min(40rem, 90%) 1fr;
+            min-height: 100vh;
+        }
+        body > * { grid-column: 2; }
+        header {
+            grid-column: 1 / -1;
+            background: var(--accent);
+            color: #fff;
+            padding: 1rem;
+            text-align: center;
+        }
+        @media (prefers-color-scheme: dark) {
+            header { color: #212121; }
+        }
+        header h1 { font-size: 1.5rem; font-weight: 600; }
+        main { padding: 2rem 0; }
+        h2 { font-size: 1.4rem; margin-bottom: 1rem; }
+        p { margin-bottom: 1rem; }
+        a { color: var(--accent); }
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+            margin-top: 1rem;
+        }
+        input, select {
+            width: 100%;
+            padding: 0.5rem 0.7rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            font-size: 1rem;
+            background: var(--bg);
+            color: var(--text);
+        }
+        input:focus, select:focus {
+            outline: 2px solid var(--accent);
+            outline-offset: 1px;
+        }
+        button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 0.7rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 1.5rem;
+            width: 100%;
+        }
+        @media (prefers-color-scheme: dark) {
+            button { color: #212121; }
+        }
+        button:hover:not(:disabled) { background: var(--accent-hover); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .help {
+            font-size: 0.85rem;
+            color: var(--border);
+            margin-top: 0.2rem;
+        }
+        #status {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 4px;
+            display: none;
+        }
+        #status.error {
+            display: block;
+            background: color-mix(in srgb, var(--error) 15%, var(--bg));
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+        #status.success {
+            display: block;
+            background: color-mix(in srgb, var(--success) 15%, var(--bg));
+            border: 1px solid var(--success);
+        }
+        #status.loading {
+            display: block;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            text-align: center;
+        }
+        .spinner {
+            display: inline-block;
+            width: 1.2rem;
+            height: 1.2rem;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 0.5rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .result-url {
+            font-size: 1.1rem;
+            word-break: break-all;
+            margin: 0.5rem 0;
+        }
+        .result-url a { font-weight: 600; }
+        .note {
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            opacity: 0.8;
+        }
+        footer {
+            padding: 2rem 0 1rem;
+            text-align: center;
+            font-size: 0.85rem;
+            color: var(--border);
+        }
+        fieldset {
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0 1rem 1rem;
+            margin-top: 1.5rem;
+        }
+        legend {
+            font-weight: 600;
+            padding: 0 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Bolt Card Hub</h1>
+    </header>
+    <main>
+        <h2>Launch on LunaNode</h2>
+        <p>
+            Create your own Bolt Card Hub on a LunaNode VPS.
+            You'll need a <a href="https://www.lunanode.com/" target="_blank" rel="noopener">LunaNode account</a>
+            with <a href="https://dynamic.lunanode.com/panel/api" target="_blank" rel="noopener">API credentials enabled</a>.
+        </p>
+
+        <form id="launch-form">
+            <label for="api-id">API ID</label>
+            <input type="text" id="api-id" required placeholder="Your LunaNode API ID" autocomplete="off">
+
+            <label for="api-key">API Key</label>
+            <input type="password" id="api-key" required placeholder="Your LunaNode API Key" autocomplete="off">
+
+            <fieldset>
+                <legend>Options</legend>
+                <label for="region">Region</label>
+                <select id="region">
+                    <option value="toronto" selected>Toronto</option>
+                    <option value="montreal">Montreal</option>
+                    <option value="roubaix">Roubaix (France)</option>
+                </select>
+            </fieldset>
+
+            <button type="submit" id="launch-btn">Launch</button>
+        </form>
+
+        <div id="status"></div>
+    </main>
+    <footer>
+        <a href="https://github.com/boltcard/hub" target="_blank" rel="noopener">Bolt Card Hub</a>
+    </footer>
+
+    <script>
+        const form = document.getElementById('launch-form');
+        const btn = document.getElementById('launch-btn');
+        const status = document.getElementById('status');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const apiId = document.getElementById('api-id').value.trim();
+            const apiKey = document.getElementById('api-key').value.trim();
+            const region = document.getElementById('region').value;
+
+            if (!apiId || !apiKey) return;
+
+            btn.disabled = true;
+            status.className = 'loading';
+            status.innerHTML = '<span class="spinner"></span> Creating your VPS&hellip; this takes about 30 seconds.';
+
+            try {
+                const res = await fetch('/api/launch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ api_id: apiId, api_key: apiKey, region }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    throw new Error(data.error || 'Launch failed');
+                }
+
+                status.className = 'success';
+                status.innerHTML =
+                    '<p><strong>Your Bolt Card Hub is being set up!</strong></p>' +
+                    '<p class="result-url"><a href="https://' + escapeHtml(data.hostname) + '/admin/" target="_blank" rel="noopener">https://' + escapeHtml(data.hostname) + '/admin/</a></p>' +
+                    '<p class="note">IP: ' + escapeHtml(data.ip) + '</p>' +
+                    '<p class="note">The hub takes a few minutes to fully install (Docker, images, and TLS certificate). If the page doesn\'t load yet, wait a moment and try again.</p>';
+            } catch (err) {
+                status.className = 'error';
+                status.textContent = err.message;
+                btn.disabled = false;
+            }
+        });
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>
