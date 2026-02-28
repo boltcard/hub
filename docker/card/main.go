@@ -3,7 +3,7 @@ package main
 import (
 	"card/build"
 	"card/db"
-	"card/util"
+	"card/phoenix"
 	"card/web"
 	"context"
 	"database/sql"
@@ -41,9 +41,23 @@ func main() {
 		"_foreign_keys=1&"+
 		"_secure_delete=1&"+ // overwrite deleted data
 		"_auto_vacuum=INCREMENTAL") // prevent file bloat
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Fatal("failed to open database: ", err)
+	}
 	defer db.Close(sql_db)
 	db.Db_init(sql_db)
+
+	// set log level from database setting
+	logLevel := db.Db_get_setting(sql_db, "log_level")
+	if level, err := log.ParseLevel(logLevel); err == nil {
+		log.SetLevel(level)
+		log.Info("log level set to ", logLevel)
+	}
+
+	// pre-load phoenix credentials
+	if err := phoenix.InitPassword(); err != nil {
+		log.Warn("phoenix config not available at startup: ", err)
+	}
 
 	// check for command line arguments
 	args := os.Args[1:] // without program name

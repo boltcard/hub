@@ -36,7 +36,19 @@
                 {{range .Settings}}
                 <tr>
                     <td>{{.Name}}</td>
-                    <td>{{.Value}}</td>
+                    <td>
+                        {{if eq .Name "log_level"}}
+                        <form method="POST" action="/admin/settings/" style="margin:0">
+                            <select name="log_level" onchange="this.form.submit()">
+                                {{range $.LogLevels}}
+                                <option value="{{.}}" {{if eq . $.LogLevel}}selected{{end}}>{{.}}</option>
+                                {{end}}
+                            </select>
+                        </form>
+                        {{else}}
+                        {{.Value}}
+                        {{end}}
+                    </td>
                 </tr>
                 {{end}}
             </tbody>

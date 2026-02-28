@@ -56,10 +56,7 @@ func Db_init(db_conn *sql.DB) {
 			panic("HOST_DOMAIN environment variable must be set")
 		}
 		Db_set_setting(db_conn, "host_domain", hostDomain)
-		Db_set_setting(db_conn, "gc_url", "")
-		Db_set_setting(db_conn, "log_level", "debug")
-		Db_set_setting(db_conn, "min_withdraw_sats", "1")
-		Db_set_setting(db_conn, "max_withdraw_sats", "100000000")
+		Db_set_setting(db_conn, "log_level", "info")
 
 		// set password salt
 		passwordSalt := util.Random_hex()

@@ -65,8 +65,8 @@ func (app *App) CreateHandler_LnurlwRequest() http.HandlerFunc {
 		// prepare response
 		var resObj LnurlwResponse
 
-		minWithdrawableSats, _ := strconv.Atoi(db.Db_get_setting(app.db_conn, "min_withdraw_sats"))
-		maxWithdrawableSats, _ := strconv.Atoi(db.Db_get_setting(app.db_conn, "max_withdraw_sats"))
+		minWithdrawableSats := 1
+		maxWithdrawableSats := 100_000_000
 
 		resObj.Tag = "withdrawRequest"
 		resObj.Callback = "https://" + db.Db_get_setting(app.db_conn, "host_domain") + "/cb"

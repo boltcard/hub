@@ -4,6 +4,8 @@ import (
 	"card/db"
 	"card/phoenix"
 	"database/sql"
+	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,7 +16,8 @@ import (
 
 // lnurlError writes an LNURL-compatible error JSON response.
 func lnurlError(w http.ResponseWriter, reason string) {
-	w.Write([]byte(`{"status": "ERROR", "reason": "` + reason + `"}`))
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"status": "ERROR", "reason": reason})
 }
 
 // handlePaymentResult processes the phoenix payment result code.
@@ -126,11 +129,14 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 			lnurlError(w, "invalid invoice")
 			return
 		}
+		if bolt11.MSatoshi < 0 || bolt11.MSatoshi > math.MaxInt64-999 {
+			lnurlError(w, "invalid invoice amount")
+			return
+		}
 		amountSats := int(bolt11.MSatoshi / 1000)
 
 		// detect gift card use, i.e. sweeping of max_withdraw_sats amount
-		maxWithdrawableSats, _ := strconv.Atoi(db.Db_get_setting(app.db_conn, "max_withdraw_sats"))
-		if amountSats == maxWithdrawableSats {
+		if amountSats == 100_000_000 {
 			lnurlError(w, "this is a bolt card - use a Point of Sale")
 			return
 		}
@@ -186,6 +192,7 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 		// payment succeeded — record the routing fee
 		db.Db_update_card_payment_fee(app.db_conn, card_payment_id, payInvoiceResponse.RoutingFeeSat)
 
-		w.Write([]byte(`{"status":"OK"}`))
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "OK"})
 	}
 }
