@@ -24,6 +24,27 @@
     <main>
         <h1>Settings</h1>
 
+        {{if .Settings}}
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Settings}}
+                <tr>
+                    <td>{{.Name}}</td>
+                    <td>{{.Value}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{else}}
+        <p>No settings found.</p>
+        {{end}}
+
     </main>
 
     <footer></footer>

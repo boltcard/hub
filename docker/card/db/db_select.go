@@ -1,8 +1,9 @@
 package db
 
 import (
-	"card/util"
 	"database/sql"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type CardReceipt struct {
@@ -42,7 +43,10 @@ func Db_select_card_receipts(db_conn *sql.DB, card_id int, limit int) (result Ca
 			` ORDER BY card_receipt_id DESC;`
 		rows, err = db_conn.Query(sqlStatement, card_id)
 	}
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_select_card_receipts query error: ", err)
+		return cardReceipts
+	}
 	defer rows.Close()
 
 	for rows.Next() {
@@ -56,7 +60,10 @@ func Db_select_card_receipts(db_conn *sql.DB, card_id int, limit int) (result Ca
 			&cardReceipt.IsPaid,
 			&cardReceipt.Timestamp,
 			&cardReceipt.ExpireTime)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("db_select_card_receipts scan error: ", err)
+			continue
+		}
 
 		cardReceipts = append(cardReceipts, cardReceipt)
 	}
@@ -85,7 +92,10 @@ func Db_select_card_payments(db_conn *sql.DB, card_id int) (result CardPayments)
 		` WHERE card_payments.card_id = $1` +
 		` ORDER BY card_payment_id DESC;`
 	rows, err := db_conn.Query(sqlStatement, card_id)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_select_card_payments query error: ", err)
+		return cardPayments
+	}
 	defer rows.Close()
 
 	for rows.Next() {
@@ -98,7 +108,10 @@ func Db_select_card_payments(db_conn *sql.DB, card_id int) (result CardPayments)
 			&cardPayment.IsPaid,
 			&cardPayment.Timestamp,
 			&cardPayment.ExpireTime)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("db_select_card_payments scan error: ", err)
+			continue
+		}
 
 		cardPayments = append(cardPayments, cardPayment)
 	}
@@ -129,7 +142,10 @@ func Db_select_card_txs(db_conn *sql.DB, card_id int) (result CardTxs) {
 		` WHERE card_payments.card_id = $1 AND card_payments.paid_flag='Y'` +
 		` ORDER BY timestamp;`
 	rows, err := db_conn.Query(sqlStatement, card_id)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_select_card_txs query error: ", err)
+		return cardTxs
+	}
 	defer rows.Close()
 
 	for rows.Next() {
@@ -141,7 +157,10 @@ func Db_select_card_txs(db_conn *sql.DB, card_id int) (result CardTxs) {
 			&cardTx.Timestamp,
 			&cardTx.AmountSats,
 			&cardTx.FeeSats)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("db_select_card_txs scan error: ", err)
+			continue
+		}
 
 		cardTxs = append(cardTxs, cardTx)
 	}
@@ -163,7 +182,10 @@ func Db_select_cards_with_group_tag(db_conn *sql.DB, group_tag string) (result C
 		` FROM cards` +
 		` WHERE group_tag = $1;`
 	rows, err := db_conn.Query(sqlStatement, group_tag)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_select_cards_with_group_tag query error: ", err)
+		return cards
+	}
 	defer rows.Close()
 
 	for rows.Next() {
@@ -171,7 +193,10 @@ func Db_select_cards_with_group_tag(db_conn *sql.DB, group_tag string) (result C
 
 		err := rows.Scan(
 			&cardIdOnly.CardId)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("db_select_cards_with_group_tag scan error: ", err)
+			continue
+		}
 
 		cards = append(cards, cardIdOnly)
 	}
@@ -186,6 +211,37 @@ func Db_select_cards_with_group_tag(db_conn *sql.DB, group_tag string) (result C
 // initial_balance INTEGER NOT NULL DEFAULT 0,
 // create_time INTEGER NOT NULL,
 // expire_time INTEGER NOT NULL
+
+type Setting struct {
+	Name  string
+	Value string
+}
+
+func Db_select_all_settings(db_conn *sql.DB) []Setting {
+	var settings []Setting
+
+	sqlStatement := `SELECT name, value FROM settings ORDER BY name;`
+	rows, err := db_conn.Query(sqlStatement)
+	if err != nil {
+		log.Error("db_select_all_settings query error: ", err)
+		return settings
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var s Setting
+
+		err := rows.Scan(&s.Name, &s.Value)
+		if err != nil {
+			log.Error("db_select_all_settings scan error: ", err)
+			continue
+		}
+
+		settings = append(settings, s)
+	}
+
+	return settings
+}
 
 type ProgramCard struct {
 	ProgramCardId  int
@@ -204,7 +260,10 @@ func Db_select_program_card_for_secret(db_conn *sql.DB, secret string) (result P
 	sqlStatement := `SELECT secret, group_tag, max_group_num, initial_balance, create_time, expire_time` +
 		` FROM program_cards WHERE secret = $1;`
 	rows, err := db_conn.Query(sqlStatement, secret)
-	util.CheckAndPanic(err)
+	if err != nil {
+		log.Error("db_select_program_card_for_secret query error: ", err)
+		return programCard
+	}
 	defer rows.Close()
 
 	if rows.Next() {
@@ -215,7 +274,9 @@ func Db_select_program_card_for_secret(db_conn *sql.DB, secret string) (result P
 			&programCard.InitialBalance,
 			&programCard.CreateTime,
 			&programCard.ExpireTime)
-		util.CheckAndPanic(err)
+		if err != nil {
+			log.Error("db_select_program_card_for_secret scan error: ", err)
+		}
 	}
 
 	return programCard
