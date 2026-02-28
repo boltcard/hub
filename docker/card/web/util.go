@@ -10,13 +10,15 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// GetPwHash is the legacy SHA256 password hash (kept for migration)
+// GetPwHash computes the legacy SHA256(salt+password) hash.
+// Only used to verify old passwords during login, which then migrates
+// the stored hash to bcrypt. See admin_login.go.
 func GetPwHash(db_conn *sql.DB, passwordStr string) (passwordHashStr string) {
 	passwordSalt := db.Db_get_setting(db_conn, "admin_password_salt")
 
 	hasher := sha256.New()
-	hasher.Write([]byte(passwordSalt)) // codeql[go/weak-sensitive-data-hashing]: legacy path kept only for migrating old hashes to bcrypt
-	hasher.Write([]byte(passwordStr))  // codeql[go/weak-sensitive-data-hashing]: legacy path kept only for migrating old hashes to bcrypt
+	hasher.Write([]byte(passwordSalt))
+	hasher.Write([]byte(passwordStr))
 	passwordHash := hasher.Sum(nil)
 	passwordHashStr = hex.EncodeToString(passwordHash)
 
