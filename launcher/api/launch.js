@@ -72,24 +72,24 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { api_id, api_key, region } = req.body || {};
+  const { api_id, api_key } = req.body || {};
 
   if (!api_id || !api_key) {
     return res.status(400).json({ error: 'API ID and API Key are required' });
   }
 
-  const selectedRegion = region || 'toronto';
+  const region = 'toronto';
   let scriptId;
 
   try {
     // 1. Find Ubuntu 24.04 image
-    const images = await lunaRequest(api_id, api_key, 'image/list', { region: selectedRegion });
+    const images = await lunaRequest(api_id, api_key, 'image/list', { region: region });
     const imageList = Object.values(images.images || {});
     const ubuntu = imageList.find((img) =>
       img.name && img.name.includes('Ubuntu') && img.name.includes('24.04')
     );
     if (!ubuntu) {
-      return res.status(400).json({ error: 'Ubuntu 24.04 image not found in region: ' + selectedRegion });
+      return res.status(400).json({ error: 'Ubuntu 24.04 image not found in region: ' + region });
     }
 
     // 2. Create startup script
@@ -103,7 +103,7 @@ module.exports = async function handler(req, res) {
     const vmRes = await lunaRequest(api_id, api_key, 'vm/create', {
       plan_id: 'm.1s',
       image_id: ubuntu.image_id,
-      region: selectedRegion,
+      region: region,
       hostname: 'boltcardhub',
       scripts: scriptId,
     });

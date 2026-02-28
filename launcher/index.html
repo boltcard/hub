@@ -59,7 +59,7 @@
             margin-bottom: 0.3rem;
             margin-top: 1rem;
         }
-        input, select {
+        input {
             width: 100%;
             padding: 0.5rem 0.7rem;
             border: 1px solid var(--border);
@@ -68,7 +68,7 @@
             background: var(--bg);
             color: var(--text);
         }
-        input:focus, select:focus {
+        input:focus {
             outline: 2px solid var(--accent);
             outline-offset: 1px;
         }
@@ -146,15 +146,34 @@
             font-size: 0.85rem;
             color: var(--border);
         }
-        fieldset {
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 0 1rem 1rem;
-            margin-top: 1.5rem;
+        .progress-steps {
+            text-align: left;
         }
-        legend {
+        .step {
+            padding: 0.4rem 0;
+            opacity: 0.4;
+        }
+        .step.done {
+            opacity: 1;
+        }
+        .step.active {
+            opacity: 1;
             font-weight: 600;
-            padding: 0 0.5rem;
+        }
+        .check {
+            color: var(--success);
+            font-weight: 700;
+        }
+        .spinner-sm {
+            display: inline-block;
+            width: 0.9rem;
+            height: 0.9rem;
+            border: 2px solid var(--border);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 0.2rem;
         }
     </style>
 </head>
@@ -177,16 +196,6 @@
             <label for="api-key">API Key</label>
             <input type="password" id="api-key" required placeholder="Your LunaNode API Key" autocomplete="off">
 
-            <fieldset>
-                <legend>Options</legend>
-                <label for="region">Region</label>
-                <select id="region">
-                    <option value="toronto" selected>Toronto</option>
-                    <option value="montreal">Montreal</option>
-                    <option value="roubaix">Roubaix (France)</option>
-                </select>
-            </fieldset>
-
             <button type="submit" id="launch-btn">Launch</button>
         </form>
 
@@ -201,24 +210,89 @@
         const btn = document.getElementById('launch-btn');
         const status = document.getElementById('status');
 
+        const STEPS = [
+            { id: 'create', label: 'Creating VPS' },
+            { id: 'boot',   label: 'Waiting for server to boot' },
+            { id: 'install',label: 'Installing Docker &amp; Bolt Card Hub' },
+            { id: 'tls',    label: 'Obtaining TLS certificate' },
+            { id: 'ready',  label: 'Hub is ready!' },
+        ];
+
+        function renderProgress(currentStep, hostname, ip) {
+            const h = hostname ? escapeHtml(hostname) : '';
+            const adminUrl = 'https://' + h + '/admin/';
+            let html = '<div class="progress-steps">';
+            for (let i = 0; i < STEPS.length; i++) {
+                const step = STEPS[i];
+                let cls = 'step';
+                if (i < currentStep) cls += ' done';
+                else if (i === currentStep) cls += ' active';
+                html += '<div class="' + cls + '">';
+                if (i < currentStep) html += '<span class="check">&#10003;</span> ';
+                else if (i === currentStep && currentStep < STEPS.length - 1) html += '<span class="spinner-sm"></span> ';
+                else if (i === currentStep) html += '<span class="check">&#10003;</span> ';
+                html += step.label + '</div>';
+            }
+            html += '</div>';
+            if (ip) html += '<p class="note" style="margin-top:1rem">IP: ' + escapeHtml(ip) + '</p>';
+            if (currentStep >= STEPS.length - 1) {
+                html += '<p class="result-url" style="margin-top:1rem"><a href="' + adminUrl + '" target="_blank" rel="noopener">' + adminUrl + '</a></p>';
+            }
+            return html;
+        }
+
+        async function pollStatus(hostname, ip) {
+            const adminUrl = 'https://' + escapeHtml(hostname) + '/admin/';
+            let step = 1; // start at "boot" after VM created
+            status.className = 'loading';
+            status.innerHTML = renderProgress(step, hostname, ip);
+
+            for (let attempt = 0; attempt < 60; attempt++) {
+                await sleep(10000);
+                try {
+                    const res = await fetch('/api/status?hostname=' + encodeURIComponent(hostname));
+                    const data = await res.json();
+
+                    if (data.state === 'ready') {
+                        status.className = 'success';
+                        status.innerHTML = renderProgress(STEPS.length - 1, hostname, ip);
+                        return;
+                    } else if (data.state === 'tls_pending') {
+                        if (step < 3) step = 3;
+                        status.innerHTML = renderProgress(step, hostname, ip);
+                    } else {
+                        // still waiting — advance past boot after 30s
+                        if (step < 2 && attempt >= 2) step = 2;
+                        status.innerHTML = renderProgress(step, hostname, ip);
+                    }
+                } catch {
+                    // fetch error — keep polling
+                }
+            }
+
+            // Timed out but show link anyway
+            status.className = 'success';
+            status.innerHTML = renderProgress(STEPS.length - 1, hostname, ip) +
+                '<p class="note">Polling timed out, but your hub may still be setting up. Try the link in a minute.</p>';
+        }
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
             const apiId = document.getElementById('api-id').value.trim();
             const apiKey = document.getElementById('api-key').value.trim();
-            const region = document.getElementById('region').value;
 
             if (!apiId || !apiKey) return;
 
             btn.disabled = true;
             status.className = 'loading';
-            status.innerHTML = '<span class="spinner"></span> Creating your VPS&hellip; this takes about 30 seconds.';
+            status.innerHTML = renderProgress(0, null, null);
 
             try {
                 const res = await fetch('/api/launch', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ api_id: apiId, api_key: apiKey, region }),
+                    body: JSON.stringify({ api_id: apiId, api_key: apiKey }),
                 });
 
                 const data = await res.json();
@@ -227,12 +301,7 @@
                     throw new Error(data.error || 'Launch failed');
                 }
 
-                status.className = 'success';
-                status.innerHTML =
-                    '<p><strong>Your Bolt Card Hub is being set up!</strong></p>' +
-                    '<p class="result-url"><a href="https://' + escapeHtml(data.hostname) + '/admin/" target="_blank" rel="noopener">https://' + escapeHtml(data.hostname) + '/admin/</a></p>' +
-                    '<p class="note">IP: ' + escapeHtml(data.ip) + '</p>' +
-                    '<p class="note">The hub takes a few minutes to fully install (Docker, images, and TLS certificate). If the page doesn\'t load yet, wait a moment and try again.</p>';
+                pollStatus(data.hostname, data.ip);
             } catch (err) {
                 status.className = 'error';
                 status.textContent = err.message;
@@ -244,6 +313,10 @@
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
+        }
+
+        function sleep(ms) {
+            return new Promise((r) => setTimeout(r, ms));
         }
     </script>
 </body>
