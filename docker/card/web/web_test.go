@@ -1881,3 +1881,453 @@ func TestHandlePaymentReason_EmptyReason(t *testing.T) {
 		t.Fatalf("expected paid_flag 'Y', got %q", flag)
 	}
 }
+
+// --- PayInvoice Handler Tests ---
+
+func TestPayInvoice_MissingAuth(t *testing.T) {
+	app := setupEnabledApp(t)
+	handler := app.CreateHandler_WalletApi_PayInvoice()
+
+	r := httptest.NewRequest("POST", "/payinvoice", strings.NewReader(`{}`))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Error != "Bad auth" {
+		t.Fatalf("expected 'Bad auth', got %q", errResp.Error)
+	}
+}
+
+func TestPayInvoice_InvalidJSON(t *testing.T) {
+	app := setupEnabledApp(t)
+	insertFundedCard(t, app.db_conn, 5000)
+	handler := app.CreateHandler_WalletApi_PayInvoice()
+
+	r := httptest.NewRequest("POST", "/payinvoice", strings.NewReader(`not json`))
+	r.Header.Set("Authorization", "Bearer lnaccess")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Message != "request parameters invalid" {
+		t.Fatalf("expected 'request parameters invalid', got %q", errResp.Message)
+	}
+}
+
+func TestPayInvoice_InvalidInvoice(t *testing.T) {
+	app := setupEnabledApp(t)
+	insertFundedCard(t, app.db_conn, 5000)
+	handler := app.CreateHandler_WalletApi_PayInvoice()
+
+	body := `{"invoice":"notaninvoice","amount":100}`
+	r := httptest.NewRequest("POST", "/payinvoice", strings.NewReader(body))
+	r.Header.Set("Authorization", "Bearer lnaccess")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Message != "invalid invoice" {
+		t.Fatalf("expected 'invalid invoice', got %q", errResp.Message)
+	}
+}
+
+func TestPayInvoice_InsufficientBalance(t *testing.T) {
+	app := setupEnabledApp(t)
+	insertFundedCard(t, app.db_conn, 500) // only 500 sats
+	handler := app.CreateHandler_WalletApi_PayInvoice()
+
+	// testBolt11 is 1500 sats
+	body := fmt.Sprintf(`{"invoice":"%s","amount":1500}`, testBolt11)
+	r := httptest.NewRequest("POST", "/payinvoice", strings.NewReader(body))
+	r.Header.Set("Authorization", "Bearer lnaccess")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Message != "invoice amount too large" {
+		t.Fatalf("expected 'invoice amount too large', got %q", errResp.Message)
+	}
+}
+
+func TestPayInvoice_DuplicateInvoice(t *testing.T) {
+	app := setupEnabledApp(t)
+	cardId := insertFundedCard(t, app.db_conn, 50000)
+	handler := app.CreateHandler_WalletApi_PayInvoice()
+
+	// Insert a paid payment with the same invoice
+	db.Db_add_card_payment(app.db_conn, cardId, 1500, testBolt11)
+
+	body := fmt.Sprintf(`{"invoice":"%s","amount":1500}`, testBolt11)
+	r := httptest.NewRequest("POST", "/payinvoice", strings.NewReader(body))
+	r.Header.Set("Authorization", "Bearer lnaccess")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Message != "invoice already paid" {
+		t.Fatalf("expected 'invoice already paid', got %q", errResp.Message)
+	}
+}
+
+// --- GetCardKeys Handler Tests ---
+
+func TestGetCardKeys_Valid(t *testing.T) {
+	app := setupEnabledApp(t)
+	insertFundedCard(t, app.db_conn, 0)
+	handler := app.CreateHandler_WalletApi_GetCardKeys()
+
+	r := httptest.NewRequest("POST", "/getcardkeys", nil)
+	r.Header.Set("Authorization", "Bearer lnaccess")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var resp CardKeysResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("expected JSON, got: %s", w.Body.String())
+	}
+	if resp.ProtocolName != "create_bolt_card_response" {
+		t.Fatalf("expected protocol_name 'create_bolt_card_response', got %q", resp.ProtocolName)
+	}
+	if resp.ProtocolVersion != 2 {
+		t.Fatalf("expected protocol_version 2, got %d", resp.ProtocolVersion)
+	}
+	if resp.Key0 == "" || resp.Key1 == "" || resp.Key2 == "" || resp.Key3 == "" || resp.Key4 == "" {
+		t.Fatal("expected non-empty keys")
+	}
+	if !strings.Contains(resp.LnurlwBase, "test.example.com") {
+		t.Fatalf("expected lnurlw_base to contain host domain, got %q", resp.LnurlwBase)
+	}
+	// Verify keys changed from original
+	card, err := db.Db_get_card(app.db_conn, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if card.Key0_auth == "k0" {
+		t.Fatal("expected key0 to differ from original")
+	}
+}
+
+func TestGetCardKeys_BadAuth(t *testing.T) {
+	app := setupEnabledApp(t)
+	handler := app.CreateHandler_WalletApi_GetCardKeys()
+
+	r := httptest.NewRequest("POST", "/getcardkeys", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var errResp ErrorResponse
+	json.Unmarshal(w.Body.Bytes(), &errResp)
+	if errResp.Error != "Bad auth" {
+		t.Fatalf("expected 'Bad auth', got %q", errResp.Error)
+	}
+}
+
+// --- GetUserInvoices Handler Tests ---
+
+func TestGetUserInvoices_Empty(t *testing.T) {
+	app := setupEnabledApp(t)
+	insertFundedCard(t, app.db_conn, 0)
+	handler := app.CreateHandler_WalletApi_GetUserInvoices()
+
+	r := httptest.NewRequest("GET", "/getuserinvoices", nil)
+	r.Header.Set("Authorization", "Bearer lnaccess")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var invoices []UserInvoice
+	if err := json.Unmarshal(w.Body.Bytes(), &invoices); err != nil {
+		t.Fatalf("expected JSON array, got: %s", w.Body.String())
+	}
+	if len(invoices) != 0 {
+		t.Fatalf("expected 0 invoices, got %d", len(invoices))
+	}
+}
+
+func TestGetUserInvoices_WithReceipts(t *testing.T) {
+	app := setupEnabledApp(t)
+	cardId := insertFundedCard(t, app.db_conn, 0)
+	handler := app.CreateHandler_WalletApi_GetUserInvoices()
+
+	// Add 2 receipts: one paid, one unpaid
+	db.Db_add_card_receipt(app.db_conn, cardId, "lnbc_paid", "paidhash", 500)
+	db.Db_set_receipt_paid(app.db_conn, "paidhash")
+	db.Db_add_card_receipt(app.db_conn, cardId, "lnbc_unpaid", "unpaidhash", 300)
+
+	r := httptest.NewRequest("GET", "/getuserinvoices", nil)
+	r.Header.Set("Authorization", "Bearer lnaccess")
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var invoices []UserInvoice
+	if err := json.Unmarshal(w.Body.Bytes(), &invoices); err != nil {
+		t.Fatalf("expected JSON array, got: %s", w.Body.String())
+	}
+	if len(invoices) != 2 {
+		t.Fatalf("expected 2 invoices, got %d", len(invoices))
+	}
+
+	foundPaid := false
+	foundUnpaid := false
+	for _, inv := range invoices {
+		if inv.PaymentHash == "paidhash" {
+			foundPaid = true
+			if !inv.IsPaid {
+				t.Fatal("expected paid receipt to have ispaid=true")
+			}
+			if inv.Amt != 500 {
+				t.Fatalf("expected amt 500, got %d", inv.Amt)
+			}
+		}
+		if inv.PaymentHash == "unpaidhash" {
+			foundUnpaid = true
+			if inv.IsPaid {
+				t.Fatal("expected unpaid receipt to have ispaid=false")
+			}
+		}
+	}
+	if !foundPaid || !foundUnpaid {
+		t.Fatal("expected both paid and unpaid receipts in response")
+	}
+}
+
+// --- CreateCard / BCP Handler Tests ---
+
+func TestCreateCard_Valid(t *testing.T) {
+	app := openTestApp(t)
+	db.Db_set_setting(app.db_conn, "new_card_code", "testsecret123")
+	handler := app.CreateHandler_CreateCard()
+
+	r := httptest.NewRequest("GET", "/new?a=testsecret123", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var resp BcpResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("expected JSON, got: %s", w.Body.String())
+	}
+	if resp.ProtocolName != "new_bolt_card_response" {
+		t.Fatalf("expected protocol_name 'new_bolt_card_response', got %q", resp.ProtocolName)
+	}
+	if resp.K0 == "" || resp.K1 == "" || resp.K2 == "" || resp.K3 == "" || resp.K4 == "" {
+		t.Fatal("expected non-empty keys")
+	}
+}
+
+func TestCreateCard_MissingA(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_CreateCard()
+
+	r := httptest.NewRequest("GET", "/new", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "a value not found") {
+		t.Fatalf("expected 'a value not found', got %q", body)
+	}
+}
+
+func TestCreateCard_WrongA(t *testing.T) {
+	app := openTestApp(t)
+	db.Db_set_setting(app.db_conn, "new_card_code", "correct")
+	handler := app.CreateHandler_CreateCard()
+
+	r := httptest.NewRequest("GET", "/new?a=wrong", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	body := w.Body.String()
+	if !strings.Contains(body, "a value not valid") {
+		t.Fatalf("expected 'a value not valid', got %q", body)
+	}
+}
+
+// --- BatchCreateCard Handler Tests ---
+
+func TestBatchCreateCard_Valid(t *testing.T) {
+	app := openTestApp(t)
+	now := int(time.Now().Unix())
+	db.Db_insert_program_cards(app.db_conn, "batchsecret", "group1", 10, 1000, now-60, now+3600)
+	handler := app.CreateHandler_BatchCreateCard()
+
+	body := `{"UID":"048B71B22D6B80"}`
+	r := httptest.NewRequest("POST", "/batch?s=batchsecret", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var resp BcpBatchResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("expected JSON, got: %s", w.Body.String())
+	}
+	if resp.K0 == "" || resp.K1 == "" || resp.K2 == "" || resp.K3 == "" || resp.K4 == "" {
+		t.Fatal("expected non-empty keys")
+	}
+	if !strings.Contains(resp.Lnurlw, "test.example.com") {
+		t.Fatalf("expected LNURLW to contain host domain, got %q", resp.Lnurlw)
+	}
+}
+
+func TestBatchCreateCard_InvalidJSON(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_BatchCreateCard()
+
+	r := httptest.NewRequest("POST", "/batch?s=whatever", strings.NewReader(`not json`))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestBatchCreateCard_ExpiredProgram(t *testing.T) {
+	app := openTestApp(t)
+	now := int(time.Now().Unix())
+	db.Db_insert_program_cards(app.db_conn, "expiredsecret", "group1", 10, 1000, now-7200, now-3600)
+	handler := app.CreateHandler_BatchCreateCard()
+
+	body := `{"UID":"048B71B22D6B80"}`
+	r := httptest.NewRequest("POST", "/batch?s=expiredsecret", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "program card expired or not found") {
+		t.Fatalf("expected 'program card expired or not found', got %q", w.Body.String())
+	}
+}
+
+// --- Admin Settings POST Tests ---
+
+func TestAdminSettings_PostValidLogLevel(t *testing.T) {
+	db_conn := openTestDB(t)
+	db.Db_set_setting(db_conn, "log_level", "info")
+
+	form := url.Values{}
+	form.Set("log_level", "warn")
+	r := httptest.NewRequest("POST", "/admin/settings/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	Admin_Settings(db_conn, w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect, got %d", w.Code)
+	}
+	got := db.Db_get_setting(db_conn, "log_level")
+	if got != "warn" {
+		t.Fatalf("expected log_level 'warn', got %q", got)
+	}
+}
+
+func TestAdminSettings_PostInvalidLogLevel(t *testing.T) {
+	db_conn := openTestDB(t)
+	db.Db_set_setting(db_conn, "log_level", "info")
+
+	form := url.Values{}
+	form.Set("log_level", "badlevel")
+	r := httptest.NewRequest("POST", "/admin/settings/", strings.NewReader(form.Encode()))
+	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	w := httptest.NewRecorder()
+
+	Admin_Settings(db_conn, w, r)
+
+	if w.Code != http.StatusSeeOther {
+		t.Fatalf("expected 303 redirect, got %d", w.Code)
+	}
+	got := db.Db_get_setting(db_conn, "log_level")
+	if got != "info" {
+		t.Fatalf("expected log_level to remain 'info', got %q", got)
+	}
+}
+
+// --- PoS API Tests ---
+
+func TestPosGetInfo_ReturnsEmpty(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_PosApi_GetInfo()
+
+	r := httptest.NewRequest("GET", "/pos/getinfo", nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if w.Body.String() != "" {
+		t.Fatalf("expected empty body, got %q", w.Body.String())
+	}
+}
+
+func TestPosAddInvoice_InvalidJSON(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_PosApi_AddInvoice()
+
+	r := httptest.NewRequest("POST", "/pos/addinvoice", strings.NewReader(`not json`))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestPosAddInvoice_InvalidAmount(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_PosApi_AddInvoice()
+
+	body := `{"Amt":"notanumber","Memo":"test"}`
+	r := httptest.NewRequest("POST", "/pos/addinvoice", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "invalid amount") {
+		t.Fatalf("expected 'invalid amount', got %q", w.Body.String())
+	}
+}
+
+func TestPosAddInvoice_NegativeAmount(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_PosApi_AddInvoice()
+
+	body := `{"Amt":"-5","Memo":"test"}`
+	r := httptest.NewRequest("POST", "/pos/addinvoice", strings.NewReader(body))
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "amount must be positive") {
+		t.Fatalf("expected 'amount must be positive', got %q", w.Body.String())
+	}
+}

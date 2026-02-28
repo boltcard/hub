@@ -470,3 +470,358 @@ func TestDbWipeCard_CounterExcluded(t *testing.T) {
 		t.Fatalf("expected 0 counter for wiped card, got %d", counter)
 	}
 }
+
+// --- Db_select_card_txs tests ---
+
+func TestDbSelectCardTxs_Empty(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	txs := Db_select_card_txs(db, 1)
+	if len(txs) != 0 {
+		t.Fatalf("expected 0 txs, got %d", len(txs))
+	}
+}
+
+func TestDbSelectCardTxs_ReceiptsAndPayments(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	// Add a paid receipt
+	Db_add_card_receipt(db, 1, "lnbc1...", "hash1", 500)
+	Db_set_receipt_paid(db, "hash1")
+
+	// Add a paid payment
+	Db_add_card_payment(db, 1, 200, "lnbc_pay1")
+
+	txs := Db_select_card_txs(db, 1)
+	if len(txs) != 2 {
+		t.Fatalf("expected 2 txs, got %d", len(txs))
+	}
+
+	// Check that receipt has positive amount and payment has negative
+	foundPositive := false
+	foundNegative := false
+	for _, tx := range txs {
+		if tx.AmountSats > 0 {
+			foundPositive = true
+			if tx.AmountSats != 500 {
+				t.Fatalf("expected receipt amount 500, got %d", tx.AmountSats)
+			}
+		}
+		if tx.AmountSats < 0 {
+			foundNegative = true
+			if tx.AmountSats != -200 {
+				t.Fatalf("expected payment amount -200, got %d", tx.AmountSats)
+			}
+		}
+	}
+	if !foundPositive || !foundNegative {
+		t.Fatal("expected both positive (receipt) and negative (payment) txs")
+	}
+}
+
+func TestDbSelectCardTxs_UnpaidExcluded(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	// Unpaid receipt (not calling Db_set_receipt_paid)
+	Db_add_card_receipt(db, 1, "lnbc1...", "hash1", 500)
+
+	// Unpaid payment
+	payId := Db_add_card_payment(db, 1, 200, "lnbc_pay1")
+	Db_update_card_payment_unpaid(db, payId)
+
+	txs := Db_select_card_txs(db, 1)
+	if len(txs) != 0 {
+		t.Fatalf("expected 0 txs (unpaid excluded), got %d", len(txs))
+	}
+}
+
+// --- Db_get_card_keys tests ---
+
+func TestDbGetCardKeys_Active(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0a", "k1a", "k2a", "k3a", "k4a", "login1", "pass1")
+	Db_insert_card(db, "k0b", "k1b", "k2b", "k3b", "k4b", "login2", "pass2")
+
+	keys := Db_get_card_keys(db)
+	if len(keys) != 2 {
+		t.Fatalf("expected 2 card lookups, got %d", len(keys))
+	}
+}
+
+func TestDbGetCardKeys_WipedExcluded(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0a", "k1a", "k2a", "k3a", "k4a", "login1", "pass1")
+	Db_wipe_card(db, 1)
+
+	keys := Db_get_card_keys(db)
+	if len(keys) != 0 {
+		t.Fatalf("expected 0 card lookups (wiped excluded), got %d", len(keys))
+	}
+}
+
+// --- Db_get_top_cards_by_balance tests ---
+
+func TestDbGetTopCards_Empty(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+
+	top := Db_get_top_cards_by_balance(db, 10)
+	if len(top) != 0 {
+		t.Fatalf("expected 0 top cards, got %d", len(top))
+	}
+}
+
+func TestDbGetTopCards_OrderedByBalance(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login2", "pass2")
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login3", "pass3")
+
+	// Fund cards with different amounts
+	Db_add_card_receipt(db, 1, "lnbc1", "h1", 100)
+	Db_set_receipt_paid(db, "h1")
+	Db_add_card_receipt(db, 2, "lnbc2", "h2", 300)
+	Db_set_receipt_paid(db, "h2")
+	Db_add_card_receipt(db, 3, "lnbc3", "h3", 200)
+	Db_set_receipt_paid(db, "h3")
+
+	top := Db_get_top_cards_by_balance(db, 10)
+	if len(top) != 3 {
+		t.Fatalf("expected 3 top cards, got %d", len(top))
+	}
+	// Should be DESC order: 300, 200, 100
+	if top[0].BalanceSats != 300 {
+		t.Fatalf("expected first card balance 300, got %d", top[0].BalanceSats)
+	}
+	if top[1].BalanceSats != 200 {
+		t.Fatalf("expected second card balance 200, got %d", top[1].BalanceSats)
+	}
+	if top[2].BalanceSats != 100 {
+		t.Fatalf("expected third card balance 100, got %d", top[2].BalanceSats)
+	}
+}
+
+func TestDbGetTopCards_LimitRespected(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login2", "pass2")
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login3", "pass3")
+
+	Db_add_card_receipt(db, 1, "lnbc1", "h1", 100)
+	Db_set_receipt_paid(db, "h1")
+	Db_add_card_receipt(db, 2, "lnbc2", "h2", 200)
+	Db_set_receipt_paid(db, "h2")
+	Db_add_card_receipt(db, 3, "lnbc3", "h3", 300)
+	Db_set_receipt_paid(db, "h3")
+
+	top := Db_get_top_cards_by_balance(db, 2)
+	if len(top) != 2 {
+		t.Fatalf("expected 2 top cards with limit=2, got %d", len(top))
+	}
+}
+
+// --- Db_get_card_id_from_card_uid tests ---
+
+func TestDbGetCardIdFromUid_Valid(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card_with_uid(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1", "AABBCCDD", "tag1")
+
+	cardId := Db_get_card_id_from_card_uid(db, "AABBCCDD")
+	if cardId == 0 {
+		t.Fatal("expected non-zero card_id")
+	}
+}
+
+func TestDbGetCardIdFromUid_NotFound(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+
+	cardId := Db_get_card_id_from_card_uid(db, "UNKNOWN")
+	if cardId != 0 {
+		t.Fatalf("expected 0 for unknown UID, got %d", cardId)
+	}
+}
+
+// --- Db_update_card_payment_fee tests ---
+
+func TestDbUpdateCardPaymentFee(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	Db_add_card_receipt(db, 1, "lnbc1", "h1", 1000)
+	Db_set_receipt_paid(db, "h1")
+	payId := Db_add_card_payment(db, 1, 200, "lnbc_pay1")
+
+	// Initially fee is 0, balance = 1000 - 200 - 0 = 800
+	balance := Db_get_card_balance(db, 1)
+	if balance != 800 {
+		t.Fatalf("expected balance 800 before fee update, got %d", balance)
+	}
+
+	Db_update_card_payment_fee(db, payId, 10)
+
+	// After fee update, balance = 1000 - 200 - 10 = 790
+	balance = Db_get_card_balance(db, 1)
+	if balance != 790 {
+		t.Fatalf("expected balance 790 after fee update, got %d", balance)
+	}
+}
+
+// --- Db_update_card_note tests ---
+
+func TestDbUpdateCardNote(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	Db_update_card_note(db, 1, "my test note")
+
+	card, err := Db_get_card(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if card.Note != "my test note" {
+		t.Fatalf("expected note 'my test note', got %q", card.Note)
+	}
+}
+
+func TestDbUpdateCardNote_WipedIgnored(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	Db_update_card_note(db, 1, "original")
+	Db_wipe_card(db, 1)
+
+	Db_update_card_note(db, 1, "updated")
+
+	// Card is wiped, so Db_get_card won't find it; query directly
+	var note string
+	db.QueryRow("SELECT note FROM cards WHERE card_id = 1").Scan(&note)
+	if note != "original" {
+		t.Fatalf("expected note 'original' (update should be ignored for wiped card), got %q", note)
+	}
+}
+
+// --- Db_set_card_keys tests ---
+
+func TestDbSetCardKeys(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "old0", "old1", "old2", "old3", "old4", "login1", "pass1")
+
+	Db_set_card_keys(db, 1, "new0", "new1", "new2", "new3", "new4")
+
+	card, err := Db_get_card(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if card.Key0_auth != "new0" {
+		t.Fatalf("expected key0 'new0', got %q", card.Key0_auth)
+	}
+	if card.Key1_enc != "new1" {
+		t.Fatalf("expected key1 'new1', got %q", card.Key1_enc)
+	}
+	if card.Key2_cmac != "new2" {
+		t.Fatalf("expected key2 'new2', got %q", card.Key2_cmac)
+	}
+	if card.Key3 != "new3" {
+		t.Fatalf("expected key3 'new3', got %q", card.Key3)
+	}
+	if card.Key4 != "new4" {
+		t.Fatalf("expected key4 'new4', got %q", card.Key4)
+	}
+}
+
+func TestDbSetCardKeys_WipedIgnored(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "old0", "old1", "old2", "old3", "old4", "login1", "pass1")
+	Db_wipe_card(db, 1)
+
+	Db_set_card_keys(db, 1, "new0", "new1", "new2", "new3", "new4")
+
+	// Query directly since Db_get_card filters wiped cards
+	var key0 string
+	db.QueryRow("SELECT key0_auth FROM cards WHERE card_id = 1").Scan(&key0)
+	if key0 != "old0" {
+		t.Fatalf("expected key0 'old0' (set should be ignored for wiped card), got %q", key0)
+	}
+}
+
+// --- Program Cards tests ---
+
+func TestDbProgramCards_InsertAndSelect(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_program_cards(db, "mysecret", "grouptag1", 10, 5000, 1000, 2000)
+
+	pc := Db_select_program_card_for_secret(db, "mysecret")
+	if pc.Secret != "mysecret" {
+		t.Fatalf("expected secret 'mysecret', got %q", pc.Secret)
+	}
+	if pc.GroupTag != "grouptag1" {
+		t.Fatalf("expected group_tag 'grouptag1', got %q", pc.GroupTag)
+	}
+	if pc.MaxGroupNum != 10 {
+		t.Fatalf("expected max_group_num 10, got %d", pc.MaxGroupNum)
+	}
+	if pc.InitialBalance != 5000 {
+		t.Fatalf("expected initial_balance 5000, got %d", pc.InitialBalance)
+	}
+	if pc.CreateTime != 1000 {
+		t.Fatalf("expected create_time 1000, got %d", pc.CreateTime)
+	}
+	if pc.ExpireTime != 2000 {
+		t.Fatalf("expected expire_time 2000, got %d", pc.ExpireTime)
+	}
+}
+
+func TestDbProgramCards_NotFound(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+
+	pc := Db_select_program_card_for_secret(db, "nonexistent")
+	if pc.Secret != "" {
+		t.Fatalf("expected empty secret for not found, got %q", pc.Secret)
+	}
+	if pc.GroupTag != "" {
+		t.Fatalf("expected empty group_tag for not found, got %q", pc.GroupTag)
+	}
+}
+
+// --- Db_select_cards_with_group_tag tests ---
+
+func TestDbSelectCardsWithGroupTag_Found(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card_with_uid(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1", "uid1", "mytag")
+	Db_insert_card_with_uid(db, "k0", "k1", "k2", "k3", "k4", "login2", "pass2", "uid2", "mytag")
+	Db_insert_card_with_uid(db, "k0", "k1", "k2", "k3", "k4", "login3", "pass3", "uid3", "othertag")
+
+	cards := Db_select_cards_with_group_tag(db, "mytag")
+	if len(cards) != 2 {
+		t.Fatalf("expected 2 cards with tag 'mytag', got %d", len(cards))
+	}
+}
+
+func TestDbSelectCardsWithGroupTag_NotFound(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+
+	cards := Db_select_cards_with_group_tag(db, "nonexistent")
+	if len(cards) != 0 {
+		t.Fatalf("expected 0 cards for unknown tag, got %d", len(cards))
+	}
+}

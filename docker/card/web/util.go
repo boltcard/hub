@@ -15,8 +15,8 @@ func GetPwHash(db_conn *sql.DB, passwordStr string) (passwordHashStr string) {
 	passwordSalt := db.Db_get_setting(db_conn, "admin_password_salt")
 
 	hasher := sha256.New()
-	hasher.Write([]byte(passwordSalt))
-	hasher.Write([]byte(passwordStr))
+	hasher.Write([]byte(passwordSalt)) // codeql[go/weak-sensitive-data-hashing]: legacy path kept only for migrating old hashes to bcrypt
+	hasher.Write([]byte(passwordStr))  // codeql[go/weak-sensitive-data-hashing]: legacy path kept only for migrating old hashes to bcrypt
 	passwordHash := hasher.Sum(nil)
 	passwordHashStr = hex.EncodeToString(passwordHash)
 

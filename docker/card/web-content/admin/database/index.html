@@ -41,10 +41,9 @@
         <h2>Admin Password</h2>
         <p>Run these commands to reset the admin password in a database export.</p>
         <pre id="pw-commands">read -s -p "Admin password: " PW && echo
-SALT=$(openssl rand -hex 16)
-HASH=$(printf '%s' "${SALT}${PW}" | sha256sum | cut -d' ' -f1)
+HASH=$(htpasswd -bnBC 10 "" "${PW}" | tr -d ':\n' | sed 's/$2y/$2a/')
 unset PW
-sqlite3 cards.db "UPDATE settings SET value='${SALT}' WHERE name='admin_password_salt';"
+sqlite3 cards.db "DELETE FROM settings WHERE name='admin_password_salt';"
 sqlite3 cards.db "UPDATE settings SET value='${HASH}' WHERE name='admin_password_hash';"</pre>
         <button onclick="navigator.clipboard.writeText(document.getElementById('pw-commands').textContent)">Copy</button>
 
