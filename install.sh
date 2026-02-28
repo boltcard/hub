@@ -4,7 +4,7 @@ set -euo pipefail
 # Bolt Card Hub installer
 # Usage: HOST_DOMAIN=hub.yourdomain.com curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
 
-REPO_URL="https://github.com/boltcard/hub.git"
+RAW_URL="https://raw.githubusercontent.com/boltcard/hub/main"
 INSTALL_DIR="$HOME/hub"
 
 # --- Check HOST_DOMAIN ---
@@ -73,27 +73,28 @@ else
     DOCKER="docker"
 fi
 
-# --- Clone or update repo ---
+# --- Create install directory ---
 
-if [ -d "$INSTALL_DIR/.git" ]; then
-    echo "==> Updating existing repo in $INSTALL_DIR..."
-    git -C "$INSTALL_DIR" pull --ff-only
-else
-    echo "==> Cloning repo to $INSTALL_DIR..."
-    git clone "$REPO_URL" "$INSTALL_DIR"
-fi
-
+mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
+
+# --- Download config files ---
+
+echo "==> Downloading docker-compose.yml..."
+curl -fsSL "$RAW_URL/docker-compose.yml" -o docker-compose.yml
+
+echo "==> Downloading Caddyfile..."
+curl -fsSL "$RAW_URL/Caddyfile" -o Caddyfile
 
 # --- Create .env ---
 
 echo "==> Writing .env file..."
 echo "HOST_DOMAIN=$HOST_DOMAIN" > .env
 
-# --- Build and start ---
+# --- Pull and start ---
 
-echo "==> Building containers..."
-$DOCKER compose build
+echo "==> Pulling images..."
+$DOCKER compose pull
 
 echo "==> Starting containers..."
 $DOCKER compose up -d

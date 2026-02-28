@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Ubuntu 24.04 LTS 64-bit VPS (2GB+ RAM recommended)
+- Ubuntu 24.04 LTS 64-bit VPS (1GB+ RAM is sufficient — no build step required)
 - DNS A record pointing your domain to the server's IP address
 - Port 443 open for HTTPS
 
@@ -19,9 +19,11 @@ Replace `hub.yourdomain.com` with your actual domain.
 1. Removes snap-based Docker if present
 2. Installs Docker from the official Docker apt repository (if not already installed)
 3. Adds your user to the `docker` group
-4. Clones this repository to `~/hub` (or pulls latest changes if it already exists)
+4. Creates `~/hub/` and downloads `docker-compose.yml` and `Caddyfile`
 5. Creates the `.env` file with your `HOST_DOMAIN`
-6. Builds and starts all containers with `docker compose`
+6. Pulls pre-built images from Docker Hub and starts all containers
+
+No git clone or build step required — images are pulled from Docker Hub.
 
 The script is idempotent — safe to run multiple times.
 
@@ -31,16 +33,18 @@ The script is idempotent — safe to run multiple times.
 # Install Docker
 # https://docs.docker.com/engine/install/ubuntu/
 
-# Clone the repo
-git clone https://github.com/boltcard/hub.git ~/hub
-cd ~/hub
+# Create directory
+mkdir -p ~/hub && cd ~/hub
+
+# Download config files
+curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/docker-compose.yml -o docker-compose.yml
+curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/Caddyfile -o Caddyfile
 
 # Configure
-cp .env.example .env
-# Edit .env and set HOST_DOMAIN=hub.yourdomain.com
+echo "HOST_DOMAIN=hub.yourdomain.com" > .env
 
-# Build and run
-docker compose build
+# Pull and run
+docker compose pull
 docker compose up -d
 ```
 

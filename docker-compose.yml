@@ -47,6 +47,7 @@ services:
     networks:
       - hubnet
   webproxy:
+    image: boltcard/webproxy:latest
     container_name: webproxy
     build: ./docker/webproxy
     restart: unless-stopped
