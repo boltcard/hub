@@ -31,6 +31,13 @@ else
     SUDO="sudo"
 fi
 
+# --- Wait for apt lock (fresh VPS may be running unattended-upgrades) ---
+
+echo "==> Waiting for apt lock..."
+while $SUDO fuser /var/lib/dpkg/lock-frontend &>/dev/null; do
+    sleep 2
+done
+
 # --- Remove snap Docker if present ---
 
 if snap list docker &>/dev/null 2>&1; then
@@ -102,3 +109,5 @@ $DOCKER compose up -d
 echo ""
 echo "==> Bolt Card Hub is running!"
 echo "    Visit https://$HOST_DOMAIN/admin/ to set your admin password."
+echo ""
+echo "    Note: It may take a minute or two for the TLS certificate to be issued."
