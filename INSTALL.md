@@ -1,10 +1,16 @@
 # Install Bolt Card Hub
 
+## VPS
+
+We recommend [LunaNode](https://www.lunanode.com/?r=9026) — the **m.1s** plan (1GB RAM) at **$3.50/month** is sufficient. LunaNode accept Bitcoin for payments.
+
+Select **Ubuntu 24.04 LTS 64-bit** as the OS template.
+
 ## Prerequisites
 
 - Ubuntu 24.04 LTS 64-bit VPS (1GB+ RAM is sufficient — no build step required)
-- DNS A record pointing your domain to the server's IP address
-- Port 443 open for HTTPS
+- A domain pointing to the server — on LunaNode the rDNS hostname works out of the box, or set a DNS A record for your own domain
+- Port 443 open for HTTPS (open by default on a new LunaNode VPS)
 
 ## Quick Install
 
