@@ -9,7 +9,7 @@
 ## Quick Install
 
 ```bash
-HOST_DOMAIN=hub.yourdomain.com curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
+export HOST_DOMAIN=hub.yourdomain.com && curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
 ```
 
 Replace `hub.yourdomain.com` with your actual domain.
@@ -51,3 +51,5 @@ docker compose up -d
 ## Post-Install
 
 Visit `https://hub.yourdomain.com/admin/` to set your admin password and configure the hub.
+
+Note: It may take a minute or two for the TLS certificate to be issued. If you see a "can't provide a secure connection" error, wait and try again.

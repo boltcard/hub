@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Bolt Card Hub installer
-# Usage: HOST_DOMAIN=hub.yourdomain.com curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
+# Usage: export HOST_DOMAIN=hub.yourdomain.com && curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
 
 RAW_URL="https://raw.githubusercontent.com/boltcard/hub/main"
 INSTALL_DIR="$HOME/hub"
@@ -13,7 +13,7 @@ if [ -z "${HOST_DOMAIN:-}" ]; then
     echo "Error: HOST_DOMAIN is not set."
     echo ""
     echo "Usage:"
-    echo "  HOST_DOMAIN=hub.yourdomain.com curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash"
+    echo "  export HOST_DOMAIN=hub.yourdomain.com && curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash"
     exit 1
 fi
 
