@@ -79,10 +79,10 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 **Packages:**
 - `web/` — HTTP handlers using Gorilla Mux. Handler pattern: `func (app *App) CreateHandler_Name() http.HandlerFunc`
 - `db/` — SQLite operations split by verb: `db_select.go`, `db_get.go`, `db_set.go`, `db_insert.go`, `db_update.go`, `db_add.go`, `db_wipe.go`. Schema init and migrations in `db_init.go`/`db_create.go`
-- `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config
+- `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
-- `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding. Note: `CheckAndPanic` exists but must not be used in HTTP handlers — use inline error handling instead.
-- `build/` — Version string (currently "0.9.2"), date/time injected at build
+- `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
+- `build/` — Version string (currently "0.12.0"), date/time injected at build
 - `web-content/` — HTML templates (loaded into memory at startup) and static assets under `public/`
 
 ### Route Groups (`web/app.go`)
@@ -100,11 +100,11 @@ SQLite at `/card_data/cards.db` with WAL mode, FULL synchronous, foreign keys, s
 
 **Tables:** `settings` (key-value config), `cards` (card keys/auth/limits), `card_payments` (spending), `card_receipts` (loading/receiving), `program_cards` (batch programming)
 
-Schema version managed by idempotent `update_schema_*` functions in `db_create.go`. Current schema version: 5.
+Schema version managed by idempotent `update_schema_*` functions in `db_create.go`. Current schema version: 6.
 
 ### Authentication
 
-- **Admin**: bcrypt password hash in settings table, session cookies. Legacy SHA256 hashes auto-migrate to bcrypt on login.
+- **Admin**: bcrypt password hash in settings table, session cookies with 24-hour expiry. Legacy SHA256 hashes auto-migrate to bcrypt on login. Constant-time token comparison.
 - **Bolt Card NFC**: AES-CMAC with 5 keys per card (K0-K4), counter-based replay protection
 - **Wallet/PoS API**: Login/password → access_token + refresh_token (random hex)
 
@@ -120,6 +120,21 @@ Schema version managed by idempotent `update_schema_*` functions in `db_create.g
 - `skip2/go-qrcode` — QR code generation
 - `golang.org/x/crypto` — bcrypt password hashing
 
+### Settings
+
+The `settings` table stores key-value config. Active settings used by the app:
+- `host_domain` — domain for building LNURL/callback URLs (set from `HOST_DOMAIN` env var on first run)
+- `log_level` — logrus log level, applied at startup and changeable live via admin UI dropdown
+- `admin_password_hash`, `admin_password_salt`, `admin_session_token`, `admin_session_created` — admin auth
+- `new_card_code` — secret for card programming endpoint
+- `invite_secret` — optional secret for wallet API card creation
+- `bolt_card_hub_api`, `bolt_card_pos_api` — feature flags ("enabled" to activate)
+- `schema_version_number` — tracks database migration state
+
+Withdraw limits (`min_withdraw_sats=1`, `max_withdraw_sats=100000000`) are hardcoded in `lnurlw_request.go` and `lnurlw_callback.go`, not stored in the database.
+
+The admin settings page (`/admin/settings/`) displays all settings with sensitive values (`_hash`, `_token`, `_code` suffixes) redacted. `log_level` has an inline dropdown that submits on change.
+
 ## Memory File
 
-After completing a set of changes, update the persistent memory file at `~/.claude/projects/-home-user-boltcard-hub/memory/MEMORY.md` with any new patterns, conventions, or project facts discovered during the session. Keep it concise and organized by topic. This helps maintain context across conversations.
+After completing a set of changes, update the persistent memory file at `~/.claude/projects/-home-debian-hub/memory/MEMORY.md` with any new patterns, conventions, or project facts discovered during the session. Keep it concise and organized by topic. This helps maintain context across conversations.
