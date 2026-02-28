@@ -1,5 +1,5 @@
 package build
 
-var Version string = "0.11.0"
+var Version string = "0.12.0"
 var Date string
 var Time string
