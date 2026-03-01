@@ -152,7 +152,7 @@ func TriggerUpdate() error {
 	log.Info("TriggerUpdate: creating updater container")
 	createBody := fmt.Sprintf(`{
 		"Image": "docker:cli",
-		"Cmd": ["sh", "-c", "docker compose pull && docker compose up -d"],
+		"Cmd": ["sh", "-c", "docker compose pull && docker compose up -d --no-build"],
 		"WorkingDir": "/project",
 		"HostConfig": {
 			"AutoRemove": true,

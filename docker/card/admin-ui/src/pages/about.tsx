@@ -18,8 +18,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowUpCircle } from "lucide-react";
+import { ArrowUpCircle, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface AboutData {
   version: string;
@@ -38,9 +39,32 @@ export function AboutPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const [updating, setUpdating] = useState(false);
+
   const triggerUpdate = useMutation({
     mutationFn: () => apiPost("/about/update"),
-    onSuccess: () => setDialogOpen(false),
+    onSuccess: () => {
+      setDialogOpen(false);
+      setUpdating(true);
+      toast.success("Update triggered — restarting containers…");
+      // Poll until the server comes back with a new version
+      const poll = setInterval(async () => {
+        try {
+          const res = await fetch("/admin/api/about");
+          if (res.ok) {
+            clearInterval(poll);
+            window.location.reload();
+          }
+        } catch {
+          // server still restarting
+        }
+      }, 3000);
+      // Stop polling after 2 minutes
+      setTimeout(() => clearInterval(poll), 120_000);
+    },
+    onError: (err) => {
+      toast.error("Update failed: " + err.message);
+    },
   });
 
   if (isLoading || !data) {
@@ -97,13 +121,13 @@ export function AboutPage() {
             </TableBody>
           </Table>
 
-          {data.updateAvailable && (
+          {data.updateAvailable && !updating && (
             <div className="mt-4">
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
                   <Button>
                     <ArrowUpCircle className="mr-2 h-4 w-4" />
-                    Update
+                    Update to {data.latestVersion}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -129,6 +153,19 @@ export function AboutPage() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+            </div>
+          )}
+
+          {updating && (
+            <div className="mt-4 flex items-center gap-3 rounded-lg border p-4">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              <div>
+                <p className="font-medium">Updating…</p>
+                <p className="text-sm text-muted-foreground">
+                  Pulling images and restarting containers. This page will
+                  reload automatically.
+                </p>
+              </div>
             </div>
           )}
         </CardContent>
