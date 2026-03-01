@@ -97,6 +97,12 @@ func RenderStaticContent(w http.ResponseWriter, request string) {
 		w.Header().Add("Content-Type", "image/jpeg")
 	case strings.HasSuffix(request, ".map"):
 		w.Header().Add("Content-Type", "application/json")
+	case strings.HasSuffix(request, ".svg"):
+		w.Header().Add("Content-Type", "image/svg+xml")
+	case strings.HasSuffix(request, ".woff2"):
+		w.Header().Add("Content-Type", "font/woff2")
+	case strings.HasSuffix(request, ".ico"):
+		w.Header().Add("Content-Type", "image/x-icon")
 	default:
 		log.Info("suffix not recognised : ", request)
 		return
