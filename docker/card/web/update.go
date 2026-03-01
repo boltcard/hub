@@ -15,35 +15,116 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// CheckLatestVersion fetches the build.go file from GitHub and parses the version string.
+const dockerHubImage = "boltcard/card"
+
+// CheckLatestVersion queries Docker Hub for the version label on the latest image.
 func CheckLatestVersion() string {
-	client := &http.Client{Timeout: 10 * time.Second}
-	resp, err := client.Get("https://raw.githubusercontent.com/boltcard/hub/main/docker/card/build/build.go")
+	client := &http.Client{Timeout: 15 * time.Second}
+
+	// 1. Get anonymous token for the public repo
+	tokenURL := fmt.Sprintf(
+		"https://auth.docker.io/token?service=registry.docker.io&scope=repository:%s:pull",
+		dockerHubImage,
+	)
+	resp, err := client.Get(tokenURL)
 	if err != nil {
-		log.Warn("CheckLatestVersion: fetch failed: ", err)
+		log.Warn("CheckLatestVersion: token request failed: ", err)
 		return ""
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		log.Warn("CheckLatestVersion: unexpected status: ", resp.StatusCode)
+		log.Warn("CheckLatestVersion: token status: ", resp.StatusCode)
 		return ""
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	var tokenResp struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		log.Warn("CheckLatestVersion: token decode failed: ", err)
+		return ""
+	}
+
+	// 2. Fetch manifest to get config digest
+	manifestURL := fmt.Sprintf(
+		"https://registry-1.docker.io/v2/%s/manifests/latest",
+		dockerHubImage,
+	)
+	req, _ := http.NewRequest("GET", manifestURL, nil)
+	req.Header.Set("Authorization", "Bearer "+tokenResp.Token)
+	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
+
+	resp2, err := client.Do(req)
 	if err != nil {
-		log.Warn("CheckLatestVersion: read failed: ", err)
+		log.Warn("CheckLatestVersion: manifest fetch failed: ", err)
+		return ""
+	}
+	defer resp2.Body.Close()
+
+	if resp2.StatusCode != 200 {
+		log.Warn("CheckLatestVersion: manifest status: ", resp2.StatusCode)
 		return ""
 	}
 
-	re := regexp.MustCompile(`Version string = "(\d+\.\d+\.\d+)"`)
-	matches := re.FindSubmatch(body)
-	if len(matches) < 2 {
-		log.Warn("CheckLatestVersion: version not found in build.go")
+	var manifest struct {
+		Config struct {
+			Digest string `json:"digest"`
+		} `json:"config"`
+	}
+	if err := json.NewDecoder(resp2.Body).Decode(&manifest); err != nil {
+		log.Warn("CheckLatestVersion: manifest decode failed: ", err)
 		return ""
 	}
 
-	return string(matches[1])
+	if manifest.Config.Digest == "" {
+		log.Warn("CheckLatestVersion: no config digest in manifest")
+		return ""
+	}
+
+	// 3. Fetch config blob to read version label
+	blobURL := fmt.Sprintf(
+		"https://registry-1.docker.io/v2/%s/blobs/%s",
+		dockerHubImage, manifest.Config.Digest,
+	)
+	req2, _ := http.NewRequest("GET", blobURL, nil)
+	req2.Header.Set("Authorization", "Bearer "+tokenResp.Token)
+
+	resp3, err := client.Do(req2)
+	if err != nil {
+		log.Warn("CheckLatestVersion: blob fetch failed: ", err)
+		return ""
+	}
+	defer resp3.Body.Close()
+
+	if resp3.StatusCode != 200 {
+		log.Warn("CheckLatestVersion: blob status: ", resp3.StatusCode)
+		return ""
+	}
+
+	var config struct {
+		Config struct {
+			Labels map[string]string `json:"Labels"`
+		} `json:"config"`
+	}
+	if err := json.NewDecoder(resp3.Body).Decode(&config); err != nil {
+		log.Warn("CheckLatestVersion: blob decode failed: ", err)
+		return ""
+	}
+
+	version := config.Config.Labels["org.opencontainers.image.version"]
+	if version == "" {
+		log.Warn("CheckLatestVersion: no version label on image")
+		return ""
+	}
+
+	// Validate format
+	if matched, _ := regexp.MatchString(`^\d+\.\d+\.\d+$`, version); !matched {
+		log.Warn("CheckLatestVersion: invalid version format: ", version)
+		return ""
+	}
+
+	return version
 }
 
 // CompareVersions returns 1 if latest > current, 0 if equal, -1 if latest < current.

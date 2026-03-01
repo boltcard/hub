@@ -22,6 +22,8 @@ RUN --mount=type=cache,target="/root/.cache/go-build" \
 
 # Stage 3: Runtime (waits for both)
 FROM debian:bookworm-slim
+ARG APP_VERSION=unknown
+LABEL org.opencontainers.image.version=${APP_VERSION}
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates sqlite3 && rm -rf /var/lib/apt/lists/*
 RUN mkdir /app
 WORKDIR /app

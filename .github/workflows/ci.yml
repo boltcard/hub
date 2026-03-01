@@ -56,8 +56,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Extract version
+        id: version
+        run: echo "version=$(grep -oP 'Version string = "\K[0-9]+\.[0-9]+\.[0-9]+' docker/card/build/build.go)" >> "$GITHUB_OUTPUT"
+
       - name: Build card image
-        run: docker build -t boltcard/card:latest docker/card
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: docker build --build-arg APP_VERSION="$APP_VERSION" -t boltcard/card:latest docker/card
 
       - name: Build webproxy image
         run: docker build -t boltcard/webproxy:latest docker/webproxy
