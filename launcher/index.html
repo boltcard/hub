@@ -205,7 +205,7 @@
         <h2>Launch on LunaNode</h2>
         <p>
             Create your own Bolt Card Hub on a LunaNode VPS.
-            You'll need a <a href="https://www.lunanode.com/" target="_blank" rel="noopener">LunaNode account</a>
+            You'll need a <a href="https://www.lunanode.com/?r=9026" target="_blank" rel="noopener">LunaNode account</a>
             with <a href="https://dynamic.lunanode.com/panel/api" target="_blank" rel="noopener">API credentials enabled</a>.
         </p>
 
@@ -231,73 +231,139 @@
         const status = document.getElementById('status');
 
         const STEPS = [
-            { id: 'create', label: 'Creating VPS' },
-            { id: 'boot',   label: 'Waiting for server to boot' },
-            { id: 'install',label: 'Installing Docker &amp; Bolt Card Hub' },
-            { id: 'tls',    label: 'Obtaining TLS certificate' },
-            { id: 'ready',  label: 'Hub is ready!' },
+            { id: 'create',  label: 'Creating VPS' },
+            { id: 'boot',    label: 'Booting server' },
+            { id: 'docker',  label: 'Installing Docker' },
+            { id: 'pull',    label: 'Pulling container images' },
+            { id: 'start',   label: 'Starting services' },
+            { id: 'tls',     label: 'Obtaining TLS certificate' },
+            { id: 'ready',   label: 'Hub is ready!' },
         ];
 
+        // Build progress DOM safely (no innerHTML with user data)
         function renderProgress(currentStep, hostname, ip) {
-            const h = hostname ? escapeHtml(hostname) : '';
-            const adminUrl = 'https://' + h + '/admin/';
-            let html = '<div class="progress-steps">';
-            for (let i = 0; i < STEPS.length; i++) {
-                const step = STEPS[i];
-                let cls = 'step';
-                if (i < currentStep) cls += ' done';
-                else if (i === currentStep) cls += ' active';
-                html += '<div class="' + cls + '">';
-                if (i < currentStep) html += '<span class="check">&#10003;</span> ';
-                else if (i === currentStep && currentStep < STEPS.length - 1) html += '<span class="spinner-sm"></span> ';
-                else if (i === currentStep) html += '<span class="check">&#10003;</span> ';
-                html += step.label + '</div>';
+            var container = document.createElement('div');
+
+            var stepsDiv = document.createElement('div');
+            stepsDiv.className = 'progress-steps';
+            for (var i = 0; i < STEPS.length; i++) {
+                var stepDiv = document.createElement('div');
+                stepDiv.className = 'step';
+                if (i < currentStep) stepDiv.className += ' done';
+                else if (i === currentStep) stepDiv.className += ' active';
+
+                if (i < currentStep) {
+                    var check = document.createElement('span');
+                    check.className = 'check';
+                    check.textContent = '\u2713 ';
+                    stepDiv.appendChild(check);
+                } else if (i === currentStep && currentStep < STEPS.length - 1) {
+                    var spin = document.createElement('span');
+                    spin.className = 'spinner-sm';
+                    stepDiv.appendChild(spin);
+                    stepDiv.appendChild(document.createTextNode(' '));
+                } else if (i === currentStep) {
+                    var checkDone = document.createElement('span');
+                    checkDone.className = 'check';
+                    checkDone.textContent = '\u2713 ';
+                    stepDiv.appendChild(checkDone);
+                }
+                stepDiv.appendChild(document.createTextNode(STEPS[i].label));
+                stepsDiv.appendChild(stepDiv);
             }
-            html += '</div>';
-            if (ip) html += '<p class="note" style="margin-top:1rem">IP: ' + escapeHtml(ip) + '</p>';
-            if (currentStep >= STEPS.length - 1) {
-                var base = 'https://' + h;
-                html += '<div class="result-links">';
-                html += '<a class="primary" href="' + base + '/admin/" target="_blank" rel="noopener">Admin</a>';
-                html += '<a class="secondary" href="' + base + '/balance/" target="_blank" rel="noopener">Balance</a>';
-                html += '</div>';
+            container.appendChild(stepsDiv);
+
+            if (ip) {
+                var ipNote = document.createElement('p');
+                ipNote.className = 'note';
+                ipNote.style.marginTop = '1rem';
+                ipNote.textContent = 'IP: ' + ip;
+                container.appendChild(ipNote);
             }
-            return html;
+
+            if (currentStep >= STEPS.length - 1 && hostname) {
+                var base = 'https://' + hostname;
+                var links = document.createElement('div');
+                links.className = 'result-links';
+                var adminLink = document.createElement('a');
+                adminLink.className = 'primary';
+                adminLink.href = base + '/admin/';
+                adminLink.target = '_blank';
+                adminLink.rel = 'noopener';
+                adminLink.textContent = 'Admin';
+                var balanceLink = document.createElement('a');
+                balanceLink.className = 'secondary';
+                balanceLink.href = base + '/balance/';
+                balanceLink.target = '_blank';
+                balanceLink.rel = 'noopener';
+                balanceLink.textContent = 'Balance';
+                links.appendChild(adminLink);
+                links.appendChild(balanceLink);
+                container.appendChild(links);
+            }
+
+            return container;
         }
 
-        async function pollStatus(hostname, ip) {
-            const adminUrl = 'https://' + escapeHtml(hostname) + '/admin/';
-            let step = 1; // start at "boot" after VM created
-            status.className = 'loading';
-            status.innerHTML = renderProgress(step, hostname, ip);
+        function setStatus(cls, content, extra) {
+            status.className = cls;
+            status.textContent = '';
+            if (typeof content === 'string') {
+                status.textContent = content;
+            } else {
+                status.appendChild(content);
+            }
+            if (extra) {
+                var note = document.createElement('p');
+                note.className = 'note';
+                note.textContent = extra;
+                status.appendChild(note);
+            }
+        }
 
-            for (let attempt = 0; attempt < 60; attempt++) {
+        // Time-based step thresholds (seconds after VM creation)
+        var STEP_THRESHOLDS = [
+            { step: 1, after: 0 },    // boot
+            { step: 2, after: 30 },   // installing docker
+            { step: 3, after: 90 },   // pulling images
+            { step: 4, after: 150 },  // starting services
+        ];
+
+        async function pollStatus(hostname, ip) {
+            var step = 1;
+            var startTime = Date.now();
+            setStatus('loading', renderProgress(step, hostname, ip));
+
+            for (var attempt = 0; attempt < 60; attempt++) {
                 await sleep(10000);
+                var elapsed = (Date.now() - startTime) / 1000;
+
                 try {
-                    const res = await fetch('/api/status?hostname=' + encodeURIComponent(hostname));
-                    const data = await res.json();
+                    var res = await fetch('/api/status?hostname=' + encodeURIComponent(hostname));
+                    var data = await res.json();
 
                     if (data.state === 'ready') {
-                        status.className = 'success';
-                        status.innerHTML = renderProgress(STEPS.length - 1, hostname, ip);
+                        setStatus('success', renderProgress(STEPS.length - 1, hostname, ip));
                         return;
                     } else if (data.state === 'tls_pending') {
-                        if (step < 3) step = 3;
-                        status.innerHTML = renderProgress(step, hostname, ip);
+                        step = 5;
+                        setStatus('loading', renderProgress(step, hostname, ip));
                     } else {
-                        // still waiting — advance past boot after 30s
-                        if (step < 2 && attempt >= 2) step = 2;
-                        status.innerHTML = renderProgress(step, hostname, ip);
+                        for (var t of STEP_THRESHOLDS) {
+                            if (elapsed >= t.after && t.step > step) step = t.step;
+                        }
+                        setStatus('loading', renderProgress(step, hostname, ip));
                     }
-                } catch {
-                    // fetch error — keep polling
+                } catch (e) {
+                    for (var t of STEP_THRESHOLDS) {
+                        if (elapsed >= t.after && t.step > step) step = t.step;
+                    }
+                    setStatus('loading', renderProgress(step, hostname, ip));
                 }
             }
 
-            // Timed out but show link anyway
-            status.className = 'success';
-            status.innerHTML = renderProgress(STEPS.length - 1, hostname, ip) +
-                '<p class="note">Polling timed out, but your hub may still be setting up. Try the link in a minute.</p>';
+            setStatus('success', renderProgress(STEPS.length - 1, hostname, ip),
+                'Polling timed out, but your hub may still be setting up. Try the link in a minute.');
         }
 
         form.addEventListener('submit', async (e) => {
@@ -309,8 +375,7 @@
             if (!apiId || !apiKey) return;
 
             btn.disabled = true;
-            status.className = 'loading';
-            status.innerHTML = renderProgress(0, null, null);
+            setStatus('loading', renderProgress(0, null, null));
 
             try {
                 const res = await fetch('/api/launch', {
@@ -327,8 +392,7 @@
 
                 pollStatus(data.hostname, data.ip);
             } catch (err) {
-                status.className = 'error';
-                status.textContent = err.message;
+                setStatus('error', err.message);
                 btn.disabled = false;
             }
         });

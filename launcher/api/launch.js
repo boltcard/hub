@@ -8,7 +8,7 @@ function signRequest(apiId, apiKey, handler, params) {
   const nonce = Math.floor(Date.now() / 1000).toString();
   const signature = crypto
     .createHmac('sha512', apiKey)
-    .update(`${handler}|${body}|${nonce}`)
+    .update(`${handler}/|${body}|${nonce}`)
     .digest('hex');
   return { body, signature, nonce };
 }
@@ -51,18 +51,18 @@ function lunaRequest(apiId, apiKey, handler, params = {}) {
 }
 
 const STARTUP_SCRIPT = `#!/bin/bash
-set -euo pipefail
+export HOME="\${HOME:-/root}"
+export DEBIAN_FRONTEND=noninteractive
 
-# Get public IP and resolve rDNS hostname
-IP=$(curl -4 -s ifconfig.me)
-HOST_DOMAIN=$(python3 -c "import socket; h=socket.gethostbyaddr('$IP')[0]; print(h.rstrip('.'))")
+# Resolve rDNS hostname from public IP
+IP=$(curl -4 -s --retry 5 --retry-delay 2 ifconfig.me)
+HOST_DOMAIN=$(host "$IP" 2>/dev/null | awk '/domain name pointer/ {sub(/[.]$/, "", $NF); print $NF}') || true
 
 if [ -z "$HOST_DOMAIN" ]; then
-  echo "Failed to determine rDNS hostname"
-  exit 1
+  IFS='.' read -r a b c d <<< "$IP"
+  HOST_DOMAIN="$d.$c.$b.$a.lunanode-rdns.com"
 fi
 
-# Install Bolt Card Hub
 export HOST_DOMAIN
 curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
 `;
@@ -82,14 +82,15 @@ module.exports = async function handler(req, res) {
   let scriptId;
 
   try {
-    // 1. Find Ubuntu 24.04 image
+    // 1. Find Ubuntu 24.04 template image (not an ISO)
     const images = await lunaRequest(api_id, api_key, 'image/list', { region: region });
     const imageList = Object.values(images.images || {});
     const ubuntu = imageList.find((img) =>
       img.name && img.name.includes('Ubuntu') && img.name.includes('24.04')
+        && img.name.toLowerCase().includes('template')
     );
     if (!ubuntu) {
-      return res.status(400).json({ error: 'Ubuntu 24.04 image not found in region: ' + region });
+      return res.status(400).json({ error: 'Ubuntu 24.04 template image not found in region: ' + region + '. Available: ' + imageList.map((i) => i.name).join(', ') });
     }
 
     // 2. Create startup script
@@ -109,14 +110,21 @@ module.exports = async function handler(req, res) {
     });
     const vmId = vmRes.vm_id;
 
-    // 4. Get VM info for IP
-    const vmInfo = await lunaRequest(api_id, api_key, 'vm/info', { vm_id: vmId });
-    const ip = vmInfo.info && vmInfo.info.primaryip;
+    // 4. Get VM info for IP (may need to retry while VM is provisioning)
+    let vmInfo;
+    let ip;
+    for (let i = 0; i < 5; i++) {
+      vmInfo = await lunaRequest(api_id, api_key, 'vm/info', { vm_id: vmId });
+      ip = vmInfo.info && vmInfo.info.ip;
+      if (ip) break;
+      await new Promise((r) => setTimeout(r, 3000));
+    }
 
-    // 5. Derive rDNS hostname
+    // 5. Derive rDNS hostname from addresses array or fallback
     let hostname = '';
-    if (vmInfo.info && vmInfo.info.reverse) {
-      hostname = vmInfo.info.reverse.replace(/\.$/, '');
+    if (vmInfo.info && vmInfo.info.addresses) {
+      const extv4 = vmInfo.info.addresses.find((a) => a.version === '4' && a.external === '1');
+      if (extv4 && extv4.reverse) hostname = extv4.reverse.replace(/\.$/, '');
     }
     if (!hostname && ip) {
       hostname = ip.split('.').reverse().join('.') + '.lunanode-rdns.com';
