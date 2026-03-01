@@ -36,6 +36,8 @@ interface TxItem {
   paymentHash: string;
   timestamp: number;
   isPaid: boolean;
+  description?: string;
+  cardNote?: string;
 }
 
 export function PhoenixPage() {
@@ -222,6 +224,7 @@ export function PhoenixPage() {
                 <TableRow>
                   <TableHead>Time</TableHead>
                   <TableHead className="text-right font-mono">Amount</TableHead>
+                  <TableHead>Message</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -233,8 +236,16 @@ export function PhoenixPage() {
                     <TableCell className="text-right font-mono tabular-nums text-[var(--success)]">
                       +{formatSats(tx.amountSat)}
                     </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {tx.description || "\u2014"}
+                    </TableCell>
                   </TableRow>
                 ))}
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    ...
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           )}
@@ -260,6 +271,7 @@ export function PhoenixPage() {
                 <TableRow>
                   <TableHead>Time</TableHead>
                   <TableHead className="text-right font-mono">Amount</TableHead>
+                  <TableHead>Card</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -271,8 +283,16 @@ export function PhoenixPage() {
                     <TableCell className="text-right font-mono tabular-nums text-destructive">
                       -{formatSats(tx.amountSat)}
                     </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {tx.cardNote || "\u2014"}
+                    </TableCell>
                   </TableRow>
                 ))}
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    ...
+                  </TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           )}

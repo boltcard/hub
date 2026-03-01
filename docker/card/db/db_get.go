@@ -274,6 +274,20 @@ func Db_get_paid_payment_exists(db_conn *sql.DB, invoice string) bool {
 	return count > 0
 }
 
+func Db_get_card_note_by_invoice(db_conn *sql.DB, invoice string) string {
+	sqlStatement := `SELECT c.note FROM card_payments p
+		JOIN cards c ON c.card_id = p.card_id
+		WHERE p.ln_invoice = $1 AND p.paid_flag = 'Y'
+		LIMIT 1;`
+	row := db_conn.QueryRow(sqlStatement, invoice)
+	var note string
+	err := row.Scan(&note)
+	if err != nil {
+		return ""
+	}
+	return note
+}
+
 func Db_get_card_id_from_card_uid(db_conn *sql.DB, card_uid string) (card_id int) {
 
 	// get card id

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"card/db"
 	"card/phoenix"
 	"net/http"
 
@@ -14,6 +15,8 @@ func (app *App) adminApiTransactions(w http.ResponseWriter, r *http.Request) {
 		PaymentHash string `json:"paymentHash"`
 		Timestamp   int64  `json:"timestamp"`
 		IsPaid      bool   `json:"isPaid"`
+		Description string `json:"description,omitempty"`
+		CardNote    string `json:"cardNote,omitempty"`
 	}
 
 	incoming, err := phoenix.ListIncomingPayments(5, 0)
@@ -37,6 +40,7 @@ func (app *App) adminApiTransactions(w http.ResponseWriter, r *http.Request) {
 			PaymentHash: p.PaymentHash,
 			Timestamp:   p.CompletedAt / 1000,
 			IsPaid:      p.IsPaid,
+			Description: p.Description,
 		})
 	}
 
@@ -45,12 +49,14 @@ func (app *App) adminApiTransactions(w http.ResponseWriter, r *http.Request) {
 		if !p.IsPaid {
 			continue
 		}
+		cardNote := db.Db_get_card_note_by_invoice(app.db_conn, p.Invoice)
 		txOut = append(txOut, txJSON{
 			Direction:   "out",
 			AmountSat:   p.Sent,
 			PaymentHash: p.PaymentHash,
 			Timestamp:   p.CompletedAt / 1000,
 			IsPaid:      p.IsPaid,
+			CardNote:    cardNote,
 		})
 	}
 
