@@ -1,6 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, Component } from "react";
+import type { ReactNode } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { AppShell } from "@/components/app-shell";
 import { LoginPage } from "@/pages/login";
@@ -18,6 +20,12 @@ const AboutPage = lazy(() =>
 );
 const DatabasePage = lazy(() =>
   import("@/pages/database").then((m) => ({ default: m.DatabasePage }))
+);
+const CardsPage = lazy(() =>
+  import("@/pages/cards").then((m) => ({ default: m.CardsPage }))
+);
+const CardDetailPage = lazy(() =>
+  import("@/pages/card-detail").then((m) => ({ default: m.CardDetailPage }))
 );
 
 const queryClient = new QueryClient({
@@ -76,6 +84,22 @@ function AuthGate() {
           }
         />
         <Route
+          path="cards"
+          element={
+            <Suspense fallback={<LoadingSkeleton />}>
+              <CardsPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="cards/:id"
+          element={
+            <Suspense fallback={<LoadingSkeleton />}>
+              <CardDetailPage />
+            </Suspense>
+          }
+        />
+        <Route
           path="database"
           element={
             <Suspense fallback={<LoadingSkeleton />}>
@@ -89,16 +113,53 @@ function AuthGate() {
   );
 }
 
+class ErrorBoundary extends Component<
+  { children: ReactNode },
+  { error: Error | null }
+> {
+  state: { error: Error | null } = { error: null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex h-screen flex-col items-center justify-center gap-4 p-4">
+          <h1 className="text-xl font-bold">Something went wrong</h1>
+          <p className="text-sm text-muted-foreground">
+            {this.state.error.message}
+          </p>
+          <button
+            className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"
+            onClick={() => {
+              this.setState({ error: null });
+              window.location.href = "/admin/";
+            }}
+          >
+            Go to Dashboard
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <BrowserRouter basename="/admin">
-          <Routes>
-            <Route path="/*" element={<AuthGate />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <BrowserRouter basename="/admin">
+            <Routes>
+              <Route path="/*" element={<AuthGate />} />
+            </Routes>
+          </BrowserRouter>
+          <Toaster />
+        </AuthProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

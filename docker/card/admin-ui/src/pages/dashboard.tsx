@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CreditCard, Zap, Coins } from "lucide-react";
+import { OnboardingChecklist } from "@/components/onboarding-checklist";
 
 interface DashboardData {
   cardCount: number;
@@ -98,10 +99,12 @@ export function DashboardPage() {
         </div>
       )}
 
-      {!data.hasCards && (
-        <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
-          No cards yet. Program your first card to get started.
-        </div>
+      {(!data.hasCards || !data.phoenixConnected) && (
+        <OnboardingChecklist
+          phoenixConnected={data.phoenixConnected}
+          phoenixBalance={data.phoenixBalance}
+          hasCards={data.hasCards}
+        />
       )}
     </div>
   );

@@ -100,6 +100,9 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 		case path == "/admin/api/database/import" && r.Method == "POST":
 			app.adminApiAuth(app.adminApiDatabaseImport)(w, r)
 
+		case path == "/admin/api/batch/create" && r.Method == "POST":
+			app.adminApiAuth(app.adminApiBatchCreate)(w, r)
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			writeJSON(w, map[string]string{"error": "not found"})

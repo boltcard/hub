@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiPut } from "@/lib/api";
+import { toast } from "sonner";
 import {
   Table,
   TableBody,
@@ -31,7 +32,11 @@ export function SettingsPage() {
 
   const setLogLevel = useMutation({
     mutationFn: (level: string) => apiPut("/settings/log-level", { level }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["settings"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["settings"] });
+      toast.success("Log level updated");
+    },
+    onError: (err) => toast.error(err.message),
   });
 
   if (isLoading || !data) {
