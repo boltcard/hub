@@ -9,20 +9,23 @@ touch /var/log/boltcardhub-install.log
 chmod 644 /var/log/boltcardhub-install.log
 exec > >(tee -a /var/log/boltcardhub-install.log) 2>&1
 
-# Start a status server on port 8080 so the launcher can read the log via HTTP
+# Start a status server on port 8080 — serves the last timestamped log line
 python3 -c "
 import http.server, socketserver
 class H(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
+        last = ''
         try:
             with open('/var/log/boltcardhub-install.log') as f:
-                log = f.read()
+                for line in f:
+                    if line.startswith('['):
+                        last = line.strip()
         except:
-            log = ''
+            pass
         self.send_response(200)
         self.send_header('Content-Type','text/plain')
         self.end_headers()
-        self.wfile.write(log.encode())
+        self.wfile.write(last.encode())
     def log_message(self, *a): pass
 socketserver.TCPServer(('',8080),H).serve_forever()
 " &

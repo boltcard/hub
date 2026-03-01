@@ -22,19 +22,16 @@ function readInstallLog(ip) {
   });
 }
 
-// Map log content to install step number
+// Map last timestamped log line to install step number
 // 0=Creating VPS, 1=Booting, 2=Installing Docker, 3=Pulling images, 4=Starting services, 5=TLS, 6=Ready
-function parseLogStep(log) {
-  if (!log) return null;
+function parseLogStep(line) {
+  if (!line) return null;
 
-  const lines = log.split('\n').filter((l) => l.trim());
-  const last = lines[lines.length - 1] || '';
-
-  if (/running|finished/i.test(last)) return 4;
-  if (/Starting containers/i.test(last)) return 4;
-  if (/Pulling images|Downloading|Writing .env/i.test(last)) return 3;
-  if (/Docker installed|Docker already installed/i.test(last)) return 3;
-  if (/Installing Docker|apt|Waiting for apt|Removing snap/i.test(last)) return 2;
+  if (/running|finished/i.test(line)) return 4;
+  if (/Starting containers/i.test(line)) return 4;
+  if (/Pulling images/i.test(line)) return 3;
+  if (/Docker installed|Docker already|Downloading|Writing .env/i.test(line)) return 3;
+  if (/Installing Docker|Waiting for apt|Removing snap/i.test(line)) return 2;
   // Cloud-init just started (resolving IP, setting HOST_DOMAIN, etc.)
   return 2;
 }
@@ -106,13 +103,12 @@ module.exports = async function handler(req, res) {
     }
   }
 
-  // 2. Try to read install log via HTTP on port 8080
+  // 2. Try to read last log line via HTTP on port 8080
   if (ip) {
-    const log = await readInstallLog(ip);
-    if (log) {
-      step = parseLogStep(log);
-      const lines = log.split('\n').filter((l) => l.trim());
-      logLine = lines[lines.length - 1] || null;
+    const line = await readInstallLog(ip);
+    if (line) {
+      step = parseLogStep(line);
+      logLine = line;
     }
     // Port 8080 not responding = cloud-init hasn't started our script yet
   }
