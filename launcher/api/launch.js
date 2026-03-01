@@ -9,6 +9,24 @@ touch /var/log/boltcardhub-install.log
 chmod 644 /var/log/boltcardhub-install.log
 exec > >(tee -a /var/log/boltcardhub-install.log) 2>&1
 
+# Start a status server on port 8080 so the launcher can read the log via HTTP
+python3 -c "
+import http.server, socketserver
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        try:
+            with open('/var/log/boltcardhub-install.log') as f:
+                log = f.read()
+        except:
+            log = ''
+        self.send_response(200)
+        self.send_header('Content-Type','text/plain')
+        self.end_headers()
+        self.wfile.write(log.encode())
+    def log_message(self, *a): pass
+socketserver.TCPServer(('',8080),H).serve_forever()
+" &
+
 echo "[$(date -Iseconds)] Starting Bolt Card Hub install"
 
 # Resolve rDNS hostname from public IP
@@ -25,6 +43,9 @@ echo "[$(date -Iseconds)] HOST_DOMAIN: $HOST_DOMAIN"
 export HOST_DOMAIN
 curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
 echo "[$(date -Iseconds)] Install script finished"
+
+# Stop the status server
+kill %1 2>/dev/null
 `;
 
 module.exports = async function handler(req, res) {

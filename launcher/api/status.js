@@ -1,41 +1,24 @@
+const http = require('http');
 const https = require('https');
-const { Client } = require('ssh2');
 const { lunaRequest } = require('./_luna');
 
-// SSH into the VM and read the install log (hardcoded command, no user input)
-function readInstallLog(ip, username, password) {
+// Read install log from the status server on port 8080
+function readInstallLog(ip) {
   return new Promise((resolve) => {
-    const conn = new Client();
-    const timeout = setTimeout(() => { conn.destroy(); resolve(null); }, 10000);
-
-    conn.on('ready', () => {
-      // Safe: hardcoded command string, no user input interpolated
-      const cmd = 'cat /var/log/boltcardhub-install.log 2>/dev/null';
-      conn.exec(cmd, (err, stream) => {
-        if (err) { clearTimeout(timeout); conn.end(); resolve(null); return; }
-        let output = '';
-        stream.on('data', (chunk) => { output += chunk; });
-        stream.stderr.on('data', () => {});
-        stream.on('close', () => {
-          clearTimeout(timeout);
-          conn.end();
-          resolve(output || null);
-        });
-      });
+    const req = http.request({
+      hostname: ip,
+      port: 8080,
+      path: '/',
+      method: 'GET',
+      timeout: 5000,
+    }, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => resolve(data || null));
     });
-
-    conn.on('error', () => { clearTimeout(timeout); resolve(null); });
-
-    conn.connect({
-      host: ip,
-      port: 22,
-      username,
-      password,
-      readyTimeout: 8000,
-      algorithms: {
-        serverHostKey: ['ssh-ed25519', 'ecdsa-sha2-nistp256', 'ssh-rsa', 'rsa-sha2-256', 'rsa-sha2-512'],
-      },
-    });
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+    req.on('error', () => resolve(null));
+    req.end();
   });
 }
 
@@ -106,40 +89,35 @@ module.exports = async function handler(req, res) {
   let step = 1; // default: booting
   let logLine = null;
 
-  // 1. Get VM info (status + credentials)
-  let vmInfo = null;
+  // 1. Get VM info (status + IP)
+  let ip = null;
   if (api_id && api_key && vm_id) {
     try {
-      vmInfo = await lunaRequest(api_id, api_key, 'vm/info', { vm_id });
+      const vmInfo = await lunaRequest(api_id, api_key, 'vm/info', { vm_id });
+      const statusRaw = vmInfo.info && vmInfo.info.status_raw;
+      ip = vmInfo.info && vmInfo.info.ip;
+
+      // If VM not active yet, still booting
+      if (statusRaw && statusRaw !== 'active') {
+        return res.status(200).json({ step: 1, logLine });
+      }
     } catch {
       // API call failed
     }
   }
 
-  const statusRaw = vmInfo && vmInfo.info && vmInfo.info.status_raw;
-  const ip = vmInfo && vmInfo.info && vmInfo.info.ip;
-
-  // 2. If VM not active yet, still booting
-  if (statusRaw && statusRaw !== 'active') {
-    return res.status(200).json({ step: 1, logLine });
-  }
-
-  // 3. Try SSH to read install log
-  if (ip && vmInfo.info.login_details) {
-    const match = vmInfo.info.login_details.match(/username:\s*(\S+);\s*password:\s*(\S+)/);
-    if (match) {
-      const log = await readInstallLog(ip, match[1], match[2]);
-      if (log) {
-        step = parseLogStep(log);
-        // Get the last timestamped line for display
-        const lines = log.split('\n').filter((l) => l.trim());
-        logLine = lines[lines.length - 1] || null;
-      }
-      // SSH failed (connection refused) = still booting
+  // 2. Try to read install log via HTTP on port 8080
+  if (ip) {
+    const log = await readInstallLog(ip);
+    if (log) {
+      step = parseLogStep(log);
+      const lines = log.split('\n').filter((l) => l.trim());
+      logLine = lines[lines.length - 1] || null;
     }
+    // Port 8080 not responding = cloud-init hasn't started our script yet
   }
 
-  // 4. Once install reports done (step >= 4), check HTTPS for TLS status
+  // 3. Once install reports done (step >= 4), check HTTPS for TLS status
   if (step >= 4) {
     const strict = await probeStrict(hostname);
     if (strict) {
@@ -149,7 +127,6 @@ module.exports = async function handler(req, res) {
     if (relaxed) {
       return res.status(200).json({ step: 5, logLine });
     }
-    // Services started but not yet responding — keep at step 4
   }
 
   return res.status(200).json({ step, logLine });
