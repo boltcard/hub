@@ -2,10 +2,15 @@ const crypto = require('crypto');
 const https = require('https');
 
 // LunaNode API: HMAC-SHA512 signed requests
+// Nonce must be strictly increasing (seconds-based); counter ensures uniqueness within a single invocation
+let lastNonce = 0;
+
 function signRequest(apiId, apiKey, handler, params) {
   const partialKey = apiKey.substring(0, 64);
   const body = JSON.stringify({ api_id: apiId, api_partialkey: partialKey, ...params });
-  const nonce = Math.floor(Date.now() / 1000).toString();
+  const now = Math.floor(Date.now() / 1000);
+  lastNonce = Math.max(now, lastNonce + 1);
+  const nonce = lastNonce.toString();
   const signature = crypto
     .createHmac('sha512', apiKey)
     .update(`${handler}/|${body}|${nonce}`)

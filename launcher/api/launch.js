@@ -9,7 +9,7 @@ touch /var/log/boltcardhub-install.log
 chmod 644 /var/log/boltcardhub-install.log
 exec > >(tee -a /var/log/boltcardhub-install.log) 2>&1
 
-# Start a status server on port 8080 — serves the last timestamped log line
+# Start a status server on port 8080 (serves the last timestamped log line)
 python3 -c "
 import http.server, socketserver
 class H(http.server.BaseHTTPRequestHandler):
