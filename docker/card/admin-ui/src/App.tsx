@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
@@ -5,6 +6,19 @@ import { AppShell } from "@/components/app-shell";
 import { LoginPage } from "@/pages/login";
 import { RegisterPage } from "@/pages/register";
 import { DashboardPage } from "@/pages/dashboard";
+
+const PhoenixPage = lazy(() =>
+  import("@/pages/phoenix").then((m) => ({ default: m.PhoenixPage }))
+);
+const SettingsPage = lazy(() =>
+  import("@/pages/settings").then((m) => ({ default: m.SettingsPage }))
+);
+const AboutPage = lazy(() =>
+  import("@/pages/about").then((m) => ({ default: m.AboutPage }))
+);
+const DatabasePage = lazy(() =>
+  import("@/pages/database").then((m) => ({ default: m.DatabasePage }))
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,6 +28,10 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function LoadingSkeleton() {
+  return <div className="h-64 animate-pulse rounded-lg bg-muted" />;
+}
 
 function AuthGate() {
   const { loading, authenticated, registered } = useAuth();
@@ -33,7 +51,38 @@ function AuthGate() {
     <Routes>
       <Route element={<AppShell />}>
         <Route index element={<DashboardPage />} />
-        {/* Phase 2 pages will be added here */}
+        <Route
+          path="phoenix"
+          element={
+            <Suspense fallback={<LoadingSkeleton />}>
+              <PhoenixPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="settings"
+          element={
+            <Suspense fallback={<LoadingSkeleton />}>
+              <SettingsPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="about"
+          element={
+            <Suspense fallback={<LoadingSkeleton />}>
+              <AboutPage />
+            </Suspense>
+          }
+        />
+        <Route
+          path="database"
+          element={
+            <Suspense fallback={<LoadingSkeleton />}>
+              <DatabasePage />
+            </Suspense>
+          }
+        />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
