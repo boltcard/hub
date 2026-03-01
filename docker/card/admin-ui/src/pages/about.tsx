@@ -88,6 +88,12 @@ export function AboutPage() {
                   )}
                 </TableCell>
               </TableRow>
+              <TableRow>
+                <TableCell className="font-medium">Phoenixd Version</TableCell>
+                <TableCell className="font-mono">
+                  {data.phoenixdVersion || "\u2014"}
+                </TableCell>
+              </TableRow>
             </TableBody>
           </Table>
 
@@ -128,23 +134,6 @@ export function AboutPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Phoenixd</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableBody>
-              <TableRow>
-                <TableCell className="font-medium">Version</TableCell>
-                <TableCell className="font-mono">
-                  {data.phoenixdVersion || "\u2014"}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }

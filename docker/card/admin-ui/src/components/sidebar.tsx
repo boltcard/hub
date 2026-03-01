@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -27,10 +27,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <div className="flex h-full flex-col gap-2">
-      <div className="flex items-center gap-2 px-4 py-4">
+      <Link to="/" onClick={onNavigate} className="flex items-center gap-2 px-4 py-4">
         <Zap className="h-5 w-5 text-primary" />
         <span className="text-lg font-semibold">Bolt Card Hub</span>
-      </div>
+      </Link>
       <Separator />
       <nav className="flex-1 space-y-1 px-2 py-2">
         {navItems.map((item) => (

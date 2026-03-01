@@ -4,6 +4,7 @@ import (
 	"card/build"
 	"card/phoenix"
 	"net/http"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -18,7 +19,7 @@ func (app *App) adminApiAbout(w http.ResponseWriter, r *http.Request) {
 	phoenixdVersion := ""
 	info, err := phoenix.GetNodeInfo()
 	if err == nil {
-		phoenixdVersion = info.Version
+		phoenixdVersion, _, _ = strings.Cut(info.Version, "-")
 	} else {
 		log.Warn("phoenix info error: ", err)
 	}
