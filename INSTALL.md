@@ -1,5 +1,9 @@
 # Install Bolt Card Hub
 
+## One-Click Launch
+
+Use the [Bolt Card Hub Launcher](https://bolt-card-hub-launcher.vercel.app/) to provision a VPS and install automatically. Enter a [LunaNode](https://www.lunanode.com/?r=9026) API key (ideally from a dedicated LunaNode account with some credit) and the launcher handles the rest.
+
 ## VPS
 
 We recommend [LunaNode](https://www.lunanode.com/?r=9026) — the **m.1s** plan (1GB RAM) at **$3.50/month** is sufficient. LunaNode accept Bitcoin for payments.
