@@ -301,3 +301,22 @@ func Db_get_card_id_from_card_uid(db_conn *sql.DB, card_uid string) (card_id int
 
 	return value
 }
+
+type TableCount struct {
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+}
+
+func Db_get_table_counts(db_conn *sql.DB) ([]TableCount, error) {
+	tables := []string{"cards", "card_payments", "card_receipts", "settings", "program_cards"}
+	counts := make([]TableCount, 0, len(tables))
+	for _, t := range tables {
+		var count int
+		err := db_conn.QueryRow("SELECT COUNT(*) FROM " + t).Scan(&count)
+		if err != nil {
+			return nil, err
+		}
+		counts = append(counts, TableCount{Name: t, Count: count})
+	}
+	return counts, nil
+}

@@ -97,6 +97,9 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 		case path == "/admin/api/about/update" && r.Method == "POST":
 			app.adminApiAuth(app.adminApiTriggerUpdate)(w, r)
 
+		case path == "/admin/api/database/stats" && r.Method == "GET":
+			app.adminApiAuth(app.adminApiDatabaseStats)(w, r)
+
 		case path == "/admin/api/database/download" && r.Method == "GET":
 			app.adminApiAuth(app.adminApiDatabaseDownload)(w, r)
 

@@ -6,10 +6,12 @@ interface StatCardProps {
   title: string;
   value: number;
   isSats?: boolean;
+  format?: (value: number) => string;
   icon: LucideIcon;
 }
 
-export function StatCard({ title, value, isSats, icon: Icon }: StatCardProps) {
+export function StatCard({ title, value, isSats, format, icon: Icon }: StatCardProps) {
+  const display = format ? format(value) : isSats ? formatSats(value) : value.toLocaleString();
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -20,7 +22,7 @@ export function StatCard({ title, value, isSats, icon: Icon }: StatCardProps) {
       </CardHeader>
       <CardContent>
         <div className="text-2xl font-bold font-mono tabular-nums">
-          {isSats ? formatSats(value) : value.toLocaleString()}
+          {display}
         </div>
       </CardContent>
     </Card>

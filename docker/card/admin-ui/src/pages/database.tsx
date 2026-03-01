@@ -1,9 +1,29 @@
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Download, Upload, Copy, Check, KeyRound } from "lucide-react";
+import { StatCard } from "@/components/stat-card";
+import { Download, Upload, Copy, Check, KeyRound, Database, HardDrive, Layers } from "lucide-react";
 import { useState, type FormEvent } from "react";
+
+interface TableCount {
+  name: string;
+  count: number;
+}
+
+interface DatabaseStats {
+  fileSizeBytes: number;
+  schemaVersion: string;
+  tables: TableCount[];
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
 
 const RESET_COMMANDS = `docker exec -it card bash
 NEW_HASH=$(htpasswd -bnBC 10 "" 'YOUR_NEW_PASSWORD' | tr -d ':\\n' | sed 's/$2y/$2a/')
@@ -14,6 +34,13 @@ export function DatabasePage() {
   const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
+
+  const { data: stats } = useQuery({
+    queryKey: ["database-stats"],
+    queryFn: () => apiFetch<DatabaseStats>("/database/stats"),
+  });
+
+  const totalRows = stats?.tables?.reduce((sum, t) => sum + t.count, 0) ?? 0;
 
   function copyReset() {
     navigator.clipboard.writeText(RESET_COMMANDS);
@@ -56,6 +83,34 @@ export function DatabasePage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Database</h1>
+
+      {stats && (
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard title="File Size" value={stats.fileSizeBytes} icon={HardDrive} format={formatBytes} />
+          <StatCard title="Total Rows" value={totalRows} icon={Database} />
+          <StatCard title="Schema Version" value={Number(stats.schemaVersion)} icon={Layers} />
+        </div>
+      )}
+
+      {stats?.tables && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Tables</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {stats.tables.map((t) => (
+                <div key={t.name} className="flex items-center justify-between rounded-lg bg-muted px-3 py-2">
+                  <code className="text-sm">{t.name}</code>
+                  <span className="font-mono text-sm tabular-nums text-muted-foreground">
+                    {t.count.toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
