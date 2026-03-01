@@ -16,4 +16,4 @@ A lightweight, self-hosted service for hosting NFC Bolt Cards on the Lightning N
 
 ## Install
 
-See [INSTALL.md](INSTALL.md) for setup instructions.
+Use the [Bolt Card Hub Launcher](https://bolt-card-hub-launcher.vercel.app/) for one-click setup, or see [INSTALL.md](INSTALL.md) for manual instructions.
