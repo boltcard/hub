@@ -88,7 +88,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
 - `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
-- `build/` — Version string (currently "0.15.2"), date/time injected at build
+- `build/` — Version string (currently "0.16.0"), date/time injected at build
 - `web-content/` — Static assets under `public/`, SPA build output under `admin/spa/`
 
 ### Route Groups (`web/app.go`)
@@ -105,14 +105,14 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 
 ### Admin Update (`web/update.go`)
 
-The About page (`/admin/about/`) checks for new versions by fetching `build.go` from GitHub and comparing version strings. When an update is available, an "Update" button appears. Clicking it triggers the update mechanism:
+The About page (`/admin/about/`) checks for new versions by querying the Docker Hub registry API for the `org.opencontainers.image.version` label on the `boltcard/card:latest` image. This ensures the update button only appears when a newer image is actually available to pull (unlike the previous GitHub-based check which could race ahead of CI). The Dockerfile sets this label via `ARG APP_VERSION` (CI passes the real version, local builds get "unknown"). When an update is available, an "Update" button appears. Clicking it triggers the update mechanism:
 
 1. Card container inspects itself via Docker API to find the compose project directory
 2. Pulls `docker:cli` image and creates a disposable `hub-updater` container
 3. The updater runs `docker compose pull && docker compose up -d` with AutoRemove
 4. This avoids the self-update problem — the card container delegates to an independent container
 
-Docker socket (`/var/run/docker.sock`) is mounted into the card container. The update endpoint is admin-only (behind session auth). All Docker API calls use Go stdlib `net/http` with Unix socket transport — no external dependencies.
+Docker socket (`/var/run/docker.sock`) is mounted into the card container. The update endpoint is admin-only (behind session auth). All Docker API calls use Go stdlib `net/http` with Unix socket transport — no external dependencies. The frontend uses `onSettled` to always show an "Updating..." spinner and poll for the server to come back, avoiding a 502 error page during container restart.
 
 ### Database
 
