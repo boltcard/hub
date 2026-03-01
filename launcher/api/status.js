@@ -43,7 +43,7 @@ function probeStrict(hostname) {
       hostname,
       path: '/',
       method: 'HEAD',
-      timeout: 8000,
+      timeout: 5000,
       rejectUnauthorized: true,
     }, () => {
       resolve('ready');
@@ -61,7 +61,7 @@ function probeRelaxed(hostname) {
       hostname,
       path: '/',
       method: 'HEAD',
-      timeout: 8000,
+      timeout: 5000,
       rejectUnauthorized: false,
     }, () => {
       resolve('tls_pending');
@@ -113,16 +113,14 @@ module.exports = async function handler(req, res) {
     // Port 8080 not responding = cloud-init hasn't started our script yet
   }
 
-  // 3. Once install reports done (step >= 4), check HTTPS for TLS status
-  if (step >= 4) {
-    const strict = await probeStrict(hostname);
-    if (strict) {
-      return res.status(200).json({ step: 6, logLine });
-    }
-    const relaxed = await probeRelaxed(hostname);
-    if (relaxed) {
-      return res.status(200).json({ step: 5, logLine });
-    }
+  // 3. Check HTTPS for TLS status (always try — port 8080 may be unreachable mid-install)
+  const strict = await probeStrict(hostname);
+  if (strict) {
+    return res.status(200).json({ step: 6, logLine });
+  }
+  const relaxed = await probeRelaxed(hostname);
+  if (relaxed) {
+    return res.status(200).json({ step: 5, logLine });
   }
 
   return res.status(200).json({ step, logLine });
