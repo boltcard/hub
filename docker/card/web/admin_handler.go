@@ -4,6 +4,7 @@ import (
 	"card/db"
 	"crypto/subtle"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -19,15 +20,34 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 		// prevent caching
 		w.Header().Add("Cache-Control", "no-cache, no-store")
 
+		// Static assets — serve without auth (SPA assets first, then legacy)
+		if strings.HasSuffix(request, ".js") || strings.HasSuffix(request, ".css") ||
+			strings.HasSuffix(request, ".png") || strings.HasSuffix(request, ".jpg") ||
+			strings.HasSuffix(request, ".map") || strings.HasSuffix(request, ".woff2") ||
+			strings.HasSuffix(request, ".svg") || strings.HasSuffix(request, ".ico") {
+			spaPath := strings.Replace(request, "/admin/", "/admin/spa/", 1)
+			if fileExists("/web-content" + spaPath) {
+				RenderStaticContent(w, spaPath)
+			} else {
+				RenderStaticContent(w, request)
+			}
+			return
+		}
+
+		// Serve React SPA for all non-static admin paths.
+		// The SPA handles auth via /admin/api/auth/check.
+		if fileExists("/web-content/admin/spa/index.html") {
+			serveSpaIndex(w, r)
+			return
+		}
+
+		// Fallback: legacy Go template admin UI (when SPA not built)
 		if request == "/admin/register/" {
 			Register2(app.db_conn, w, r)
 			return
 		}
 
-		// detect if an admin password has been set
 		if db.Db_get_setting(app.db_conn, "admin_password_hash") == "" {
-			// https://freshman.tech/snippets/go/http-redirect/
-			//redirect to "register" page
 			http.Redirect(w, r, "/admin/register/", http.StatusSeeOther)
 			return
 		}
@@ -37,11 +57,9 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 			return
 		}
 
-		// detect if a session cookie exists
 		c, err := r.Cookie("admin_session_token")
 		if err != nil {
 			if err == http.ErrNoCookie {
-				//redirect to "login" page
 				http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 				return
 			}
@@ -50,18 +68,15 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 			return
 		}
 
-		// validate the session cookie (constant-time comparison)
 		sessionToken := c.Value
 		adminSessionToken := db.Db_get_setting(app.db_conn, "admin_session_token")
 
 		if subtle.ConstantTimeCompare([]byte(sessionToken), []byte(adminSessionToken)) != 1 {
 			ClearAdminSessionToken(w)
-			//redirect to "login" page
 			http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 			return
 		}
 
-		// check session expiry (24-hour timeout from creation)
 		sessionCreatedStr := db.Db_get_setting(app.db_conn, "admin_session_created")
 		if sessionCreatedStr != "" {
 			sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
@@ -70,13 +85,6 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 				http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
 				return
 			}
-		}
-
-		if strings.HasSuffix(request, ".js") || strings.HasSuffix(request, ".css") ||
-			strings.HasSuffix(request, ".png") || strings.HasSuffix(request, ".jpg") ||
-			strings.HasSuffix(request, ".map") {
-			RenderStaticContent(w, request)
-			return
 		}
 
 		switch {
@@ -96,4 +104,27 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 			Blank(w, r)
 		}
 	}
+}
+
+func serveSpaIndex(w http.ResponseWriter, r *http.Request) {
+	spaIndex := "/web-content/admin/spa/index.html"
+
+	content, err := os.ReadFile(spaIndex)
+	if err != nil {
+		log.Info("SPA index.html not found: ", err)
+		Blank(w, r)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html")
+	w.Header().Set("X-Frame-Options", "DENY")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	w.Header().Set("Content-Security-Policy",
+		"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'")
+	w.Write(content)
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

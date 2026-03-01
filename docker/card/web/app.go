@@ -33,6 +33,9 @@ func (app *App) SetupRoutes() *mux.Router {
 	// websocket
 	router.Path("/websocket").HandlerFunc(app.CreateHandler_Websocket())
 
+	// admin API (JSON endpoints) — must be before /admin/ catch-all
+	router.PathPrefix("/admin/api/").HandlerFunc(app.CreateHandler_AdminApi())
+
 	// admin dashboard
 	router.PathPrefix("/admin/").HandlerFunc(app.CreateHandler_Admin())
 
