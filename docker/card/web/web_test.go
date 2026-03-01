@@ -4,7 +4,7 @@ import (
 	"card/db"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/sha256"
+
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -1080,246 +1080,20 @@ func TestFindCard_NoMatch(t *testing.T) {
 	}
 }
 
-// === Admin Session Auth Tests ===
+// === Admin Handler Tests ===
 
-func TestLogin_CorrectPassword(t *testing.T) {
+// The admin handler now serves the React SPA for all paths.
+// Auth is handled by the SPA via /admin/api/auth/check.
+
+func TestAdmin_ServesPage(t *testing.T) {
 	app := openTestApp(t)
-	hash, _ := HashPassword("correctpass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
-
 	handler := app.CreateHandler_Admin()
-	form := url.Values{}
-	form.Set("password", "correctpass")
-	r := httptest.NewRequest("POST", "/admin/login/", strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
 
-	handler.ServeHTTP(w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/" {
-		t.Fatalf("expected redirect to /admin/, got %s", w.Header().Get("Location"))
-	}
-	// Check session cookie was set (last cookie value wins)
-	var sessionValue string
-	for _, c := range w.Result().Cookies() {
-		if c.Name == "admin_session_token" {
-			sessionValue = c.Value
-		}
-	}
-	if sessionValue == "" {
-		t.Fatal("expected admin_session_token cookie to be set")
-	}
-}
-
-func TestLogin_WrongPassword(t *testing.T) {
-	app := openTestApp(t)
-	hash, _ := HashPassword("correctpass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
-
-	handler := app.CreateHandler_Admin()
-	form := url.Values{}
-	form.Set("password", "wrongpass")
-	r := httptest.NewRequest("POST", "/admin/login/", strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/login/" {
-		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
-	}
-}
-
-func TestLogin_LegacySHA256Migration(t *testing.T) {
-	app := openTestApp(t)
-	salt := "testsalt123"
-	password := "legacypassword"
-	db.Db_set_setting(app.db_conn, "admin_password_salt", salt)
-
-	hasher := sha256.New()
-	hasher.Write([]byte(salt))
-	hasher.Write([]byte(password))
-	legacyHash := hex.EncodeToString(hasher.Sum(nil))
-	db.Db_set_setting(app.db_conn, "admin_password_hash", legacyHash)
-
-	handler := app.CreateHandler_Admin()
-	form := url.Values{}
-	form.Set("password", password)
-	r := httptest.NewRequest("POST", "/admin/login/", strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/" {
-		t.Fatalf("expected redirect to /admin/, got %s", w.Header().Get("Location"))
-	}
-	// Verify hash was migrated to bcrypt
-	newHash := db.Db_get_setting(app.db_conn, "admin_password_hash")
-	if !isBcryptHash(newHash) {
-		t.Fatal("expected password hash to be migrated to bcrypt")
-	}
-}
-
-func TestRegister_SetsPassword(t *testing.T) {
-	app := openTestApp(t)
-
-	handler := app.CreateHandler_Admin()
-	form := url.Values{}
-	form.Set("password", "newpassword123")
-	r := httptest.NewRequest("POST", "/admin/register/", strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/login/" {
-		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
-	}
-	hash := db.Db_get_setting(app.db_conn, "admin_password_hash")
-	if !isBcryptHash(hash) {
-		t.Fatal("expected bcrypt hash to be stored")
-	}
-	if !CheckPassword("newpassword123", hash) {
-		t.Fatal("expected stored hash to match password")
-	}
-}
-
-func TestRegister_BlockedWhenPasswordExists(t *testing.T) {
-	app := openTestApp(t)
-	originalHash, _ := HashPassword("existingpass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", originalHash)
-
-	handler := app.CreateHandler_Admin()
-	form := url.Values{}
-	form.Set("password", "newpassword")
-	r := httptest.NewRequest("POST", "/admin/register/", strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/login/" {
-		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
-	}
-	currentHash := db.Db_get_setting(app.db_conn, "admin_password_hash")
-	if currentHash != originalHash {
-		t.Fatal("expected password hash to remain unchanged")
-	}
-}
-
-func TestAdmin_NoPassword_RedirectsToRegister(t *testing.T) {
-	app := openTestApp(t)
-
-	handler := app.CreateHandler_Admin()
+	// Without SPA files, handler returns 200 (blank page from Blank())
 	r := httptest.NewRequest("GET", "/admin/", nil)
 	w := httptest.NewRecorder()
-
 	handler.ServeHTTP(w, r)
 
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/register/" {
-		t.Fatalf("expected redirect to /admin/register/, got %s", w.Header().Get("Location"))
-	}
-}
-
-func TestAdmin_NoCookie_RedirectsToLogin(t *testing.T) {
-	app := openTestApp(t)
-	hash, _ := HashPassword("somepass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
-
-	handler := app.CreateHandler_Admin()
-	r := httptest.NewRequest("GET", "/admin/", nil)
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/login/" {
-		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
-	}
-}
-
-func TestAdmin_InvalidCookie_RedirectsToLogin(t *testing.T) {
-	app := openTestApp(t)
-	hash, _ := HashPassword("somepass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
-	db.Db_set_setting(app.db_conn, "admin_session_token", "validtoken123")
-	db.Db_set_setting(app.db_conn, "admin_session_created", fmt.Sprintf("%d", time.Now().Unix()))
-
-	handler := app.CreateHandler_Admin()
-	r := httptest.NewRequest("GET", "/admin/", nil)
-	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: "wrongtoken"})
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/login/" {
-		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
-	}
-}
-
-func TestAdmin_ExpiredSession_RedirectsToLogin(t *testing.T) {
-	app := openTestApp(t)
-	hash, _ := HashPassword("somepass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
-	db.Db_set_setting(app.db_conn, "admin_session_token", "validtoken123")
-	// Set session created 25 hours ago
-	expired := time.Now().Unix() - 25*60*60
-	db.Db_set_setting(app.db_conn, "admin_session_created", fmt.Sprintf("%d", expired))
-
-	handler := app.CreateHandler_Admin()
-	r := httptest.NewRequest("GET", "/admin/", nil)
-	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: "validtoken123"})
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303, got %d", w.Code)
-	}
-	if w.Header().Get("Location") != "/admin/login/" {
-		t.Fatalf("expected redirect to /admin/login/, got %s", w.Header().Get("Location"))
-	}
-}
-
-func TestAdmin_ValidSession_Succeeds(t *testing.T) {
-	app := openTestApp(t)
-	hash, _ := HashPassword("somepass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
-	db.Db_set_setting(app.db_conn, "admin_session_token", "validtoken123")
-	db.Db_set_setting(app.db_conn, "admin_session_created", fmt.Sprintf("%d", time.Now().Unix()))
-
-	handler := app.CreateHandler_Admin()
-	r := httptest.NewRequest("GET", "/admin/", nil)
-	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: "validtoken123"})
-	w := httptest.NewRecorder()
-
-	handler.ServeHTTP(w, r)
-
-	// Template rendering no-ops in test; check we get 200 (not a redirect)
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
@@ -2216,50 +1990,6 @@ func TestBatchCreateCard_ExpiredProgram(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "program card expired or not found") {
 		t.Fatalf("expected 'program card expired or not found', got %q", w.Body.String())
-	}
-}
-
-// --- Admin Settings POST Tests ---
-
-func TestAdminSettings_PostValidLogLevel(t *testing.T) {
-	db_conn := openTestDB(t)
-	db.Db_set_setting(db_conn, "log_level", "info")
-
-	form := url.Values{}
-	form.Set("log_level", "warn")
-	r := httptest.NewRequest("POST", "/admin/settings/", strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-
-	Admin_Settings(db_conn, w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303 redirect, got %d", w.Code)
-	}
-	got := db.Db_get_setting(db_conn, "log_level")
-	if got != "warn" {
-		t.Fatalf("expected log_level 'warn', got %q", got)
-	}
-}
-
-func TestAdminSettings_PostInvalidLogLevel(t *testing.T) {
-	db_conn := openTestDB(t)
-	db.Db_set_setting(db_conn, "log_level", "info")
-
-	form := url.Values{}
-	form.Set("log_level", "badlevel")
-	r := httptest.NewRequest("POST", "/admin/settings/", strings.NewReader(form.Encode()))
-	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	w := httptest.NewRecorder()
-
-	Admin_Settings(db_conn, w, r)
-
-	if w.Code != http.StatusSeeOther {
-		t.Fatalf("expected 303 redirect, got %d", w.Code)
-	}
-	got := db.Db_get_setting(db_conn, "log_level")
-	if got != "info" {
-		t.Fatalf("expected log_level to remain 'info', got %q", got)
 	}
 }
 

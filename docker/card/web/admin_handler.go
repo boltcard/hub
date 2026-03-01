@@ -1,13 +1,9 @@
 package web
 
 import (
-	"card/db"
-	"crypto/subtle"
 	"net/http"
 	"os"
-	"strconv"
 	"strings"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -34,75 +30,9 @@ func (app *App) CreateHandler_Admin() http.HandlerFunc {
 			return
 		}
 
-		// Serve React SPA for all non-static admin paths.
+		// Serve React SPA for all admin paths.
 		// The SPA handles auth via /admin/api/auth/check.
-		if fileExists("/web-content/admin/spa/index.html") {
-			serveSpaIndex(w, r)
-			return
-		}
-
-		// Fallback: legacy Go template admin UI (when SPA not built)
-		if request == "/admin/register/" {
-			Register2(app.db_conn, w, r)
-			return
-		}
-
-		if db.Db_get_setting(app.db_conn, "admin_password_hash") == "" {
-			http.Redirect(w, r, "/admin/register/", http.StatusSeeOther)
-			return
-		}
-
-		if request == "/admin/login/" {
-			Login2(app.db_conn, w, r)
-			return
-		}
-
-		c, err := r.Cookie("admin_session_token")
-		if err != nil {
-			if err == http.ErrNoCookie {
-				http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
-				return
-			}
-			log.Info("admin_session_token error : ", err.Error())
-			Blank(w, nil)
-			return
-		}
-
-		sessionToken := c.Value
-		adminSessionToken := db.Db_get_setting(app.db_conn, "admin_session_token")
-
-		if subtle.ConstantTimeCompare([]byte(sessionToken), []byte(adminSessionToken)) != 1 {
-			ClearAdminSessionToken(w)
-			http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
-			return
-		}
-
-		sessionCreatedStr := db.Db_get_setting(app.db_conn, "admin_session_created")
-		if sessionCreatedStr != "" {
-			sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
-			if err != nil || time.Now().Unix()-sessionCreated > 24*60*60 {
-				ClearAdminSessionToken(w)
-				http.Redirect(w, r, "/admin/login/", http.StatusSeeOther)
-				return
-			}
-		}
-
-		switch {
-		case request == "/admin/":
-			Admin_Index(app.db_conn, w, r)
-		case strings.HasPrefix(request, "/admin/phoenix/"):
-			Admin_Phoenix(app.db_conn, w, r)
-		case strings.HasPrefix(request, "/admin/cards/"):
-			Admin_Cards(app.db_conn, w, r)
-		case strings.HasPrefix(request, "/admin/settings/"):
-			Admin_Settings(app.db_conn, w, r)
-		case strings.HasPrefix(request, "/admin/about/"):
-			Admin_About(app.db_conn, w, r)
-		case strings.HasPrefix(request, "/admin/database/"):
-			Admin_Database(app.db_conn, w, r)
-		default:
-			Blank(w, r)
-		}
+		serveSpaIndex(w, r)
 	}
 }
 
