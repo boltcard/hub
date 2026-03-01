@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
 
 # Bolt Card Hub installer
 # Usage: export HOST_DOMAIN=hub.yourdomain.com && curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
