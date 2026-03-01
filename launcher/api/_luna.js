@@ -5,7 +5,7 @@ const https = require('https');
 function signRequest(apiId, apiKey, handler, params) {
   const partialKey = apiKey.substring(0, 64);
   const body = JSON.stringify({ api_id: apiId, api_partialkey: partialKey, ...params });
-  const nonce = Date.now().toString();
+  const nonce = Math.floor(Date.now() / 1000).toString();
   const signature = crypto
     .createHmac('sha512', apiKey)
     .update(`${handler}/|${body}|${nonce}`)
