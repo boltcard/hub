@@ -1,8 +1,18 @@
 {
 	order rate_limit before basicauth
+	email cert@{$HOST_DOMAIN}
 }
 
 https://{$HOST_DOMAIN} {
+	tls {
+		issuer acme {
+			dir https://acme-v02.api.letsencrypt.org/directory
+		}
+		issuer acme {
+			dir https://acme.zerossl.com/v2/DV90
+		}
+	}
+
 	header {
 		Access-Control-Allow-Origin *
 		Access-Control-Allow-Methods "GET, POST, OPTIONS"

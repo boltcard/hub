@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Launch Bolt Card Hub on LunaNode</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f7931a'/%3E%3Cpath d='M18 4L10 18h6l-2 10 8-14h-6z' fill='%23fff'/%3E%3C/svg%3E">
     <style>
         :root {
             --bg: #fff;
@@ -129,31 +130,24 @@
             margin-right: 0.5rem;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .result-links {
-            display: flex;
-            gap: 0.75rem;
-            margin-top: 1rem;
-        }
-        .result-links a {
+        .result-link {
             display: block;
-            flex: 1;
             text-align: center;
             padding: 0.7rem 1rem;
             border-radius: 4px;
             font-weight: 600;
             text-decoration: none;
             font-size: 1rem;
-        }
-        .result-links .primary {
+            margin-top: 1rem;
             background: var(--accent);
             color: #fff;
         }
         @media (prefers-color-scheme: dark) {
-            .result-links .primary { color: #212121; }
+            .result-link { color: #212121; }
         }
-        .result-links .secondary {
-            border: 1px solid var(--border);
-            color: var(--text);
+        .result-link.disabled {
+            opacity: 0.5;
+            pointer-events: none;
         }
         .note {
             font-size: 0.9rem;
@@ -195,6 +189,12 @@
             vertical-align: middle;
             margin-right: 0.2rem;
         }
+        .step-time {
+            font-size: 0.8rem;
+            font-weight: 400;
+            opacity: 0.7;
+            margin-left: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -231,14 +231,37 @@
         const status = document.getElementById('status');
 
         const STEPS = [
-            { id: 'create',  label: 'Creating VPS' },
-            { id: 'boot',    label: 'Booting server' },
-            { id: 'docker',  label: 'Installing Docker' },
-            { id: 'pull',    label: 'Pulling container images' },
-            { id: 'start',   label: 'Starting services' },
-            { id: 'tls',     label: 'Obtaining TLS certificate' },
-            { id: 'ready',   label: 'Hub is ready!' },
+            { id: 'create',  label: 'Creating VPS',              estSec: 15 },
+            { id: 'boot',    label: 'Booting server',            estSec: 240 },
+            { id: 'docker',  label: 'Installing Docker',         estSec: 30 },
+            { id: 'pull',    label: 'Pulling container images',   estSec: 20 },
+            { id: 'start',   label: 'Starting services',         estSec: 10 },
+            { id: 'tls',     label: 'Obtaining TLS certificate',  estSec: 10 },
+            { id: 'ready',   label: 'Hub is ready!',             estSec: 0 },
         ];
+
+        // Track when each step started
+        var stepStartTimes = {};
+        var stepEndTimes = {};
+
+        function formatDuration(seconds) {
+            seconds = Math.round(seconds);
+            if (seconds < 60) return seconds + 's';
+            var m = Math.floor(seconds / 60);
+            var s = seconds % 60;
+            return s > 0 ? m + 'm ' + s + 's' : m + 'm';
+        }
+
+        function recordStepTransition(newStep) {
+            var now = Date.now();
+            if (!stepStartTimes[newStep]) stepStartTimes[newStep] = now;
+            // End all previous steps
+            for (var i = 0; i < newStep; i++) {
+                if (stepStartTimes[i] && !stepEndTimes[i]) stepEndTimes[i] = now;
+            }
+        }
+
+        var hubReachable = false;
 
         // Build progress DOM safely (no innerHTML with user data)
         function renderProgress(currentStep, hostname, ip) {
@@ -269,6 +292,24 @@
                     stepDiv.appendChild(checkDone);
                 }
                 stepDiv.appendChild(document.createTextNode(STEPS[i].label));
+
+                // Show timing info
+                var timeSpan = document.createElement('span');
+                timeSpan.className = 'step-time';
+                if (i < currentStep && stepStartTimes[i] && stepEndTimes[i]) {
+                    // Completed step: show actual duration
+                    var actual = (stepEndTimes[i] - stepStartTimes[i]) / 1000;
+                    timeSpan.textContent = formatDuration(actual);
+                } else if (i === currentStep && currentStep < STEPS.length - 1 && stepStartTimes[i]) {
+                    // Active step: show elapsed / estimate
+                    var elapsed = (Date.now() - stepStartTimes[i]) / 1000;
+                    timeSpan.textContent = formatDuration(elapsed) + ' / ~' + formatDuration(STEPS[i].estSec);
+                } else if (i > currentStep && STEPS[i].estSec > 0) {
+                    // Future step: show estimate only
+                    timeSpan.textContent = '~' + formatDuration(STEPS[i].estSec);
+                }
+                if (timeSpan.textContent) stepDiv.appendChild(timeSpan);
+
                 stepsDiv.appendChild(stepDiv);
             }
             container.appendChild(stepsDiv);
@@ -281,25 +322,24 @@
                 container.appendChild(ipNote);
             }
 
+            // Show total elapsed time when done
+            if (currentStep >= STEPS.length - 1 && stepStartTimes[0]) {
+                var totalSec = (Date.now() - stepStartTimes[0]) / 1000;
+                var totalNote = document.createElement('p');
+                totalNote.className = 'note';
+                totalNote.style.marginTop = '0.3rem';
+                totalNote.textContent = 'Total time: ' + formatDuration(totalSec);
+                container.appendChild(totalNote);
+            }
+
             if (currentStep >= STEPS.length - 1 && hostname) {
-                var base = 'https://' + hostname;
-                var links = document.createElement('div');
-                links.className = 'result-links';
-                var adminLink = document.createElement('a');
-                adminLink.className = 'primary';
-                adminLink.href = base + '/admin/';
-                adminLink.target = '_blank';
-                adminLink.rel = 'noopener';
-                adminLink.textContent = 'Admin';
-                var balanceLink = document.createElement('a');
-                balanceLink.className = 'secondary';
-                balanceLink.href = base + '/balance/';
-                balanceLink.target = '_blank';
-                balanceLink.rel = 'noopener';
-                balanceLink.textContent = 'Balance';
-                links.appendChild(adminLink);
-                links.appendChild(balanceLink);
-                container.appendChild(links);
+                var hubLink = document.createElement('a');
+                hubLink.className = 'result-link' + (hubReachable ? '' : ' disabled');
+                hubLink.href = 'https://' + hostname + '/';
+                hubLink.target = '_blank';
+                hubLink.rel = 'noopener';
+                hubLink.textContent = hubReachable ? 'Hub' : 'Hub — waiting for HTTPS...';
+                container.appendChild(hubLink);
             }
 
             return container;
@@ -321,9 +361,29 @@
             }
         }
 
+        async function checkHubReachable(hostname, ip) {
+            for (var i = 0; i < 30; i++) {
+                try {
+                    await fetch('https://' + hostname + '/', { method: 'HEAD', mode: 'no-cors' });
+                    hubReachable = true;
+                    setStatus('success', renderProgress(STEPS.length - 1, hostname, ip));
+                    return;
+                } catch (e) {
+                    // not reachable yet
+                }
+                await sleep(5000);
+            }
+        }
+
         async function pollStatus(hostname, ip, apiId, apiKey, vmId) {
             var step = 1;
+            recordStepTransition(step);
             setStatus('loading', renderProgress(step, hostname, ip));
+
+            // Tick the elapsed time display every second
+            var tickInterval = setInterval(function() {
+                setStatus('loading', renderProgress(step, hostname, ip));
+            }, 1000);
 
             for (var attempt = 0; attempt < 60; attempt++) {
                 await sleep(10000);
@@ -342,21 +402,26 @@
                     var data = await res.json();
 
                     // Backend returns the real step (from SSH log + HTTPS probing)
-                    if (data.step != null && data.step > step) step = data.step;
+                    if (data.step != null && data.step > step) {
+                        step = data.step;
+                        recordStepTransition(step);
+                    }
 
                     if (step >= STEPS.length - 1) {
+                        recordStepTransition(STEPS.length - 1);
+                        clearInterval(tickInterval);
                         setStatus('success', renderProgress(STEPS.length - 1, hostname, ip));
+                        checkHubReachable(hostname, ip);
                         return;
                     }
                 } catch (e) {
                     // fetch error — keep current step
                 }
-
-                setStatus('loading', renderProgress(step, hostname, ip));
             }
 
-            setStatus('success', renderProgress(STEPS.length - 1, hostname, ip),
-                'Polling timed out, but your hub may still be setting up. Try the link in a minute.');
+            clearInterval(tickInterval);
+            setStatus('loading', renderProgress(step, hostname, ip),
+                'Still waiting — setup can take up to 10 minutes. Refresh this page to keep checking.');
         }
 
         form.addEventListener('submit', async (e) => {
@@ -368,6 +433,9 @@
             if (!apiId || !apiKey) return;
 
             btn.disabled = true;
+            stepStartTimes = {};
+            stepEndTimes = {};
+            recordStepTransition(0);
             setStatus('loading', renderProgress(0, null, null));
 
             try {
