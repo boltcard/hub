@@ -25,7 +25,7 @@ docker compose up -d     # detached
 docker compose watch
 ```
 
-The Go application is in `docker/card/`. It builds via multi-stage Docker build (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`. Pre-built images are published to Docker Hub (`boltcard/card:latest`, `boltcard/webproxy:latest`).
+The Go application is in `docker/card/`. The admin UI is a React SPA in `docker/card/admin-ui/`. Both are built via a 3-stage Docker build: Node 22 (frontend) → Go 1.25.7 (backend) → Debian slim runtime (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`. Pre-built images are published to Docker Hub (`boltcard/card:latest`, `boltcard/webproxy:latest`).
 
 There is no Makefile — building is done exclusively through Docker.
 
@@ -50,10 +50,11 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
 - `go build`
 - `go test -race -count=1 ./...`
 - `govulncheck ./...`
+- Frontend build (`npm ci && npm run build` in `docker/card/admin-ui/`)
 - Docker image builds for both `card` and `webproxy`
 - On push to `main` (not PRs): pushes images to Docker Hub as `latest`
 
-Uses Go 1.25.7 with CGo enabled for sqlite3. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
+Uses Go 1.25.7 with CGo enabled for sqlite3, Node 22 for frontend. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
 
 ## CLI Commands (run inside card container)
 
@@ -72,7 +73,7 @@ docker exec -it card bash
 
 - **phoenix**: acinq/phoenixd:0.7.2 — Lightning node (384M memory)
 - **card**: Custom Go app — card service on `:8000` (192M memory, GOMEMLIMIT=150MiB). Has Docker healthcheck (HEAD / every 30s). Graceful shutdown on SIGTERM with 10s drain timeout. Includes `sqlite3` for database access. Mounts Docker socket for admin update feature.
-- **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`)
+- **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`, `/admin/api/auth/login`)
 
 All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access and Docker socket for self-update. `HOST_DOMAIN` is set in `.env` and shared with both card and webproxy containers via `env_file`. The Caddyfile uses `{$HOST_DOMAIN}` for the site address — no templating or init scripts needed.
 
@@ -81,18 +82,20 @@ All on internal `hubnet` bridge network. Card container mounts phoenix volume re
 Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on `:8000`
 
 **Packages:**
-- `web/` — HTTP handlers using Gorilla Mux. Handler pattern: `func (app *App) CreateHandler_Name() http.HandlerFunc`
+- `admin-ui/` — React SPA (Vite + TypeScript + Tailwind v4 + shadcn/ui). Pages: login, dashboard, cards, card-detail, phoenix, settings, database, about
+- `web/` — HTTP handlers using Gorilla Mux. Handler pattern: `func (app *App) CreateHandler_Name() http.HandlerFunc`. Admin API in `admin_api_*.go` files with `adminApiAuth()` middleware
 - `db/` — SQLite operations split by verb: `db_select.go`, `db_get.go`, `db_set.go`, `db_insert.go`, `db_update.go`, `db_add.go`, `db_wipe.go`. Schema init and migrations in `db_init.go`/`db_create.go`
 - `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
 - `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
 - `build/` — Version string (currently "0.13.0"), date/time injected at build
-- `web-content/` — HTML templates (loaded into memory at startup) and static assets under `public/`
+- `web-content/` — Static assets under `public/`, SPA build output under `admin/spa/`
 
 ### Route Groups (`web/app.go`)
 
 - `/ln`, `/cb` — LNURL-withdraw protocol (NFC card tap → payment)
-- `/admin/` — Admin dashboard (cookie-based session auth)
+- `/admin/` — React SPA admin UI (static assets + SPA index fallback)
+- `/admin/api/` — Admin JSON API (cookie-based session auth, 15 endpoints)
 - `/new` — Bolt Card Programmer endpoint
 - BoltCardHub API (`/create`, `/auth`, `/balance`, `/payinvoice`, etc.) — LndHub-compatible, feature-gated via `bolt_card_hub_api` setting
 - PoS API (`/pos/`) — Point-of-Sale subset of LndHub API, feature-gated via `bolt_card_pos_api` setting
