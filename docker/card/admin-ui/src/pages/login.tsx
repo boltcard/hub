@@ -30,8 +30,14 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <Zap className="mx-auto h-8 w-8 text-primary" />
-          <CardTitle className="text-xl">Bolt Card Hub</CardTitle>
+          <a href="/" className="inline-block mx-auto">
+            <Zap className="mx-auto h-8 w-8 text-primary" />
+          </a>
+          <CardTitle className="text-xl">
+            <a href="/" className="no-underline text-foreground hover:text-primary transition-colors">
+              Bolt Card Hub
+            </a>
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

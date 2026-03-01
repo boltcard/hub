@@ -1,119 +1,225 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Bolt Card Hub - Phoenix Edition</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <script type="module">
-        Date.prototype.toShortFormat = function() {
-            const e = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-                d = this.getDate(),
-                c = this.getMonth(),
-                m = e[c],
-                s = this.getFullYear();
-            return `${d} ${m} ${s}`
-        };
-
-        function u() {
-            for (var e = document.getElementById("results"); e.firstChild;) e.removeChild(e.firstChild)
+    <title>Card Balance — Bolt Card Hub</title>
+    <style>
+        :root {
+            --bg: #fff;
+            --text: #212121;
+            --accent: #f7931a;
+            --accent-hover: #e8850f;
+            --border: #e0e0e0;
+            --muted: #898EA4;
+            --success: #2e7d32;
         }
-
-        function g(e) {
-            u();
-            var d = document.getElementById("results"),
-                c = document.createElement("Label");
-            c.classList.add("display-5");
-            var m = e.AvailableBalance;
-            c.textContent = "Balance is " + m.toString() + " sats", d.appendChild(c);
-            var s = document.createElement("hr");
-            d.appendChild(s);
-            var l = document.createElement("table");
-            l.classList.add("table"), l.classList.add("table-bordered");
-            var p = document.createElement("thead"),
-                t = document.createElement("tr"),
-                a = document.createElement("th"),
-                n = document.createTextNode("Date");
-            a.appendChild(n), t.appendChild(a);
-            var a = document.createElement("th"),
-                n = document.createTextNode("Time");
-            a.appendChild(n), t.appendChild(a);
-            var a = document.createElement("th"),
-                n = document.createTextNode("Amount");
-            a.appendChild(n), t.appendChild(a);
-            var a = document.createElement("th"),
-                n = document.createTextNode("Fees");
-            a.appendChild(n), t.appendChild(a), l.appendChild(p), p.appendChild(t);
-            var h = document.createElement("tbody");
-            for (let o in e.txs) {
-                var x = e.txs[o].AmountSats,
-                    C = e.txs[o].FeeSats,
-                    v = new Date(e.txs[o].Timestamp * 1e3),
-                    t = document.createElement("tr"),
-                    n = document.createTextNode(v.toShortFormat()),
-                    r = document.createElement("td");
-                r.appendChild(n), t.appendChild(r);
-                var n = document.createTextNode(v.toLocaleTimeString()),
-                    r = document.createElement("td");
-                r.appendChild(n), t.appendChild(r);
-                var n = document.createTextNode(x.toString()),
-                    r = document.createElement("td");
-                r.appendChild(n), t.appendChild(r);
-                var n = document.createTextNode(C.toString()),
-                    r = document.createElement("td");
-                r.appendChild(n), t.appendChild(r), h.appendChild(t), console.log(e.txs[o].AmountSats), console.log(e.txs[o].FeeSats), console.log(e.txs[o].Timestamp);
-                var E = new Date(e.txs[o].Timestamp * 1e3);
-                console.log(E)
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #1a1a1a;
+                --text: #e0e0e0;
+                --border: #333;
+                --muted: #888;
             }
-            l.appendChild(h), d.appendChild(l)
         }
-        var i = document.getElementById("scanButton"),
-            N = "NDEFReader" in window;
-        N ? i.disabled = !1 : (i.textContent = "NFC is not supported", i.disabled = !0);
-        i.addEventListener("click", async () => {
-            i.textContent = "Scanning", u();
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            display: grid;
+            grid-template-columns: 1fr min(32rem, 92%) 1fr;
+            min-height: 100vh;
+        }
+        body > * { grid-column: 2; }
+        header {
+            grid-column: 1 / -1;
+            background: var(--accent);
+            color: #fff;
+            padding: 1rem;
+            text-align: center;
+        }
+        header h1 { font-size: 1.3rem; font-weight: 600; }
+        main { padding: 2rem 0; }
+        .scan-area {
+            text-align: center;
+            padding: 2rem 0;
+        }
+        button {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 0.9rem 2rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            min-width: 14rem;
+        }
+        button:hover:not(:disabled) { background: var(--accent-hover); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .balance {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            padding: 1.5rem 0 0.5rem;
+            font-variant-numeric: tabular-nums;
+        }
+        .balance-label {
+            text-align: center;
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        th {
+            text-align: left;
+            padding: 0.6rem 0.75rem;
+            border-bottom: 2px solid var(--border);
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+        th.num, td.num { text-align: right; }
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            font-variant-numeric: tabular-nums;
+        }
+        tr:last-child td { border-bottom: none; }
+        .positive { color: var(--success); }
+        .no-nfc {
+            color: var(--muted);
+            text-align: center;
+            padding: 1rem 0;
+        }
+        #results { display: none; }
+        footer {
+            padding: 2rem 0 1rem;
+            text-align: center;
+            font-size: 0.85rem;
+        }
+        footer a { color: var(--accent); text-decoration: none; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Card Balance</h1>
+    </header>
+    <main>
+        <div class="scan-area">
+            <button id="scanButton" disabled>Scan Card</button>
+            <p class="no-nfc" id="no-nfc" style="display:none">NFC is not available in this browser.</p>
+        </div>
+        <div id="results"></div>
+    </main>
+    <footer>
+        <a href="/">Bolt Card Hub</a>
+    </footer>
+
+    <script type="module">
+        const btn = document.getElementById('scanButton');
+        const results = document.getElementById('results');
+        const noNfc = document.getElementById('no-nfc');
+        const hasNfc = 'NDEFReader' in window;
+
+        if (hasNfc) {
+            btn.disabled = false;
+        } else {
+            btn.textContent = 'NFC Not Supported';
+            noNfc.style.display = 'block';
+        }
+
+        const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+        function formatDate(ts) {
+            const d = new Date(ts * 1000);
+            return d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+        }
+
+        function formatTime(ts) {
+            return new Date(ts * 1000).toLocaleTimeString();
+        }
+
+        function el(tag, cls, text) {
+            const e = document.createElement(tag);
+            if (cls) e.className = cls;
+            if (text != null) e.textContent = text;
+            return e;
+        }
+
+        function render(data) {
+            results.replaceChildren();
+
+            results.appendChild(el('div', 'balance', data.AvailableBalance.toLocaleString() + ' sats'));
+            results.appendChild(el('div', 'balance-label', 'Available Balance'));
+
+            if (data.txs && data.txs.length > 0) {
+                const table = el('table');
+                const thead = el('thead');
+                const hr = el('tr');
+                hr.appendChild(el('th', null, 'Date'));
+                hr.appendChild(el('th', null, 'Time'));
+                hr.appendChild(el('th', 'num', 'Amount'));
+                hr.appendChild(el('th', 'num', 'Fees'));
+                thead.appendChild(hr);
+                table.appendChild(thead);
+
+                const tbody = el('tbody');
+                for (const tx of data.txs) {
+                    const tr = el('tr');
+                    tr.appendChild(el('td', null, formatDate(tx.Timestamp)));
+                    tr.appendChild(el('td', null, formatTime(tx.Timestamp)));
+                    const amtCls = 'num' + (tx.AmountSats >= 0 ? ' positive' : '');
+                    tr.appendChild(el('td', amtCls, tx.AmountSats.toLocaleString()));
+                    tr.appendChild(el('td', 'num', tx.FeeSats.toLocaleString()));
+                    tbody.appendChild(tr);
+                }
+                table.appendChild(tbody);
+                results.appendChild(table);
+            }
+
+            results.style.display = 'block';
+        }
+
+        btn.addEventListener('click', async () => {
+            btn.textContent = 'Scanning\u2026';
+            btn.disabled = true;
+            results.style.display = 'none';
+
             try {
-                const e = new NDEFReader;
-                await e.scan(), e.addEventListener("readingerror", () => {}), e.addEventListener("reading", ({
-                    message: d,
-                    serialNumber: c
-                }) => {
-                    u();
-                    const m = new TextDecoder,
-                        s = d.records[0];
-                    if (d.records.length === 0) {
-                        return
-                    }
-                    const p = new TextDecoder("utf-8").decode(s.data),
-                        t = new XMLHttpRequest;
-                    t.open("GET", "/balance-ajax?card=" + encodeURIComponent(p), !0), t.onload = function() {
-                        if (t.status === 200) try {
-                            const a = JSON.parse(t.responseText);
-                            g(a)
-                        } catch {} else `${t.status}${t.statusText}`
-                    }, t.onerror = function() {}, t.send()
-                })
-            } catch {}
+                const reader = new NDEFReader();
+                await reader.scan();
+
+                reader.addEventListener('reading', ({ message }) => {
+                    if (message.records.length === 0) return;
+
+                    const url = new TextDecoder('utf-8').decode(message.records[0].data);
+
+                    fetch('/balance-ajax?card=' + encodeURIComponent(url))
+                        .then(r => r.json())
+                        .then(data => {
+                            render(data);
+                            btn.textContent = 'Scan Again';
+                            btn.disabled = false;
+                        })
+                        .catch(() => {
+                            btn.textContent = 'Scan Card';
+                            btn.disabled = false;
+                        });
+                });
+            } catch {
+                btn.textContent = 'Scan Card';
+                btn.disabled = false;
+            }
         });
     </script>
-</head>
-
-<body>
-    <div class="container-fluid">
-        <div class="row">
-            <div class="d-grid gap-2 col-6 mx-auto p-4"> <button id="scanButton" class="btn btn-primary btn-lg">Scan Card</button> </div>
-        </div>
-        <div class="row">
-            <div id="results"></div>
-        </div>
-        <div class="row">
-            <blockquote class="blockquote">
-                <div id="log-msgs"></div>
-            </blockquote>
-        </div>
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 </body>
-
 </html>
