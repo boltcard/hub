@@ -123,7 +123,12 @@ func TriggerUpdate() error {
 		return fmt.Errorf("compose project working dir label not found")
 	}
 
-	log.Info("TriggerUpdate: project dir = ", projectDir)
+	projectName := inspectResult.Config.Labels["com.docker.compose.project"]
+	if projectName == "" {
+		return fmt.Errorf("compose project name label not found")
+	}
+
+	log.Info("TriggerUpdate: project dir = ", projectDir, ", name = ", projectName)
 
 	// 2. Check if updater already exists
 	resp2, err := dockerGet("/containers/hub-updater/json")
@@ -152,16 +157,16 @@ func TriggerUpdate() error {
 	log.Info("TriggerUpdate: creating updater container")
 	createBody := fmt.Sprintf(`{
 		"Image": "docker:cli",
-		"Cmd": ["sh", "-c", "docker compose pull && docker compose up -d --no-build"],
-		"WorkingDir": "/project",
+		"Cmd": ["sh", "-c", "docker compose -p %s pull card && docker compose -p %s up -d --no-build card"],
+		"WorkingDir": "%s",
 		"HostConfig": {
 			"AutoRemove": true,
 			"Binds": [
 				"/var/run/docker.sock:/var/run/docker.sock",
-				"%s:/project"
+				"%s:%s"
 			]
 		}
-	}`, projectDir)
+	}`, projectName, projectName, projectDir, projectDir, projectDir)
 
 	resp4, err := dockerPost(
 		"/containers/create?name=hub-updater",
