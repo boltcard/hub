@@ -75,7 +75,7 @@ export function PhoenixPage() {
         timestamp: msg.timestamp,
         isPaid: true,
       }));
-    return [...live, ...fetched].slice(0, 5);
+    return [...live, ...fetched].sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
   }, [txData, liveReceived]);
 
   const outgoingTxs = useMemo(() => {
@@ -90,7 +90,7 @@ export function PhoenixPage() {
         timestamp: msg.timestamp,
         isPaid: true,
       }));
-    return [...live, ...fetched].slice(0, 5);
+    return [...live, ...fetched].sort((a, b) => b.timestamp - a.timestamp).slice(0, 5);
   }, [txData, liveSent]);
 
   if (isLoading || !data) {
