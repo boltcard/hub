@@ -10,7 +10,7 @@ https://{$HOST_DOMAIN} {
 	}
 
 	@auth_paths {
-		path /admin/login/ /auth
+		path /admin/login/ /admin/api/auth/login /auth
 	}
 	handle @auth_paths {
 		rate_limit {

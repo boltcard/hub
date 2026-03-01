@@ -1,7 +1,6 @@
 package web
 
 import (
-	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,25 +9,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 )
-
-func Admin_Database(db_conn *sql.DB, w http.ResponseWriter, r *http.Request) {
-
-	request := r.RequestURI
-
-	if request == "/admin/database/download" {
-		databaseDownload(w)
-		return
-	}
-
-	if request == "/admin/database/import" {
-		databaseImport(w, r)
-		return
-	}
-
-	template_path := "/admin/database/index.html"
-
-	RenderHtmlFromTemplate(w, template_path, nil)
-}
 
 func databaseDownload(w http.ResponseWriter) {
 
@@ -91,7 +71,8 @@ func databaseImport(w http.ResponseWriter, r *http.Request) {
 
 	log.Info("databaseImport: database imported successfully, restarting service")
 
-	http.Redirect(w, r, "/admin/database/", http.StatusSeeOther)
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"ok":true}`))
 
 	// flush the response to the client before exiting
 	if flusher, ok := w.(http.Flusher); ok {

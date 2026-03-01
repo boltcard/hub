@@ -168,6 +168,52 @@ func Db_select_card_txs(db_conn *sql.DB, card_id int) (result CardTxs) {
 	return cardTxs
 }
 
+type CardSummary struct {
+	CardId       int
+	Uid          string
+	Note         string
+	BalanceSats  int
+	LnurlwEnable string
+	Wiped        string
+	GroupTag     string
+	TxLimitSats  int
+	DayLimitSats int
+}
+
+func Db_select_all_cards(db_conn *sql.DB) []CardSummary {
+	var cards []CardSummary
+
+	sqlStatement := `SELECT c.card_id, c.uid, c.note, c.lnurlw_enable, c.wiped,` +
+		` IFNULL(c.group_tag, ''), c.tx_limit_sats, c.day_limit_sats,` +
+		` IFNULL((SELECT SUM(amount_sats) FROM card_receipts WHERE paid_flag='Y' AND card_id=c.card_id), 0) -` +
+		` IFNULL((SELECT SUM(amount_sats) + SUM(fee_sats) FROM card_payments WHERE paid_flag='Y' AND card_id=c.card_id), 0)` +
+		` AS balance_sats` +
+		` FROM cards c WHERE c.wiped = 'N'` +
+		` ORDER BY c.card_id DESC;`
+
+	rows, err := db_conn.Query(sqlStatement)
+	if err != nil {
+		log.Error("db_select_all_cards query error: ", err)
+		return cards
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cs CardSummary
+		err := rows.Scan(
+			&cs.CardId, &cs.Uid, &cs.Note, &cs.LnurlwEnable,
+			&cs.Wiped, &cs.GroupTag, &cs.TxLimitSats, &cs.DayLimitSats,
+			&cs.BalanceSats)
+		if err != nil {
+			log.Error("db_select_all_cards scan error: ", err)
+			continue
+		}
+		cards = append(cards, cs)
+	}
+
+	return cards
+}
+
 type CardIdOnly struct {
 	CardId int
 }
