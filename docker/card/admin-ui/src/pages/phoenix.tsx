@@ -222,9 +222,9 @@ export function PhoenixPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead className="text-right font-mono">Amount</TableHead>
-                  <TableHead>Message</TableHead>
+                  <TableHead className="w-[40%]">Time</TableHead>
+                  <TableHead className="w-[35%]">Message</TableHead>
+                  <TableHead className="w-[25%] text-right font-mono">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -233,11 +233,11 @@ export function PhoenixPage() {
                     <TableCell className="text-sm">
                       {formatTimestamp(tx.timestamp)}
                     </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums text-[var(--success)]">
-                      +{formatSats(tx.amountSat)}
-                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {tx.description || "\u2014"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-[var(--success)]">
+                      +{formatSats(tx.amountSat)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -269,9 +269,9 @@ export function PhoenixPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Time</TableHead>
-                  <TableHead className="text-right font-mono">Amount</TableHead>
-                  <TableHead>Card</TableHead>
+                  <TableHead className="w-[40%]">Time</TableHead>
+                  <TableHead className="w-[35%]">Card</TableHead>
+                  <TableHead className="w-[25%] text-right font-mono">Amount</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -280,11 +280,11 @@ export function PhoenixPage() {
                     <TableCell className="text-sm">
                       {formatTimestamp(tx.timestamp)}
                     </TableCell>
-                    <TableCell className="text-right font-mono tabular-nums text-destructive">
-                      -{formatSats(tx.amountSat)}
-                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {tx.cardNote || "\u2014"}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-destructive">
+                      -{formatSats(tx.amountSat)}
                     </TableCell>
                   </TableRow>
                 ))}
