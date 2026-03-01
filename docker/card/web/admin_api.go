@@ -76,6 +76,9 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 		case path == "/admin/api/phoenix":
 			app.adminApiAuth(app.adminApiPhoenix)(w, r)
 
+		case path == "/admin/api/phoenix/transactions":
+			app.adminApiAuth(app.adminApiTransactions)(w, r)
+
 		case path == "/admin/api/cards" && r.Method == "GET":
 			app.adminApiAuth(app.adminApiListCards)(w, r)
 

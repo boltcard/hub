@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"strconv"
+	"time"
 
 	decodepay "github.com/nbd-wtf/ln-decodepay"
 	log "github.com/sirupsen/logrus"
@@ -101,6 +102,9 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 		log.Info("payInvoiceResponse : ", payInvoiceResponse)
 
 		// create the response
+
+		// broadcast to websocket clients
+		app.broadcastPaymentSent(reqObj.Amount, bolt11.PaymentHash, time.Now().Unix())
 
 		var resObj PayInvoiceResponse
 		resObj.Status = "OK"

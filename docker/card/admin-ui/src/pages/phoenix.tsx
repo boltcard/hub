@@ -1,12 +1,21 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
-import { formatSats } from "@/lib/format";
+import { formatSats, formatTimestamp } from "@/lib/format";
 import { StatCard } from "@/components/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Coins, Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Zap, Coins, Copy, Check, ArrowDownLeft, ArrowUpRight } from "lucide-react";
+import { useState, useMemo, useCallback } from "react";
+import { useWebSocket } from "@/hooks/use-websocket";
 
 interface PhoenixData {
   balanceSat: number;
@@ -21,13 +30,66 @@ interface PhoenixData {
   }[];
 }
 
+interface TxItem {
+  direction: string;
+  amountSat: number;
+  paymentHash: string;
+  timestamp: number;
+  isPaid: boolean;
+}
+
 export function PhoenixPage() {
+  const queryClient = useQueryClient();
+
+  const onEvent = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["phoenix"] });
+    queryClient.invalidateQueries({ queryKey: ["phoenix-transactions"] });
+  }, [queryClient]);
+
   const { data, isLoading } = useQuery({
     queryKey: ["phoenix"],
     queryFn: () => apiFetch<PhoenixData>("/phoenix"),
     refetchInterval: 30_000,
   });
+
+  const { data: txData } = useQuery({
+    queryKey: ["phoenix-transactions"],
+    queryFn: () => apiFetch<{ in: TxItem[]; out: TxItem[] }>("/phoenix/transactions"),
+  });
+
+  const { received: liveReceived, sent: liveSent, status: wsStatus } = useWebSocket(onEvent);
   const [copied, setCopied] = useState(false);
+
+  // Merge live websocket payments with fetched txs, dedup by paymentHash, limit to 5
+  const incomingTxs = useMemo(() => {
+    const fetched = txData?.in ?? [];
+    const seen = new Set(fetched.map((tx) => tx.paymentHash));
+    const live: TxItem[] = liveReceived
+      .filter((msg) => !seen.has(msg.paymentHash))
+      .map((msg) => ({
+        direction: "in",
+        amountSat: msg.amountSat,
+        paymentHash: msg.paymentHash,
+        timestamp: msg.timestamp,
+        isPaid: true,
+      }));
+    return [...live, ...fetched].slice(0, 5);
+  }, [txData, liveReceived]);
+
+  const outgoingTxs = useMemo(() => {
+    const fetched = txData?.out ?? [];
+    const seen = new Set(fetched.map((tx) => tx.paymentHash));
+    const live: TxItem[] = liveSent
+      .filter((msg) => !seen.has(msg.paymentHash))
+      .map((msg) => ({
+        direction: "out",
+        amountSat: msg.amountSat,
+        paymentHash: msg.paymentHash,
+        timestamp: msg.timestamp,
+        isPaid: true,
+      }));
+    return [...live, ...fetched].slice(0, 5);
+  }, [txData, liveSent]);
 
   if (isLoading || !data) {
     return (
@@ -50,7 +112,12 @@ export function PhoenixPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Phoenix</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Phoenix</h1>
+        <Badge variant={wsStatus === "connected" ? "default" : "secondary"}>
+          {wsStatus === "connected" ? "Live" : wsStatus === "connecting" ? "Connecting" : "Disconnected"}
+        </Badge>
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <StatCard title="Balance" value={data.balanceSat} isSats icon={Zap} />
@@ -61,6 +128,48 @@ export function PhoenixPage() {
           icon={Coins}
         />
       </div>
+
+      {data.channels.length > 0 && (
+        <div className="space-y-3">
+          {data.channels.map((ch) => {
+            const outbound = Math.floor(ch.balanceMsat / 1000);
+            const inbound = Math.floor(ch.inboundLiquidMsat / 1000);
+            const total = outbound + inbound;
+            const outPct = total > 0 ? (outbound / total) * 100 : 0;
+
+            return (
+              <Card key={ch.channelId}>
+                <CardContent className="pt-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <code className="text-xs text-muted-foreground">
+                      {ch.channelId.slice(0, 16)}...
+                    </code>
+                    <Badge
+                      variant={ch.state === "NORMAL" ? "default" : "secondary"}
+                    >
+                      {ch.state}
+                    </Badge>
+                  </div>
+                  <div className="mb-1 flex h-3 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="bg-[var(--success)] transition-all"
+                      style={{ width: `${outPct}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs">
+                    <span className="font-mono tabular-nums text-[var(--success)]">
+                      {formatSats(outbound)} out
+                    </span>
+                    <span className="font-mono tabular-nums text-muted-foreground">
+                      {formatSats(inbound)} in
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
 
       {data.offer && (
         <Card>
@@ -94,56 +203,81 @@ export function PhoenixPage() {
         </Card>
       )}
 
-      <div>
-        <h2 className="mb-4 text-lg font-semibold">Channels</h2>
-        {data.channels.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
-            No channels found.
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {data.channels.map((ch) => {
-              const outbound = Math.floor(ch.balanceMsat / 1000);
-              const inbound = Math.floor(ch.inboundLiquidMsat / 1000);
-              const total = outbound + inbound;
-              const outPct = total > 0 ? (outbound / total) * 100 : 0;
+      {/* Transactions In */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <ArrowDownLeft className="h-4 w-4" />
+            Transactions In
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {incomingTxs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No incoming payments yet.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead className="text-right font-mono">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {incomingTxs.map((tx) => (
+                  <TableRow key={tx.paymentHash}>
+                    <TableCell className="text-sm">
+                      {formatTimestamp(tx.timestamp)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-[var(--success)]">
+                      +{formatSats(tx.amountSat)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
-              return (
-                <Card key={ch.channelId}>
-                  <CardContent className="pt-4">
-                    <div className="mb-2 flex items-center justify-between">
-                      <code className="text-xs text-muted-foreground">
-                        {ch.channelId.slice(0, 16)}...
-                      </code>
-                      <Badge
-                        variant={
-                          ch.state === "NORMAL" ? "default" : "secondary"
-                        }
-                      >
-                        {ch.state}
-                      </Badge>
-                    </div>
-                    <div className="mb-1 flex h-3 w-full overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="bg-[var(--success)] transition-all"
-                        style={{ width: `${outPct}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs">
-                      <span className="font-mono tabular-nums text-[var(--success)]">
-                        {formatSats(outbound)} out
-                      </span>
-                      <span className="font-mono tabular-nums text-muted-foreground">
-                        {formatSats(inbound)} in
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {/* Transactions Out */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <ArrowUpRight className="h-4 w-4" />
+            Transactions Out
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {outgoingTxs.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              No outgoing payments yet.
+            </p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Time</TableHead>
+                  <TableHead className="text-right font-mono">Amount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {outgoingTxs.map((tx) => (
+                  <TableRow key={tx.paymentHash}>
+                    <TableCell className="text-sm">
+                      {formatTimestamp(tx.timestamp)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono tabular-nums text-destructive">
+                      -{formatSats(tx.amountSat)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

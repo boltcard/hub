@@ -27,7 +27,6 @@ const CardsPage = lazy(() =>
 const CardDetailPage = lazy(() =>
   import("@/pages/card-detail").then((m) => ({ default: m.CardDetailPage }))
 );
-
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {

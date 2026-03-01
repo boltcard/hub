@@ -192,6 +192,9 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 		// payment succeeded — record the routing fee
 		db.Db_update_card_payment_fee(app.db_conn, card_payment_id, payInvoiceResponse.RoutingFeeSat)
 
+		// broadcast to websocket clients
+		app.broadcastPaymentSent(amountSats, bolt11.PaymentHash, time.Now().Unix())
+
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]string{"status": "OK"})
 	}

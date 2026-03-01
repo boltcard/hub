@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"strconv"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -14,6 +14,13 @@ import (
 	"github.com/go-ini/ini"
 	"github.com/gorilla/websocket"
 )
+
+type wsPaymentEvent struct {
+	Type        string `json:"type"`
+	AmountSat   int    `json:"amountSat"`
+	PaymentHash string `json:"paymentHash"`
+	Timestamp   int64  `json:"timestamp"`
+}
 
 type WebSocketMessage struct {
 	Type        string `json:"type"`
@@ -25,9 +32,121 @@ type WebSocketMessage struct {
 	PayerKey    string `json:"payerKey,omitempty"`
 }
 
+// startPhoenixListener opens a single websocket to Phoenix and broadcasts
+// incoming payment events to all connected admin clients via the hub.
+// It runs once and reconnects are not needed (Phoenix connection is long-lived).
+func (app *App) startPhoenixListener() {
+	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
+	if err != nil {
+		log.Error("failed to load phoenix config: ", err)
+		return
+	}
+
+	hp := cfg.Section("").Key("http-password").String()
+	h := http.Header{"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(":" + hp))}}
+	c, _, err := websocket.DefaultDialer.Dial("ws://phoenix:9740/websocket", h)
+	if err != nil {
+		log.Info("phoenix websocket not available: ", err.Error())
+		return
+	}
+
+	go func() {
+		defer c.Close()
+		for {
+			_, message, err := c.ReadMessage()
+			if err != nil {
+				log.Info("websocket to phoenix is closing: ", err.Error())
+				return
+			}
+
+			log.Info("phoenix ws message: ", string(message))
+
+			var wsMsg WebSocketMessage
+			err = json.Unmarshal(message, &wsMsg)
+			if err != nil {
+				log.Error("websocket json unmarshal error: ", err)
+				continue
+			}
+
+			incomingPayment, err := phoenix.GetIncomingPayment(wsMsg.PaymentHash)
+			if err != nil {
+				log.Error("phoenix GetIncomingPayment error: ", err)
+				continue
+			}
+
+			event := wsPaymentEvent{
+				Type:        "payment_received",
+				AmountSat:   incomingPayment.ReceivedSat,
+				PaymentHash: incomingPayment.PaymentHash,
+				Timestamp:   incomingPayment.CompletedAt / 1000,
+			}
+
+			eventJSON, err := json.Marshal(event)
+			if err != nil {
+				log.Error("websocket json marshal error: ", err)
+				continue
+			}
+
+			app.hub.broadcast(eventJSON)
+		}
+	}()
+}
+
+// startChannelPoller polls Phoenix channel status every 30s and broadcasts
+// a channel_update event when any channel state changes.
+func (app *App) startChannelPoller() {
+	go func() {
+		var lastStates map[string]string
+
+		for {
+			channels, err := phoenix.ListChannels()
+			if err != nil {
+				log.Warn("channel poll error: ", err)
+				time.Sleep(30 * time.Second)
+				continue
+			}
+
+			states := make(map[string]string, len(channels))
+			for _, ch := range channels {
+				states[ch.ChannelID] = ch.State
+			}
+
+			if lastStates != nil {
+				changed := len(states) != len(lastStates)
+				if !changed {
+					for id, state := range states {
+						if lastStates[id] != state {
+							changed = true
+							break
+						}
+					}
+				}
+				if changed {
+					event := map[string]string{"type": "channel_update"}
+					eventJSON, err := json.Marshal(event)
+					if err == nil {
+						app.hub.broadcast(eventJSON)
+					}
+				}
+			}
+
+			lastStates = states
+			time.Sleep(30 * time.Second)
+		}
+	}()
+}
+
 func (app *App) CreateHandler_Websocket() http.HandlerFunc {
 	hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
+
+	// Start Phoenix listener once (shared across all clients)
+	var once sync.Once
+
 	return func(w http.ResponseWriter, r *http.Request) {
+		once.Do(func() {
+			app.startPhoenixListener()
+			app.startChannelPoller()
+		})
 
 		var upgrader = websocket.Upgrader{
 			ReadBufferSize:  1024,
@@ -48,105 +167,43 @@ func (app *App) CreateHandler_Websocket() http.HandlerFunc {
 		}
 
 		log.Info("websocket from client is open")
-
 		defer conn.Close()
 
-		// open a websocket connection to phoenix
-		// to receive payment notifications
-		// and pass each one on to the client
+		// Subscribe to hub broadcasts
+		ch := app.hub.subscribe()
+		defer app.hub.unsubscribe(ch)
 
-		cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
-		if err != nil {
-			log.Error("failed to load phoenix config: ", err)
-			return
-		}
-
-		hp := cfg.Section("").Key("http-password").String()
-
-		// https://github.com/gorilla/websocket/issues/209#issuecomment-275419998
-		h := http.Header{"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(":"+hp))}}
-		c, _, err := websocket.DefaultDialer.Dial("ws://phoenix:9740/websocket", h)
-		if err != nil {
-			log.Info("phoenix not available : ", err.Error())
-		} else {
-			defer c.Close()
-
-			done := make(chan struct{})
-
-			go func() {
-				defer close(done)
-				for {
-					_, message, err := c.ReadMessage()
-					if err != nil {
-						log.Info("websocket to phoenix is closing : ", err.Error())
-						return
-					}
-
-					// `message` contains the websocket message as []byte from Phoenix server
-					log.Info("message : ", string(message))
-
-					// decode the JSON into a struct
-					var webSocketMessage WebSocketMessage
-
-					err = json.Unmarshal(message, &webSocketMessage)
-					if err != nil {
-						log.Error("websocket json unmarshal error: ", err)
-						return
-					}
-
-					log.Info("webSocketMessage : ", webSocketMessage)
-
-					// look up the payment_hash to look up the description using GetIncomingPayment
-					incomingPayment, err := phoenix.GetIncomingPayment(webSocketMessage.PaymentHash)
-					if err != nil {
-						log.Error("phoenix GetIncomingPayment error: ", err)
-						return
-					}
-
-					log.Info("incomingPayment : ", incomingPayment)
-
-					// TODO: send JSON encoded data to add a tx row
-					// TODO: send JSON encoded data to update the totals
-					now := time.Now()
-					now_string := now.Format("15:04:05")
-					err = conn.WriteMessage(websocket.TextMessage,
-						[]byte(now_string+" UTC, "+
-							strconv.Itoa(incomingPayment.ReceivedSat)+" sats received, "+
-							strconv.Itoa(incomingPayment.Fees)+" sats fees,"+
-							" message: "+webSocketMessage.PayerNote))
-					if err != nil {
-						log.Warn("websocket write error :", err)
-						return
-					}
+		// Forward hub messages to client
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			for msg := range ch {
+				err := conn.WriteMessage(websocket.TextMessage, msg)
+				if err != nil {
+					log.Warn("websocket write error:", err)
+					return
 				}
-			}()
-		}
+			}
+		}()
 
+		// Read from client (ping/pong keepalive)
 		for {
-			// read message from client
 			_, message, err := conn.ReadMessage()
 			if err != nil {
-				log.Info("websocket from client is closing : ", err.Error())
+				log.Info("websocket from client is closing: ", err.Error())
 				return
 			}
 
-			// handle "ping" message
 			if string(message) == "ping" {
-
-				//send message to client
 				err = conn.WriteMessage(websocket.TextMessage, []byte("pong"))
 				if err != nil {
 					log.Error("websocket write error: ", err)
 					return
 				}
-
 				continue
 			}
 
-			// TODO: make sure authentication is implemented before adding more here!
-
-			// show message if not handled
-			log.Info("websocket from client - unhandled message : ", string(message))
+			log.Info("websocket from client - unhandled message: ", string(message))
 		}
 	}
 }

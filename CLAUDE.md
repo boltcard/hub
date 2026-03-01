@@ -95,11 +95,12 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 
 - `/ln`, `/cb` — LNURL-withdraw protocol (NFC card tap → payment)
 - `/admin/` — React SPA admin UI (static assets + SPA index fallback)
-- `/admin/api/` — Admin JSON API (cookie-based session auth, 15 endpoints)
+- `/admin/api/` — Admin JSON API (cookie-based session auth, 16 endpoints)
 - `/new` — Bolt Card Programmer endpoint
 - BoltCardHub API (`/create`, `/auth`, `/balance`, `/payinvoice`, etc.) — LndHub-compatible, feature-gated via `bolt_card_hub_api` setting
 - PoS API (`/pos/`) — Point-of-Sale subset of LndHub API, feature-gated via `bolt_card_pos_api` setting
-- `/websocket` — Real-time payment notifications
+- `/websocket` — Real-time payment notifications (JSON events via `wsHub` broadcast)
+- `/admin/api/phoenix/transactions` — Last 5 incoming/outgoing Phoenix payments
 
 ### Admin Update (`web/update.go`)
 

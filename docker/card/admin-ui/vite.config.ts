@@ -22,6 +22,11 @@ export default defineConfig({
         target: "http://localhost:8000",
         changeOrigin: true,
       },
+      "/websocket": {
+        target: "http://localhost:8000",
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
 });

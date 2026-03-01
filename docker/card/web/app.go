@@ -9,10 +9,11 @@ import (
 
 type App struct {
 	db_conn *sql.DB
+	hub     *wsHub
 }
 
 func NewApp(db_conn *sql.DB) *App {
-	return &App{db_conn: db_conn}
+	return &App{db_conn: db_conn, hub: newWsHub()}
 }
 
 func (app *App) SetupRoutes() *mux.Router {

@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CreditCard, Zap, Coins } from "lucide-react";
+import { CreditCard, Zap } from "lucide-react";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 
 interface DashboardData {
@@ -53,7 +53,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Dashboard</h1>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <StatCard
           title="Total Cards"
           value={data.cardCount}
@@ -64,12 +64,6 @@ export function DashboardPage() {
           value={data.phoenixBalance}
           isSats
           icon={Zap}
-        />
-        <StatCard
-          title="Fee Credit"
-          value={data.phoenixFeeCredit}
-          isSats
-          icon={Coins}
         />
       </div>
 
