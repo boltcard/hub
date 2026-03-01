@@ -34,13 +34,17 @@ func (app *App) adminApiTransactions(w http.ResponseWriter, r *http.Request) {
 		if !p.IsPaid {
 			continue
 		}
+		message := p.PayerNote
+		if message == "" {
+			message = p.Description
+		}
 		txIn = append(txIn, txJSON{
 			Direction:   "in",
 			AmountSat:   p.ReceivedSat,
 			PaymentHash: p.PaymentHash,
 			Timestamp:   p.CompletedAt / 1000,
 			IsPaid:      p.IsPaid,
-			Description: p.Description,
+			Description: message,
 		})
 	}
 

@@ -15,6 +15,7 @@ type IncomingPayments []struct {
 	IsPaid      bool   `json:"isPaid"`
 	ReceivedSat int    `json:"receivedSat"`
 	Fees        int    `json:"fees"`
+	PayerNote   string `json:"payerNote"`
 	CompletedAt int64  `json:"completedAt"`
 	CreatedAt   int64  `json:"createdAt"`
 }
