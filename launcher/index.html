@@ -314,14 +314,6 @@
             }
             container.appendChild(stepsDiv);
 
-            if (ip) {
-                var ipNote = document.createElement('p');
-                ipNote.className = 'note';
-                ipNote.style.marginTop = '1rem';
-                ipNote.textContent = 'IP: ' + ip;
-                container.appendChild(ipNote);
-            }
-
             // Show total elapsed time when done
             if (currentStep >= STEPS.length - 1 && stepStartTimes[0]) {
                 var totalSec = (Date.now() - stepStartTimes[0]) / 1000;

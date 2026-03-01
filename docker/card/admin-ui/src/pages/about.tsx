@@ -43,7 +43,7 @@ export function AboutPage() {
 
   const triggerUpdate = useMutation({
     mutationFn: () => apiPost("/about/update"),
-    onSuccess: () => {
+    onSettled: () => {
       setDialogOpen(false);
       setUpdating(true);
       toast.success("Update triggered — restarting containers…");
@@ -61,9 +61,6 @@ export function AboutPage() {
       }, 3000);
       // Stop polling after 2 minutes
       setTimeout(() => clearInterval(poll), 120_000);
-    },
-    onError: (err) => {
-      toast.error("Update failed: " + err.message);
     },
   });
 
