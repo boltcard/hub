@@ -321,45 +321,38 @@
             }
         }
 
-        // Time-based step thresholds (seconds after VM creation)
-        var STEP_THRESHOLDS = [
-            { step: 1, after: 0 },    // boot
-            { step: 2, after: 30 },   // installing docker
-            { step: 3, after: 90 },   // pulling images
-            { step: 4, after: 150 },  // starting services
-        ];
-
-        async function pollStatus(hostname, ip) {
+        async function pollStatus(hostname, ip, apiId, apiKey, vmId) {
             var step = 1;
-            var startTime = Date.now();
             setStatus('loading', renderProgress(step, hostname, ip));
 
             for (var attempt = 0; attempt < 60; attempt++) {
                 await sleep(10000);
-                var elapsed = (Date.now() - startTime) / 1000;
 
                 try {
-                    var res = await fetch('/api/status?hostname=' + encodeURIComponent(hostname));
+                    var res = await fetch('/api/status', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            api_id: apiId,
+                            api_key: apiKey,
+                            vm_id: vmId,
+                            hostname: hostname,
+                        }),
+                    });
                     var data = await res.json();
 
-                    if (data.state === 'ready') {
+                    // Backend returns the real step (from SSH log + HTTPS probing)
+                    if (data.step != null && data.step > step) step = data.step;
+
+                    if (step >= STEPS.length - 1) {
                         setStatus('success', renderProgress(STEPS.length - 1, hostname, ip));
                         return;
-                    } else if (data.state === 'tls_pending') {
-                        step = 5;
-                        setStatus('loading', renderProgress(step, hostname, ip));
-                    } else {
-                        for (var t of STEP_THRESHOLDS) {
-                            if (elapsed >= t.after && t.step > step) step = t.step;
-                        }
-                        setStatus('loading', renderProgress(step, hostname, ip));
                     }
                 } catch (e) {
-                    for (var t of STEP_THRESHOLDS) {
-                        if (elapsed >= t.after && t.step > step) step = t.step;
-                    }
-                    setStatus('loading', renderProgress(step, hostname, ip));
+                    // fetch error — keep current step
                 }
+
+                setStatus('loading', renderProgress(step, hostname, ip));
             }
 
             setStatus('success', renderProgress(STEPS.length - 1, hostname, ip),
@@ -390,7 +383,7 @@
                     throw new Error(data.error || 'Launch failed');
                 }
 
-                pollStatus(data.hostname, data.ip);
+                pollStatus(data.hostname, data.ip, apiId, apiKey, data.vm_id);
             } catch (err) {
                 setStatus('error', err.message);
                 btn.disabled = false;

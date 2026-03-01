@@ -1,61 +1,19 @@
-const crypto = require('crypto');
-const https = require('https');
-
-// LunaNode API: HMAC-SHA512 signed requests
-function signRequest(apiId, apiKey, handler, params) {
-  const partialKey = apiKey.substring(0, 64);
-  const body = JSON.stringify({ api_id: apiId, api_partialkey: partialKey, ...params });
-  const nonce = Math.floor(Date.now() / 1000).toString();
-  const signature = crypto
-    .createHmac('sha512', apiKey)
-    .update(`${handler}/|${body}|${nonce}`)
-    .digest('hex');
-  return { body, signature, nonce };
-}
-
-function lunaRequest(apiId, apiKey, handler, params = {}) {
-  return new Promise((resolve, reject) => {
-    const { body, signature, nonce } = signRequest(apiId, apiKey, handler, params);
-    const postData = `req=${encodeURIComponent(body)}&signature=${encodeURIComponent(signature)}&nonce=${encodeURIComponent(nonce)}`;
-
-    const req = https.request({
-      hostname: 'dynamic.lunanode.com',
-      path: `/api/${handler}/`,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Content-Length': Buffer.byteLength(postData),
-      },
-    }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const json = JSON.parse(data);
-          if (json.success !== 'yes') {
-            reject(new Error(json.error || `API error on ${handler}`));
-          } else {
-            resolve(json);
-          }
-        } catch {
-          reject(new Error(`Invalid response from ${handler}`));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(); reject(new Error(`Timeout on ${handler}`)); });
-    req.write(postData);
-    req.end();
-  });
-}
+const { lunaRequest } = require('./_luna');
 
 const STARTUP_SCRIPT = `#!/bin/bash
 export HOME="\${HOME:-/root}"
 export DEBIAN_FRONTEND=noninteractive
 
+# Log all output to file and console
+touch /var/log/boltcardhub-install.log
+chmod 644 /var/log/boltcardhub-install.log
+exec > >(tee -a /var/log/boltcardhub-install.log) 2>&1
+
+echo "[$(date -Iseconds)] Starting Bolt Card Hub install"
+
 # Resolve rDNS hostname from public IP
 IP=$(curl -4 -s --retry 5 --retry-delay 2 ifconfig.me)
+echo "[$(date -Iseconds)] Public IP: $IP"
 HOST_DOMAIN=$(host "$IP" 2>/dev/null | awk '/domain name pointer/ {sub(/[.]$/, "", $NF); print $NF}') || true
 
 if [ -z "$HOST_DOMAIN" ]; then
@@ -63,8 +21,10 @@ if [ -z "$HOST_DOMAIN" ]; then
   HOST_DOMAIN="$d.$c.$b.$a.lunanode-rdns.com"
 fi
 
+echo "[$(date -Iseconds)] HOST_DOMAIN: $HOST_DOMAIN"
 export HOST_DOMAIN
 curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
+echo "[$(date -Iseconds)] Install script finished"
 `;
 
 module.exports = async function handler(req, res) {
@@ -140,6 +100,7 @@ module.exports = async function handler(req, res) {
     return res.status(200).json({
       hostname,
       ip,
+      vm_id: vmId,
       url: `https://${hostname}/admin/`,
     });
   } catch (err) {

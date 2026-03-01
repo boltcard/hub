@@ -4,6 +4,9 @@ export DEBIAN_FRONTEND=noninteractive
 
 # Bolt Card Hub installer
 # Usage: export HOST_DOMAIN=hub.yourdomain.com && curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/install.sh | bash
+# Log: /var/log/boltcardhub-install.log (when run via cloud-init startup script)
+
+log() { echo "[$(date -Iseconds)] $*"; }
 
 RAW_URL="https://raw.githubusercontent.com/boltcard/hub/main"
 INSTALL_DIR="$HOME/hub"
@@ -18,7 +21,7 @@ if [ -z "${HOST_DOMAIN:-}" ]; then
     exit 1
 fi
 
-echo "==> Installing Bolt Card Hub for domain: $HOST_DOMAIN"
+log "Installing Bolt Card Hub for domain: $HOST_DOMAIN"
 
 # --- Check for root/sudo ---
 
@@ -34,7 +37,7 @@ fi
 
 # --- Wait for apt lock (fresh VPS may be running unattended-upgrades) ---
 
-echo "==> Waiting for apt lock..."
+log "Waiting for apt lock..."
 while $SUDO fuser /var/lib/dpkg/lock-frontend &>/dev/null; do
     sleep 2
 done
@@ -42,14 +45,14 @@ done
 # --- Remove snap Docker if present ---
 
 if snap list docker &>/dev/null 2>&1; then
-    echo "==> Removing snap Docker..."
+    log "Removing snap Docker..."
     $SUDO snap remove docker
 fi
 
 # --- Install Docker if not present ---
 
 if ! command -v docker &>/dev/null; then
-    echo "==> Installing Docker..."
+    log "Installing Docker..."
 
     $SUDO apt-get update
     $SUDO apt-get install -y ca-certificates curl gnupg
@@ -65,14 +68,15 @@ if ! command -v docker &>/dev/null; then
 
     $SUDO apt-get update
     $SUDO apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+    log "Docker installed"
 else
-    echo "==> Docker already installed, skipping."
+    log "Docker already installed, skipping"
 fi
 
 # --- Add user to docker group if needed ---
 
 if [ "$(id -u)" -ne 0 ] && ! groups | grep -qw docker; then
-    echo "==> Adding $USER to docker group..."
+    log "Adding $USER to docker group..."
     $SUDO usermod -aG docker "$USER"
     echo "    You may need to log out and back in for group changes to take effect."
     echo "    Continuing with sudo for now..."
@@ -88,27 +92,25 @@ cd "$INSTALL_DIR"
 
 # --- Download config files ---
 
-echo "==> Downloading docker-compose.yml..."
+log "Downloading docker-compose.yml..."
 curl -fsSL "$RAW_URL/docker-compose.yml" -o docker-compose.yml
 
-echo "==> Downloading Caddyfile..."
+log "Downloading Caddyfile..."
 curl -fsSL "$RAW_URL/Caddyfile" -o Caddyfile
 
 # --- Create .env ---
 
-echo "==> Writing .env file..."
+log "Writing .env file..."
 echo "HOST_DOMAIN=$HOST_DOMAIN" > .env
 
 # --- Pull and start ---
 
-echo "==> Pulling images..."
+log "Pulling images..."
 $DOCKER compose pull
 
-echo "==> Starting containers..."
+log "Starting containers..."
 $DOCKER compose up -d
 
-echo ""
-echo "==> Bolt Card Hub is running!"
+log "Bolt Card Hub is running!"
 echo "    Visit https://$HOST_DOMAIN/admin/ to set your admin password."
-echo ""
 echo "    Note: It may take a minute or two for the TLS certificate to be issued."

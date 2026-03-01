@@ -1,4 +1,60 @@
 const https = require('https');
+const { Client } = require('ssh2');
+const { lunaRequest } = require('./_luna');
+
+// SSH into the VM and read the install log (hardcoded command, no user input)
+function readInstallLog(ip, username, password) {
+  return new Promise((resolve) => {
+    const conn = new Client();
+    const timeout = setTimeout(() => { conn.destroy(); resolve(null); }, 10000);
+
+    conn.on('ready', () => {
+      // Safe: hardcoded command string, no user input interpolated
+      const cmd = 'cat /var/log/boltcardhub-install.log 2>/dev/null';
+      conn.exec(cmd, (err, stream) => {
+        if (err) { clearTimeout(timeout); conn.end(); resolve(null); return; }
+        let output = '';
+        stream.on('data', (chunk) => { output += chunk; });
+        stream.stderr.on('data', () => {});
+        stream.on('close', () => {
+          clearTimeout(timeout);
+          conn.end();
+          resolve(output || null);
+        });
+      });
+    });
+
+    conn.on('error', () => { clearTimeout(timeout); resolve(null); });
+
+    conn.connect({
+      host: ip,
+      port: 22,
+      username,
+      password,
+      readyTimeout: 8000,
+      algorithms: {
+        serverHostKey: ['ssh-ed25519', 'ecdsa-sha2-nistp256', 'ssh-rsa', 'rsa-sha2-256', 'rsa-sha2-512'],
+      },
+    });
+  });
+}
+
+// Map log content to install step number
+// 0=Creating VPS, 1=Booting, 2=Installing Docker, 3=Pulling images, 4=Starting services, 5=TLS, 6=Ready
+function parseLogStep(log) {
+  if (!log) return null;
+
+  const lines = log.split('\n').filter((l) => l.trim());
+  const last = lines[lines.length - 1] || '';
+
+  if (/running|finished/i.test(last)) return 4;
+  if (/Starting containers/i.test(last)) return 4;
+  if (/Pulling images|Downloading|Writing .env/i.test(last)) return 3;
+  if (/Docker installed|Docker already installed/i.test(last)) return 3;
+  if (/Installing Docker|apt|Waiting for apt|Removing snap/i.test(last)) return 2;
+  // Cloud-init just started (resolving IP, setting HOST_DOMAIN, etc.)
+  return 2;
+}
 
 // Probe with strict TLS (valid cert = fully ready)
 function probeStrict(hostname) {
@@ -36,26 +92,65 @@ function probeRelaxed(hostname) {
   });
 }
 
-async function probe(hostname) {
-  const strict = await probeStrict(hostname);
-  if (strict) return { state: strict };
-
-  const relaxed = await probeRelaxed(hostname);
-  if (relaxed) return { state: relaxed };
-
-  return { state: 'waiting' };
-}
-
 module.exports = async function handler(req, res) {
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const hostname = req.query.hostname;
+  const { api_id, api_key, vm_id, hostname } = req.body || {};
+
   if (!hostname || !/^[a-zA-Z0-9.-]+$/.test(hostname)) {
     return res.status(400).json({ error: 'Invalid hostname' });
   }
 
-  const result = await probe(hostname);
-  return res.status(200).json(result);
+  let step = 1; // default: booting
+  let logLine = null;
+
+  // 1. Get VM info (status + credentials)
+  let vmInfo = null;
+  if (api_id && api_key && vm_id) {
+    try {
+      vmInfo = await lunaRequest(api_id, api_key, 'vm/info', { vm_id });
+    } catch {
+      // API call failed
+    }
+  }
+
+  const statusRaw = vmInfo && vmInfo.info && vmInfo.info.status_raw;
+  const ip = vmInfo && vmInfo.info && vmInfo.info.ip;
+
+  // 2. If VM not active yet, still booting
+  if (statusRaw && statusRaw !== 'active') {
+    return res.status(200).json({ step: 1, logLine });
+  }
+
+  // 3. Try SSH to read install log
+  if (ip && vmInfo.info.login_details) {
+    const match = vmInfo.info.login_details.match(/username:\s*(\S+);\s*password:\s*(\S+)/);
+    if (match) {
+      const log = await readInstallLog(ip, match[1], match[2]);
+      if (log) {
+        step = parseLogStep(log);
+        // Get the last timestamped line for display
+        const lines = log.split('\n').filter((l) => l.trim());
+        logLine = lines[lines.length - 1] || null;
+      }
+      // SSH failed (connection refused) = still booting
+    }
+  }
+
+  // 4. Once install reports done (step >= 4), check HTTPS for TLS status
+  if (step >= 4) {
+    const strict = await probeStrict(hostname);
+    if (strict) {
+      return res.status(200).json({ step: 6, logLine });
+    }
+    const relaxed = await probeRelaxed(hostname);
+    if (relaxed) {
+      return res.status(200).json({ step: 5, logLine });
+    }
+    // Services started but not yet responding — keep at step 4
+  }
+
+  return res.status(200).json({ step, logLine });
 };

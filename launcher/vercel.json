@@ -1,5 +1,7 @@
 {
-  "rewrites": [
-    { "source": "/api/launch", "destination": "/api/launch" }
-  ]
+  "functions": {
+    "api/status.js": {
+      "maxDuration": 30
+    }
+  }
 }
