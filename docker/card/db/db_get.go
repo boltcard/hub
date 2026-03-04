@@ -179,6 +179,8 @@ type Card struct {
 	Pin_limit_sats             int
 	Wiped                      string
 	Note                       string
+	Ln_address                 string
+	Ln_address_enabled         string
 }
 
 func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
@@ -191,7 +193,7 @@ func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
 		`lnurlw_request_timeout_sec, lnurlw_enable, ` +
 		`lnurlw_k1, lnurlw_k1_expiry, tx_limit_sats, ` +
 		`day_limit_sats, uid_privacy, pin_enable, pin_number, ` +
-		`pin_limit_sats, wiped, note FROM cards WHERE card_id=$1 AND wiped = 'N';`
+		`pin_limit_sats, wiped, note, ln_address, ln_address_enabled FROM cards WHERE card_id=$1 AND wiped = 'N';`
 	row := db_conn.QueryRow(sqlStatement, card_id)
 	err = row.Scan(
 		&c.Card_id,
@@ -217,7 +219,9 @@ func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
 		&c.Pin_number,
 		&c.Pin_limit_sats,
 		&c.Wiped,
-		&c.Note)
+		&c.Note,
+		&c.Ln_address,
+		&c.Ln_address_enabled)
 
 	return &c, err
 }
