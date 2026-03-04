@@ -71,6 +71,34 @@ func Db_select_card_receipts(db_conn *sql.DB, card_id int, limit int) (result Ca
 	return cardReceipts
 }
 
+type UnpaidReceipt struct {
+	PaymentHash string
+}
+
+func Db_select_unpaid_receipts(db_conn *sql.DB) []UnpaidReceipt {
+	var receipts []UnpaidReceipt
+
+	sqlStatement := `SELECT r_hash_hex FROM card_receipts` +
+		` WHERE paid_flag = 'N' AND expire_time > strftime('%s', 'now');`
+	rows, err := db_conn.Query(sqlStatement)
+	if err != nil {
+		log.Error("db_select_unpaid_receipts query error: ", err)
+		return receipts
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var r UnpaidReceipt
+		if err := rows.Scan(&r.PaymentHash); err != nil {
+			log.Error("db_select_unpaid_receipts scan error: ", err)
+			continue
+		}
+		receipts = append(receipts, r)
+	}
+
+	return receipts
+}
+
 type CardPayment struct {
 	CardPaymentId int
 	AmountSats    int

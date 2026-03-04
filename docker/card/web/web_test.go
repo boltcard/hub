@@ -279,7 +279,7 @@ func TestAtomicBalance(t *testing.T) {
 	// Add a receipt
 	db.Db_add_card_receipt(db_conn, card_id, "lnbc1...", "abc123", 1000)
 	// Mark it paid
-	db.Db_set_receipt_paid(db_conn, "abc123")
+	db.Db_set_receipt_paid(db_conn, "abc123", "test")
 
 	balance = db.Db_get_card_balance(db_conn, card_id)
 	if balance != 1000 {
@@ -1152,7 +1152,7 @@ func insertFundedCard(t *testing.T, db_conn *sql.DB, balanceSats int) int {
 	}
 	if balanceSats > 0 {
 		db.Db_add_card_receipt(db_conn, cardId, "lnbc_fund", "fundhash", balanceSats)
-		db.Db_set_receipt_paid(db_conn, "fundhash")
+		db.Db_set_receipt_paid(db_conn, "fundhash", "test")
 	}
 	return cardId
 }
@@ -1838,7 +1838,7 @@ func TestGetUserInvoices_WithReceipts(t *testing.T) {
 
 	// Add 2 receipts: one paid, one unpaid
 	db.Db_add_card_receipt(app.db_conn, cardId, "lnbc_paid", "paidhash", 500)
-	db.Db_set_receipt_paid(app.db_conn, "paidhash")
+	db.Db_set_receipt_paid(app.db_conn, "paidhash", "test")
 	db.Db_add_card_receipt(app.db_conn, cardId, "lnbc_unpaid", "unpaidhash", 300)
 
 	r := httptest.NewRequest("GET", "/getuserinvoices", nil)

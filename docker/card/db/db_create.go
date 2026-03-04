@@ -245,6 +245,22 @@ func update_schema_6(db *sql.DB) {
 	}
 }
 
+func update_schema_7(db *sql.DB) {
+
+	sqlStmt := `
+		BEGIN TRANSACTION;
+		ALTER TABLE card_receipts ADD COLUMN settled_by TEXT NOT NULL DEFAULT '';
+		ALTER TABLE card_receipts ADD COLUMN settled_at INTEGER NOT NULL DEFAULT 0;
+		UPDATE settings SET value='8' WHERE name='schema_version_number';
+		COMMIT TRANSACTION;
+	`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("%q : %s\n", err, sqlStmt)
+		return
+	}
+}
+
 // randomHex8 generates an 8-character random hex string for lightning addresses.
 func randomHex8() string {
 	b := make([]byte, 4)

@@ -16,6 +16,7 @@ func NewApp(db_conn *sql.DB) *App {
 	app := &App{db_conn: db_conn, hub: newWsHub()}
 	app.startPhoenixListener()
 	app.startChannelPoller()
+	app.startReceiptPoller()
 	return app
 }
 

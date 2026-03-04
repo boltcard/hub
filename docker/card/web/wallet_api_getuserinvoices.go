@@ -41,7 +41,7 @@ func updateInvoiceStatus(db_conn *sql.DB, paymentHash string) {
 
 	// update status in the database if paid
 	if incomingPayment.IsPaid {
-		db.Db_set_receipt_paid(db_conn, paymentHash)
+		db.Db_set_receipt_paid(db_conn, paymentHash, "api")
 	}
 }
 
