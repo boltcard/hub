@@ -49,6 +49,8 @@ func (app *App) startPhoenixListener() {
 		return
 	}
 
+	log.Info("phoenix websocket listener connected")
+
 	go func() {
 		defer c.Close()
 		for {
