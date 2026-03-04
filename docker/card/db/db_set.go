@@ -62,12 +62,12 @@ func Db_set_tokens(db_conn *sql.DB, login string, password string,
 	return nil
 }
 
-func Db_set_receipt_paid(db_conn *sql.DB, paymentHash string) {
+func Db_set_receipt_paid(db_conn *sql.DB, paymentHash string, settledBy string) {
 
-	// update card record
-	sqlStatement := `UPDATE card_receipts SET paid_flag = 'Y'` +
-		` WHERE r_hash_hex = $1;`
-	_, err := db_conn.Exec(sqlStatement, paymentHash)
+	sqlStatement := `UPDATE card_receipts SET paid_flag = 'Y',` +
+		` settled_by = $1, settled_at = strftime('%s', 'now')` +
+		` WHERE r_hash_hex = $2 AND paid_flag = 'N';`
+	_, err := db_conn.Exec(sqlStatement, settledBy, paymentHash)
 	if err != nil {
 		log.Error("db_set_receipt_paid error: ", err)
 	}

@@ -3,9 +3,11 @@ package web
 import (
 	"card/db"
 	"card/phoenix"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -77,7 +79,7 @@ func (app *App) startPhoenixListener() {
 
 			// Mark any matching receipt as paid (for lightning address payments)
 			if incomingPayment.IsPaid {
-				db.Db_set_receipt_paid(app.db_conn, incomingPayment.PaymentHash)
+				db.Db_set_receipt_paid(app.db_conn, incomingPayment.PaymentHash, "websocket")
 			}
 
 			event := wsPaymentEvent{
@@ -142,10 +144,63 @@ func (app *App) startChannelPoller() {
 	}()
 }
 
+// startReceiptPoller checks for unsettled receipts every 30s and marks them
+// paid if Phoenix confirms the payment. This is a backstop for any payments
+// missed by the WebSocket listener (e.g. during restarts).
+func (app *App) startReceiptPoller() {
+	go func() {
+		for {
+			time.Sleep(30 * time.Second)
+
+			unpaid := db.Db_select_unpaid_receipts(app.db_conn)
+			for _, r := range unpaid {
+				incoming, err := phoenix.GetIncomingPayment(r.PaymentHash)
+				if err != nil {
+					continue
+				}
+				if incoming.IsPaid {
+					db.Db_set_receipt_paid(app.db_conn, incoming.PaymentHash, "poller")
+					log.Info("receipt poller settled: ", incoming.PaymentHash)
+
+					event := wsPaymentEvent{
+						Type:        "payment_received",
+						AmountSat:   incoming.ReceivedSat,
+						PaymentHash: incoming.PaymentHash,
+						Timestamp:   incoming.CompletedAt / 1000,
+					}
+					eventJSON, err := json.Marshal(event)
+					if err == nil {
+						app.hub.broadcast(eventJSON)
+					}
+				}
+			}
+		}
+	}()
+}
+
 func (app *App) CreateHandler_Websocket() http.HandlerFunc {
 	hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		// Authenticate admin session cookie
+		c, err := r.Cookie("admin_session_token")
+		if err != nil {
+			http.Error(w, "not authenticated", http.StatusUnauthorized)
+			return
+		}
+		adminSessionToken := db.Db_get_setting(app.db_conn, "admin_session_token")
+		if subtle.ConstantTimeCompare([]byte(c.Value), []byte(adminSessionToken)) != 1 {
+			http.Error(w, "invalid session", http.StatusUnauthorized)
+			return
+		}
+		sessionCreatedStr := db.Db_get_setting(app.db_conn, "admin_session_created")
+		if sessionCreatedStr != "" {
+			sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
+			if err != nil || time.Now().Unix()-sessionCreated > 24*60*60 {
+				http.Error(w, "session expired", http.StatusUnauthorized)
+				return
+			}
+		}
 
 		var upgrader = websocket.Upgrader{
 			ReadBufferSize:  1024,

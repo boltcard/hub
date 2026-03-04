@@ -22,8 +22,8 @@ func TestDbInit_SchemaMigratesToLatest(t *testing.T) {
 	Db_init(db)
 
 	version := Db_get_setting(db, "schema_version_number")
-	if version != "7" {
-		t.Fatalf("expected schema version 7, got %q", version)
+	if version != "8" {
+		t.Fatalf("expected schema version 8, got %q", version)
 	}
 }
 
@@ -141,9 +141,9 @@ func TestDbGetCardBalance_ReceiptsOnly(t *testing.T) {
 	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
 
 	Db_add_card_receipt(db, 1, "lnbc1...", "hash1", 500)
-	Db_set_receipt_paid(db, "hash1")
+	Db_set_receipt_paid(db, "hash1", "test")
 	Db_add_card_receipt(db, 1, "lnbc2...", "hash2", 300)
-	Db_set_receipt_paid(db, "hash2")
+	Db_set_receipt_paid(db, "hash2", "test")
 
 	balance := Db_get_card_balance(db, 1)
 	if balance != 800 {
@@ -157,7 +157,7 @@ func TestDbGetCardBalance_PaymentsAndFeesSubtracted(t *testing.T) {
 	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
 
 	Db_add_card_receipt(db, 1, "lnbc1...", "hash1", 1000)
-	Db_set_receipt_paid(db, "hash1")
+	Db_set_receipt_paid(db, "hash1", "test")
 
 	payId := Db_add_card_payment(db, 1, 200, "lnbc_pay1")
 	Db_update_card_payment_fee(db, payId, 10)
@@ -175,7 +175,7 @@ func TestDbGetCardBalance_UnpaidReceiptsExcluded(t *testing.T) {
 	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
 
 	Db_add_card_receipt(db, 1, "lnbc1...", "hash1", 1000)
-	Db_set_receipt_paid(db, "hash1")
+	Db_set_receipt_paid(db, "hash1", "test")
 	// This receipt is NOT paid — should not count
 	Db_add_card_receipt(db, 1, "lnbc2...", "hash2", 500)
 
@@ -316,7 +316,7 @@ func TestDbSetReceiptPaid(t *testing.T) {
 		t.Fatalf("expected balance 0 before paying receipt, got %d", balance)
 	}
 
-	Db_set_receipt_paid(db, "hash_to_pay")
+	Db_set_receipt_paid(db, "hash_to_pay", "test")
 	balance = Db_get_card_balance(db, 1)
 	if balance != 500 {
 		t.Fatalf("expected balance 500 after paying receipt, got %d", balance)
@@ -364,9 +364,9 @@ func TestDbGetTotalPaidReceipts(t *testing.T) {
 	}
 
 	Db_add_card_receipt(db, 1, "lnbc1...", "hash1", 300)
-	Db_set_receipt_paid(db, "hash1")
+	Db_set_receipt_paid(db, "hash1", "test")
 	Db_add_card_receipt(db, 1, "lnbc2...", "hash2", 700)
-	Db_set_receipt_paid(db, "hash2")
+	Db_set_receipt_paid(db, "hash2", "test")
 	// Unpaid receipt should not count
 	Db_add_card_receipt(db, 1, "lnbc3...", "hash3", 999)
 
@@ -491,7 +491,7 @@ func TestDbSelectCardTxs_ReceiptsAndPayments(t *testing.T) {
 
 	// Add a paid receipt
 	Db_add_card_receipt(db, 1, "lnbc1...", "hash1", 500)
-	Db_set_receipt_paid(db, "hash1")
+	Db_set_receipt_paid(db, "hash1", "test")
 
 	// Add a paid payment
 	Db_add_card_payment(db, 1, 200, "lnbc_pay1")
@@ -588,11 +588,11 @@ func TestDbGetTopCards_OrderedByBalance(t *testing.T) {
 
 	// Fund cards with different amounts
 	Db_add_card_receipt(db, 1, "lnbc1", "h1", 100)
-	Db_set_receipt_paid(db, "h1")
+	Db_set_receipt_paid(db, "h1", "test")
 	Db_add_card_receipt(db, 2, "lnbc2", "h2", 300)
-	Db_set_receipt_paid(db, "h2")
+	Db_set_receipt_paid(db, "h2", "test")
 	Db_add_card_receipt(db, 3, "lnbc3", "h3", 200)
-	Db_set_receipt_paid(db, "h3")
+	Db_set_receipt_paid(db, "h3", "test")
 
 	top := Db_get_top_cards_by_balance(db, 10)
 	if len(top) != 3 {
@@ -618,11 +618,11 @@ func TestDbGetTopCards_LimitRespected(t *testing.T) {
 	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login3", "pass3")
 
 	Db_add_card_receipt(db, 1, "lnbc1", "h1", 100)
-	Db_set_receipt_paid(db, "h1")
+	Db_set_receipt_paid(db, "h1", "test")
 	Db_add_card_receipt(db, 2, "lnbc2", "h2", 200)
-	Db_set_receipt_paid(db, "h2")
+	Db_set_receipt_paid(db, "h2", "test")
 	Db_add_card_receipt(db, 3, "lnbc3", "h3", 300)
-	Db_set_receipt_paid(db, "h3")
+	Db_set_receipt_paid(db, "h3", "test")
 
 	top := Db_get_top_cards_by_balance(db, 2)
 	if len(top) != 2 {
@@ -661,7 +661,7 @@ func TestDbUpdateCardPaymentFee(t *testing.T) {
 	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
 
 	Db_add_card_receipt(db, 1, "lnbc1", "h1", 1000)
-	Db_set_receipt_paid(db, "h1")
+	Db_set_receipt_paid(db, "h1", "test")
 	payId := Db_add_card_payment(db, 1, 200, "lnbc_pay1")
 
 	// Initially fee is 0, balance = 1000 - 200 - 0 = 800
@@ -915,6 +915,80 @@ func TestDbInsertCardWithUid_GeneratesLnAddress(t *testing.T) {
 	}
 	if len(card.Ln_address) != 8 {
 		t.Fatalf("expected 8-char ln_address, got %q (len %d)", card.Ln_address, len(card.Ln_address))
+	}
+}
+
+// --- Unpaid receipts tests ---
+
+func TestDbSelectUnpaidReceipts_ReturnsUnpaid(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	Db_add_card_receipt(db, 1, "lnbc1...", "unpaid1", 100)
+	Db_add_card_receipt(db, 1, "lnbc2...", "paid1", 200)
+	Db_set_receipt_paid(db, "paid1", "test")
+
+	unpaid := Db_select_unpaid_receipts(db)
+	if len(unpaid) != 1 {
+		t.Fatalf("expected 1 unpaid receipt, got %d", len(unpaid))
+	}
+	if unpaid[0].PaymentHash != "unpaid1" {
+		t.Fatalf("expected payment hash 'unpaid1', got %q", unpaid[0].PaymentHash)
+	}
+}
+
+func TestDbSelectUnpaidReceipts_ExpiredExcluded(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	Db_add_card_receipt(db, 1, "lnbc1...", "fresh", 100)
+	// Insert an expired receipt directly
+	db.Exec("INSERT INTO card_receipts (card_id, ln_invoice, r_hash_hex, amount_sats, paid_flag, timestamp, expire_time) VALUES (1, 'lnbc2...', 'expired', 200, 'N', 1000, 1001)")
+
+	unpaid := Db_select_unpaid_receipts(db)
+	if len(unpaid) != 1 {
+		t.Fatalf("expected 1 unpaid (non-expired) receipt, got %d", len(unpaid))
+	}
+	if unpaid[0].PaymentHash != "fresh" {
+		t.Fatalf("expected 'fresh', got %q", unpaid[0].PaymentHash)
+	}
+}
+
+func TestDbSetReceiptPaid_RecordsSettledBy(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	Db_add_card_receipt(db, 1, "lnbc1...", "hash_track", 500)
+	Db_set_receipt_paid(db, "hash_track", "websocket")
+
+	var settledBy string
+	var settledAt int64
+	db.QueryRow("SELECT settled_by, settled_at FROM card_receipts WHERE r_hash_hex = 'hash_track'").Scan(&settledBy, &settledAt)
+	if settledBy != "websocket" {
+		t.Fatalf("expected settled_by 'websocket', got %q", settledBy)
+	}
+	if settledAt == 0 {
+		t.Fatal("expected non-zero settled_at timestamp")
+	}
+}
+
+func TestDbSetReceiptPaid_OnlyUpdatesUnpaid(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	Db_add_card_receipt(db, 1, "lnbc1...", "hash_dup", 500)
+	Db_set_receipt_paid(db, "hash_dup", "websocket")
+	// Second call (e.g. from poller) should not overwrite
+	Db_set_receipt_paid(db, "hash_dup", "poller")
+
+	var settledBy string
+	db.QueryRow("SELECT settled_by FROM card_receipts WHERE r_hash_hex = 'hash_dup'").Scan(&settledBy)
+	if settledBy != "websocket" {
+		t.Fatalf("expected settled_by to remain 'websocket', got %q", settledBy)
 	}
 }
 

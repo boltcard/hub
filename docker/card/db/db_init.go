@@ -45,7 +45,11 @@ func Db_init(db_conn *sql.DB) {
 		update_schema_6(db_conn) // ln_address columns
 	}
 
-	if Db_get_setting(db_conn, "schema_version_number") != "7" {
+	if Db_get_setting(db_conn, "schema_version_number") == "7" {
+		update_schema_7(db_conn) // receipt settlement tracking
+	}
+
+	if Db_get_setting(db_conn, "schema_version_number") != "8" {
 		panic("database schema is not as expected")
 	}
 
