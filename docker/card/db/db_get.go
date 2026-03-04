@@ -34,6 +34,22 @@ func Db_get_card_count(db_conn *sql.DB) (count int, err error) {
 	return
 }
 
+func Db_get_total_card_balance(db_conn *sql.DB) int {
+	sqlStatement := `SELECT IFNULL(SUM(balance_sats), 0) FROM (` +
+		` SELECT` +
+		` IFNULL((SELECT SUM(r.amount_sats) FROM card_receipts r WHERE r.paid_flag='Y' AND r.card_id=c.card_id), 0)` +
+		` - IFNULL((SELECT SUM(p.amount_sats + p.fee_sats) FROM card_payments p WHERE p.paid_flag='Y' AND p.card_id=c.card_id), 0)` +
+		` AS balance_sats` +
+		` FROM cards c` +
+		` WHERE c.wiped = 'N' AND c.lnurlw_enable = 'Y'` +
+		` );`
+
+	var total int
+	row := db_conn.QueryRow(sqlStatement)
+	row.Scan(&total)
+	return total
+}
+
 func Db_get_card_id_from_access_token(db_conn *sql.DB, access_token string) (card_id int) {
 
 	// get card id
@@ -227,9 +243,10 @@ func Db_get_card(db_conn *sql.DB, card_id int) (card *Card, err error) {
 }
 
 type TopCard struct {
-	CardId      int
-	BalanceSats int
-	Note        string
+	CardId       int
+	BalanceSats  int
+	Note         string
+	LnurlwEnable string
 }
 
 type TopCards []TopCard
@@ -238,8 +255,8 @@ func Db_get_top_cards_by_balance(db_conn *sql.DB, limit int) TopCards {
 
 	var topCards TopCards
 
-	sqlStatement := `SELECT card_id, note, balance_sats FROM (` +
-		` SELECT c.card_id, c.note,` +
+	sqlStatement := `SELECT card_id, note, lnurlw_enable, balance_sats FROM (` +
+		` SELECT c.card_id, c.note, c.lnurlw_enable,` +
 		` IFNULL((SELECT SUM(r.amount_sats) FROM card_receipts r WHERE r.paid_flag='Y' AND r.card_id=c.card_id), 0)` +
 		` - IFNULL((SELECT SUM(p.amount_sats + p.fee_sats) FROM card_payments p WHERE p.paid_flag='Y' AND p.card_id=c.card_id), 0)` +
 		` AS balance_sats` +
@@ -257,7 +274,7 @@ func Db_get_top_cards_by_balance(db_conn *sql.DB, limit int) TopCards {
 
 	for rows.Next() {
 		var tc TopCard
-		err := rows.Scan(&tc.CardId, &tc.Note, &tc.BalanceSats)
+		err := rows.Scan(&tc.CardId, &tc.Note, &tc.LnurlwEnable, &tc.BalanceSats)
 		if err != nil {
 			continue
 		}

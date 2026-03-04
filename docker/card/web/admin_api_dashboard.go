@@ -14,20 +14,23 @@ func (app *App) adminApiDashboard(w http.ResponseWriter, r *http.Request) {
 		log.Warn("card count error: ", err)
 	}
 
+	totalCardBalance := db.Db_get_total_card_balance(app.db_conn)
 	topCards := db.Db_get_top_cards_by_balance(app.db_conn, 10)
 
 	type topCardJSON struct {
-		CardId      int    `json:"cardId"`
-		Note        string `json:"note"`
-		BalanceSats int    `json:"balanceSats"`
+		CardId       int    `json:"cardId"`
+		Note         string `json:"note"`
+		BalanceSats  int    `json:"balanceSats"`
+		LnurlwEnable string `json:"lnurlwEnable"`
 	}
 
 	topCardViews := make([]topCardJSON, 0, len(topCards))
 	for _, tc := range topCards {
 		topCardViews = append(topCardViews, topCardJSON{
-			CardId:      tc.CardId,
-			Note:        tc.Note,
-			BalanceSats: tc.BalanceSats,
+			CardId:       tc.CardId,
+			Note:         tc.Note,
+			BalanceSats:  tc.BalanceSats,
+			LnurlwEnable: tc.LnurlwEnable,
 		})
 	}
 
@@ -45,6 +48,7 @@ func (app *App) adminApiDashboard(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{
 		"cardCount":        cardCount,
 		"hasCards":         cardCount > 0,
+		"totalCardBalance": totalCardBalance,
 		"topCards":         topCardViews,
 		"phoenixConnected": phoenixConnected,
 		"phoenixBalance":   phoenixBalance,

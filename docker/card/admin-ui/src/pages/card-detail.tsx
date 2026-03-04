@@ -425,37 +425,49 @@ export function CardDetailPage() {
                     Amount
                   </TableHead>
                   <TableHead className="text-right font-mono">Fee</TableHead>
+                  <TableHead className="text-right font-mono">
+                    Balance
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {txs.map((tx, i) => {
-                  const isReceipt = tx.receiptId > 0;
-                  return (
-                    <TableRow key={i}>
-                      <TableCell>
-                        <Badge variant={isReceipt ? "default" : "secondary"}>
-                          {isReceipt ? "Received" : "Sent"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">
-                        {formatTimestamp(tx.timestamp)}
-                      </TableCell>
-                      <TableCell
-                        className={`text-right font-mono tabular-nums ${
-                          isReceipt
-                            ? "text-[var(--success)]"
-                            : "text-destructive"
-                        }`}
-                      >
-                        {isReceipt ? "+" : ""}
-                        {formatSats(tx.amountSats)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
-                        {tx.feeSats !== 0 ? formatSats(tx.feeSats) : "\u2014"}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
+                {(() => {
+                  let running = card.balanceSats;
+                  return txs.map((tx, i) => {
+                    const isReceipt = tx.receiptId > 0;
+                    const balanceAfter = running;
+                    // amountSats is positive for receipts, negative for payments
+                    running -= tx.amountSats + tx.feeSats;
+                    return (
+                      <TableRow key={i}>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {isReceipt ? "Received \u2193" : "Sent \u2191"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm">
+                          {formatTimestamp(tx.timestamp)}
+                        </TableCell>
+                        <TableCell
+                          className={`text-right font-mono tabular-nums ${
+                            isReceipt
+                              ? "text-[var(--success)]"
+                              : "text-destructive"
+                          }`}
+                        >
+                          {isReceipt ? "+" : ""}
+                          {formatSats(tx.amountSats)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono tabular-nums text-muted-foreground">
+                          {tx.feeSats !== 0 ? formatSats(tx.feeSats) : "\u2014"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono tabular-nums">
+                          {formatSats(balanceAfter)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  });
+                })()}
               </TableBody>
             </Table>
           )}

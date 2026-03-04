@@ -42,7 +42,7 @@ func (app *App) SetupRoutes() *mux.Router {
 	router.PathPrefix("/admin/api/").HandlerFunc(app.CreateHandler_AdminApi())
 
 	// admin dashboard
-	router.PathPrefix("/admin/").HandlerFunc(app.CreateHandler_Admin())
+	router.PathPrefix("/admin").HandlerFunc(app.CreateHandler_Admin())
 
 	// public assets that do not need authentication
 	router.PathPrefix("/public/").HandlerFunc(app.CreateHandler_Public())
