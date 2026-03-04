@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -144,14 +143,7 @@ func (app *App) startChannelPoller() {
 func (app *App) CreateHandler_Websocket() http.HandlerFunc {
 	hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
 
-	// Start Phoenix listener once (shared across all clients)
-	var once sync.Once
-
 	return func(w http.ResponseWriter, r *http.Request) {
-		once.Do(func() {
-			app.startPhoenixListener()
-			app.startChannelPoller()
-		})
 
 		var upgrader = websocket.Upgrader{
 			ReadBufferSize:  1024,

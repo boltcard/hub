@@ -13,7 +13,10 @@ type App struct {
 }
 
 func NewApp(db_conn *sql.DB) *App {
-	return &App{db_conn: db_conn, hub: newWsHub()}
+	app := &App{db_conn: db_conn, hub: newWsHub()}
+	app.startPhoenixListener()
+	app.startChannelPoller()
+	return app
 }
 
 func (app *App) SetupRoutes() *mux.Router {
