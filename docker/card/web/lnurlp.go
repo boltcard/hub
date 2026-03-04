@@ -44,7 +44,7 @@ func (app *App) CreateHandler_LnurlpRequest() http.HandlerFunc {
 		hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
 		metadata := lnurlpMetadata(username, hostDomain)
 
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"tag":            "payRequest",
 			"callback":       "https://" + hostDomain + "/.well-known/lnurlp/" + username + "/callback",
 			"minSendable":    1000,
@@ -114,7 +114,7 @@ func (app *App) CreateHandler_LnurlpCallback() http.HandlerFunc {
 
 		log.Info("lnurlp invoice created for ", username, " amount=", amountSats)
 
-		writeJSON(w, map[string]interface{}{
+		writeJSON(w, map[string]any{
 			"pr":     createInvoiceResponse.Serialized,
 			"routes": []string{},
 		})

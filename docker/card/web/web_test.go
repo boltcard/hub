@@ -2081,7 +2081,7 @@ func TestLnurlpRequest_ValidAddress(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	var resp map[string]interface{}
+	var resp map[string]any
 	json.Unmarshal(w.Body.Bytes(), &resp)
 
 	if resp["tag"] != "payRequest" {
