@@ -31,10 +31,34 @@ interface AboutData {
   updateAvailable: boolean;
 }
 
+interface LogsData {
+  logs: string[];
+}
+
+interface Commit {
+  sha: string;
+  message: string;
+  date: string;
+}
+
+interface CommitsData {
+  commits: Commit[];
+}
+
 export function AboutPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["about"],
     queryFn: () => apiFetch<AboutData>("/about"),
+  });
+
+  const { data: logsData } = useQuery({
+    queryKey: ["about-logs"],
+    queryFn: () => apiFetch<LogsData>("/about/logs"),
+  });
+
+  const { data: commitsData } = useQuery({
+    queryKey: ["about-commits"],
+    queryFn: () => apiFetch<CommitsData>("/about/commits"),
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -167,6 +191,65 @@ export function AboutPage() {
           )}
         </CardContent>
       </Card>
+
+      {logsData && logsData.logs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Recent Logs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre
+              className="overflow-x-auto rounded-md bg-muted p-3 text-xs leading-relaxed"
+              dangerouslySetInnerHTML={{ __html: logsData.logs.join("\n") }}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {commitsData && commitsData.commits.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Recent Commits</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {Object.entries(
+              commitsData.commits.reduce<Record<string, Commit[]>>(
+                (groups, c) => {
+                  const day = new Date(c.date).toLocaleDateString(undefined, {
+                    weekday: "short",
+                    year: "numeric",
+                    month: "short",
+                    day: "numeric",
+                  });
+                  (groups[day] ??= []).push(c);
+                  return groups;
+                },
+                {},
+              ),
+            ).map(([date, commits]) => (
+              <div key={date}>
+                <h3 className="mb-1 text-xs font-medium text-muted-foreground">
+                  {date}
+                </h3>
+                <ul className="space-y-1">
+                  {commits.map((c) => (
+                    <li key={c.sha}>
+                      <a
+                        href={`https://github.com/boltcard/hub/commit/${c.sha}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm hover:underline"
+                      >
+                        {c.message}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
     </div>
   );

@@ -88,20 +88,22 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
 - `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
-- `build/` — Version string (currently "0.16.0"), date/time injected at build
+- `build/` — Version string (currently "0.17.1"), date/time injected at build
 - `web-content/` — Static assets under `public/`, SPA build output under `admin/spa/`
 
 ### Route Groups (`web/app.go`)
 
 - `/ln`, `/cb` — LNURL-withdraw protocol (NFC card tap → payment)
-- `/admin/` — React SPA admin UI (static assets + SPA index fallback)
-- `/admin/api/` — Admin JSON API (cookie-based session auth, 17 endpoints)
+- `/admin` — React SPA admin UI (static assets + SPA index fallback, PathPrefix without trailing slash)
+- `/admin/api/` — Admin JSON API (cookie-based session auth, 19 endpoints)
 - `/new` — Bolt Card Programmer endpoint
 - BoltCardHub API (`/create`, `/auth`, `/balance`, `/payinvoice`, etc.) — LndHub-compatible, feature-gated via `bolt_card_hub_api` setting
 - PoS API (`/pos/`) — Point-of-Sale subset of LndHub API, feature-gated via `bolt_card_pos_api` setting
 - `/admin/api/websocket` — Real-time payment notifications (JSON events via `wsHub` broadcast, requires admin session cookie)
 - `/admin/api/phoenix/transactions` — Last 5 incoming/outgoing Phoenix payments
 - `/admin/api/database/stats` — Database file size, schema version, table row counts
+- `/admin/api/about/logs` — Last 20 container log lines (via Docker API, ANSI→HTML color conversion)
+- `/admin/api/about/commits` — Last 10 GitHub commits (from GitHub API)
 
 ### Admin Update (`web/update.go`)
 
@@ -120,7 +122,7 @@ SQLite at `/card_data/cards.db` with WAL mode, FULL synchronous, foreign keys, s
 
 **Tables:** `settings` (key-value config), `cards` (card keys/auth/limits), `card_payments` (spending), `card_receipts` (loading/receiving), `program_cards` (batch programming)
 
-Schema version managed by idempotent `update_schema_*` functions in `db_create.go`. Current schema version: 6.
+Schema version managed by idempotent `update_schema_*` functions in `db_create.go`. Current schema version: 8.
 
 ### Authentication
 
