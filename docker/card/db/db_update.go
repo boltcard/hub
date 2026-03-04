@@ -77,6 +77,15 @@ func Db_update_card_note(db_conn *sql.DB, card_id int, note string) {
 	}
 }
 
+func Db_update_card_ln_address_enabled(db_conn *sql.DB, card_id int, ln_address_enabled string) {
+
+	sqlStatement := `UPDATE cards SET ln_address_enabled = $1 WHERE card_id = $2 AND wiped = 'N';`
+	_, err := db_conn.Exec(sqlStatement, ln_address_enabled, card_id)
+	if err != nil {
+		log.Error("db_update_card_ln_address_enabled error: ", err)
+	}
+}
+
 func Db_update_receipt_paid(db_conn *sql.DB, card_receipt_id int) {
 
 	// update record
