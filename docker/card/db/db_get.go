@@ -292,6 +292,20 @@ func Db_get_card_note_by_invoice(db_conn *sql.DB, invoice string) string {
 	return note
 }
 
+func Db_get_card_by_ln_address(db_conn *sql.DB, ln_address string) (card_id int) {
+
+	sqlStatement := `SELECT card_id FROM cards WHERE ln_address=$1 AND ln_address_enabled='Y' AND wiped='N';`
+	row := db_conn.QueryRow(sqlStatement, ln_address)
+
+	value := 0
+	err := row.Scan(&value)
+	if err != nil {
+		return 0
+	}
+
+	return value
+}
+
 func Db_get_card_id_from_card_uid(db_conn *sql.DB, card_uid string) (card_id int) {
 
 	// get card id
