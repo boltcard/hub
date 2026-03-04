@@ -2087,9 +2087,6 @@ func TestLnurlpRequest_ValidAddress(t *testing.T) {
 	if resp["tag"] != "payRequest" {
 		t.Fatalf("expected tag 'payRequest', got %v", resp["tag"])
 	}
-	if resp["commentAllowed"] != float64(140) {
-		t.Fatalf("expected commentAllowed 140, got %v", resp["commentAllowed"])
-	}
 	if resp["minSendable"] != float64(1000) {
 		t.Fatalf("expected minSendable 1000, got %v", resp["minSendable"])
 	}

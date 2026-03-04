@@ -10,9 +10,10 @@ import (
 )
 
 type CreateInvoiceRequest struct {
-	Description string
-	AmountSat   string
-	ExternalId  string
+	Description     string
+	DescriptionHash string // hex-encoded SHA256 hash (mutually exclusive with Description)
+	AmountSat       string
+	ExternalId      string
 }
 
 type CreateInvoiceResponse struct {
@@ -25,9 +26,13 @@ func CreateInvoice(createInvoiceRequest CreateInvoiceRequest) (CreateInvoiceResp
 	var createInvoiceResponse CreateInvoiceResponse
 
 	formBody := url.Values{
-		"description": []string{createInvoiceRequest.Description},
-		"amountSat":   []string{createInvoiceRequest.AmountSat},
-		"externalId":  []string{createInvoiceRequest.ExternalId},
+		"amountSat":  []string{createInvoiceRequest.AmountSat},
+		"externalId": []string{createInvoiceRequest.ExternalId},
+	}
+	if createInvoiceRequest.DescriptionHash != "" {
+		formBody.Set("descriptionHash", createInvoiceRequest.DescriptionHash)
+	} else {
+		formBody.Set("description", createInvoiceRequest.Description)
 	}
 	reader := strings.NewReader(formBody.Encode())
 

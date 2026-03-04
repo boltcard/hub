@@ -45,12 +45,11 @@ func (app *App) CreateHandler_LnurlpRequest() http.HandlerFunc {
 		metadata := lnurlpMetadata(username, hostDomain)
 
 		writeJSON(w, map[string]any{
-			"tag":            "payRequest",
-			"callback":       "https://" + hostDomain + "/.well-known/lnurlp/" + username + "/callback",
-			"minSendable":    1000,
-			"maxSendable":    100000000000,
-			"metadata":       metadata,
-			"commentAllowed": 140,
+			"tag":         "payRequest",
+			"callback":    "https://" + hostDomain + "/.well-known/lnurlp/" + username + "/callback",
+			"minSendable": 1000,
+			"maxSendable": 100000000000,
+			"metadata":    metadata,
 		})
 	}
 }
@@ -97,9 +96,8 @@ func (app *App) CreateHandler_LnurlpCallback() http.HandlerFunc {
 
 		// Create invoice via Phoenix with description hash
 		createInvoiceResponse, err := phoenix.CreateInvoice(phoenix.CreateInvoiceRequest{
-			Description: dHash,
-			AmountSat:   strconv.Itoa(amountSats),
-			ExternalId:  "",
+			DescriptionHash: dHash,
+			AmountSat:       strconv.Itoa(amountSats),
 		})
 		if err != nil {
 			log.Error("lnurlp CreateInvoice error: ", err)
