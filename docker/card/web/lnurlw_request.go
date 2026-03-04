@@ -57,6 +57,14 @@ func (app *App) CreateHandler_LnurlwRequest() http.HandlerFunc {
 		// store new counter value
 		db.Db_set_card_counter(app.db_conn, cardId, ctr)
 
+		// check card withdrawals are enabled
+		lnurlwEnable := db.Db_get_card_lnurlw_enable(app.db_conn, cardId)
+		if lnurlwEnable != "Y" {
+			log.Info("card withdrawals disabled")
+			w.Write([]byte(`{"status": "ERROR", "reason": "withdrawals disabled"}`))
+			return
+		}
+
 		// create and store lnurlw_k1
 		lnurlwK1 := util.Random_hex()
 		lnurlwK1Expiry := time.Now().Unix() + 10 // TODO: get timeout setting

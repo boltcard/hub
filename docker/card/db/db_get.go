@@ -306,6 +306,20 @@ func Db_get_card_by_ln_address(db_conn *sql.DB, ln_address string) (card_id int)
 	return value
 }
 
+func Db_get_card_lnurlw_enable(db_conn *sql.DB, card_id int) string {
+
+	sqlStatement := `SELECT lnurlw_enable FROM cards WHERE card_id=$1 AND wiped='N';`
+	row := db_conn.QueryRow(sqlStatement, card_id)
+
+	value := ""
+	err := row.Scan(&value)
+	if err != nil {
+		return ""
+	}
+
+	return value
+}
+
 func Db_get_card_id_from_card_uid(db_conn *sql.DB, card_uid string) (card_id int) {
 
 	// get card id

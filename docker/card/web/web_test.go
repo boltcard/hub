@@ -1150,6 +1150,8 @@ func insertFundedCard(t *testing.T, db_conn *sql.DB, balanceSats int) int {
 	if cardId == 0 {
 		t.Fatal("expected non-zero card_id")
 	}
+	// enable withdrawals so funded cards can be spent
+	db.Db_update_card_without_pin(db_conn, cardId, 1000000, 1000000, "N", 0, "Y")
 	if balanceSats > 0 {
 		db.Db_add_card_receipt(db_conn, cardId, "lnbc_fund", "fundhash", balanceSats)
 		db.Db_set_receipt_paid(db_conn, "fundhash", "test")
@@ -1166,6 +1168,7 @@ func TestLnurlwRequest_ValidTap(t *testing.T) {
 	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
 	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
 	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
+	db.Db_update_card_without_pin(app.db_conn, cardId, 1000000, 1000000, "N", 0, "Y")
 
 	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
 	pHex := hex.EncodeToString(p)
@@ -1294,6 +1297,7 @@ func TestLnurlwRequest_CounterIncrement(t *testing.T) {
 	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
 	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
 	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
+	db.Db_update_card_without_pin(app.db_conn, cardId, 1000000, 1000000, "N", 0, "Y")
 
 	handler := app.CreateHandler_LnurlwRequest()
 
@@ -1338,6 +1342,31 @@ func TestLnurlwRequest_CounterIncrement(t *testing.T) {
 	// k1 values should differ
 	if resp1.Lnurlwk1 == resp2.Lnurlwk1 {
 		t.Fatal("expected different k1 for each tap")
+	}
+}
+
+func TestLnurlwRequest_WithdrawDisabled(t *testing.T) {
+	app := openTestApp(t)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	// lnurlw_enable defaults to 'N' — do NOT enable it
+
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
+	pHex := hex.EncodeToString(p)
+	cHex := hex.EncodeToString(c)
+
+	handler := app.CreateHandler_LnurlwRequest()
+	r := httptest.NewRequest("GET", "/ln?p="+pHex+"&c="+cHex, nil)
+	w := httptest.NewRecorder()
+
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Status != "ERROR" || resp.Reason != "withdrawals disabled" {
+		t.Fatalf("expected 'withdrawals disabled', got status=%q reason=%q", resp.Status, resp.Reason)
 	}
 }
 
