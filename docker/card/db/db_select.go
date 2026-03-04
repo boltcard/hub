@@ -168,7 +168,7 @@ func Db_select_card_txs(db_conn *sql.DB, card_id int) (result CardTxs) {
 		` SELECT 0, card_payment_id, timestamp, -amount_sats, -fee_sats` +
 		` FROM card_payments` +
 		` WHERE card_payments.card_id = $1 AND card_payments.paid_flag='Y'` +
-		` ORDER BY timestamp;`
+		` ORDER BY timestamp DESC;`
 	rows, err := db_conn.Query(sqlStatement, card_id)
 	if err != nil {
 		log.Error("db_select_card_txs query error: ", err)
