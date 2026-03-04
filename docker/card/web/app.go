@@ -36,7 +36,7 @@ func (app *App) SetupRoutes() *mux.Router {
 	router.Path("/balance-ajax").Methods("GET").HandlerFunc(app.CreateHandler_BalanceAjaxPage())
 
 	// websocket
-	router.Path("/websocket").HandlerFunc(app.CreateHandler_Websocket())
+	router.Path("/admin/api/websocket").HandlerFunc(app.CreateHandler_Websocket())
 
 	// admin API (JSON endpoints) — must be before /admin/ catch-all
 	router.PathPrefix("/admin/api/").HandlerFunc(app.CreateHandler_AdminApi())

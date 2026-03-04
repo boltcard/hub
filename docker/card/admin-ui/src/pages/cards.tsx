@@ -34,7 +34,6 @@ export function CardsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["cards"],
     queryFn: () => apiFetch<{ cards: CardSummary[] }>("/cards"),
-    refetchInterval: 30_000,
   });
 
   if (isLoading || !data) {

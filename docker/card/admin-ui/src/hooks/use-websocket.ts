@@ -20,7 +20,7 @@ export function useWebSocket(onEvent?: () => void) {
 
   const connect = useCallback(() => {
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
-    const ws = new WebSocket(`${proto}//${location.host}/websocket`);
+    const ws = new WebSocket(`${proto}//${location.host}/admin/api/websocket`);
     wsRef.current = ws;
     setStatus("connecting");
 

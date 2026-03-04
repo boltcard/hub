@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api";
 import { formatSats, formatTimestamp } from "@/lib/format";
 import { StatCard } from "@/components/stat-card";
@@ -14,8 +14,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Zap, Coins, Copy, Check, ArrowDownLeft, ArrowUpRight } from "lucide-react";
-import { useState, useMemo, useCallback } from "react";
-import { useWebSocket } from "@/hooks/use-websocket";
+import { useState, useMemo } from "react";
+import { useWebSocketContext } from "@/hooks/use-websocket-context";
 
 interface PhoenixData {
   balanceSat: number;
@@ -41,17 +41,9 @@ interface TxItem {
 }
 
 export function PhoenixPage() {
-  const queryClient = useQueryClient();
-
-  const onEvent = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["phoenix"] });
-    queryClient.invalidateQueries({ queryKey: ["phoenix-transactions"] });
-  }, [queryClient]);
-
   const { data, isLoading } = useQuery({
     queryKey: ["phoenix"],
     queryFn: () => apiFetch<PhoenixData>("/phoenix"),
-    refetchInterval: 30_000,
   });
 
   const { data: txData } = useQuery({
@@ -59,7 +51,7 @@ export function PhoenixPage() {
     queryFn: () => apiFetch<{ in: TxItem[]; out: TxItem[] }>("/phoenix/transactions"),
   });
 
-  const { received: liveReceived, sent: liveSent, status: wsStatus } = useWebSocket(onEvent);
+  const { received: liveReceived, sent: liveSent } = useWebSocketContext();
   const [copied, setCopied] = useState(false);
 
   // Merge live websocket payments with fetched txs, dedup by paymentHash, limit to 5
@@ -114,12 +106,7 @@ export function PhoenixPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Phoenix</h1>
-        <Badge variant={wsStatus === "connected" ? "default" : "secondary"}>
-          {wsStatus === "connected" ? "Live" : wsStatus === "connecting" ? "Connecting" : "Disconnected"}
-        </Badge>
-      </div>
+      <h1 className="text-2xl font-bold">Phoenix</h1>
 
       <div className="grid gap-4 md:grid-cols-2">
         <StatCard title="Balance" value={data.balanceSat} isSats icon={Zap} />

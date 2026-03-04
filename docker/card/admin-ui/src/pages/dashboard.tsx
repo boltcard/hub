@@ -30,7 +30,6 @@ export function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard"],
     queryFn: () => apiFetch<DashboardData>("/dashboard"),
-    refetchInterval: 30_000,
   });
 
   if (isLoading || !data) {

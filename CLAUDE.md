@@ -99,7 +99,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `/new` — Bolt Card Programmer endpoint
 - BoltCardHub API (`/create`, `/auth`, `/balance`, `/payinvoice`, etc.) — LndHub-compatible, feature-gated via `bolt_card_hub_api` setting
 - PoS API (`/pos/`) — Point-of-Sale subset of LndHub API, feature-gated via `bolt_card_pos_api` setting
-- `/websocket` — Real-time payment notifications (JSON events via `wsHub` broadcast)
+- `/admin/api/websocket` — Real-time payment notifications (JSON events via `wsHub` broadcast, requires admin session cookie)
 - `/admin/api/phoenix/transactions` — Last 5 incoming/outgoing Phoenix payments
 - `/admin/api/database/stats` — Database file size, schema version, table row counts
 
