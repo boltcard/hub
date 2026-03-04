@@ -58,7 +58,7 @@ export function CardsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between md:pr-20">
         <h1 className="text-2xl font-bold">Cards</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">
