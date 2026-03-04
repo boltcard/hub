@@ -22,8 +22,8 @@ func TestDbInit_SchemaMigratesToLatest(t *testing.T) {
 	Db_init(db)
 
 	version := Db_get_setting(db, "schema_version_number")
-	if version != "6" {
-		t.Fatalf("expected schema version 6, got %q", version)
+	if version != "7" {
+		t.Fatalf("expected schema version 7, got %q", version)
 	}
 }
 
@@ -823,5 +823,110 @@ func TestDbSelectCardsWithGroupTag_NotFound(t *testing.T) {
 	cards := Db_select_cards_with_group_tag(db, "nonexistent")
 	if len(cards) != 0 {
 		t.Fatalf("expected 0 cards for unknown tag, got %d", len(cards))
+	}
+}
+
+// --- Db_get_card_by_ln_address tests ---
+
+func TestDbGetCardByLnAddress_Found(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	card, err := Db_get_card(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if card.Ln_address == "" {
+		t.Fatal("expected non-empty ln_address")
+	}
+
+	cardId := Db_get_card_by_ln_address(db, card.Ln_address)
+	if cardId != 1 {
+		t.Fatalf("expected card_id 1, got %d", cardId)
+	}
+}
+
+func TestDbGetCardByLnAddress_NotFound(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+
+	cardId := Db_get_card_by_ln_address(db, "nonexistent")
+	if cardId != 0 {
+		t.Fatalf("expected 0 for unknown address, got %d", cardId)
+	}
+}
+
+func TestDbGetCardByLnAddress_DisabledExcluded(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	card, _ := Db_get_card(db, 1)
+	db.Exec("UPDATE cards SET ln_address_enabled = 'N' WHERE card_id = 1")
+
+	cardId := Db_get_card_by_ln_address(db, card.Ln_address)
+	if cardId != 0 {
+		t.Fatalf("expected 0 for disabled address, got %d", cardId)
+	}
+}
+
+func TestDbGetCardByLnAddress_WipedExcluded(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	card, _ := Db_get_card(db, 1)
+	Db_wipe_card(db, 1)
+
+	cardId := Db_get_card_by_ln_address(db, card.Ln_address)
+	if cardId != 0 {
+		t.Fatalf("expected 0 for wiped card, got %d", cardId)
+	}
+}
+
+// --- ln_address insert tests ---
+
+func TestDbInsertCard_GeneratesLnAddress(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	card, err := Db_get_card(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(card.Ln_address) != 8 {
+		t.Fatalf("expected 8-char ln_address, got %q (len %d)", card.Ln_address, len(card.Ln_address))
+	}
+	if card.Ln_address_enabled != "Y" {
+		t.Fatalf("expected ln_address_enabled 'Y', got %q", card.Ln_address_enabled)
+	}
+}
+
+func TestDbInsertCardWithUid_GeneratesLnAddress(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card_with_uid(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1", "uid1", "tag1")
+
+	card, err := Db_get_card(db, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(card.Ln_address) != 8 {
+		t.Fatalf("expected 8-char ln_address, got %q (len %d)", card.Ln_address, len(card.Ln_address))
+	}
+}
+
+func TestDbInsertCard_UniqueLnAddresses(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	Db_insert_card(db, "k0", "k1", "k2", "k3", "k4", "login2", "pass2")
+
+	card1, _ := Db_get_card(db, 1)
+	card2, _ := Db_get_card(db, 2)
+	if card1.Ln_address == card2.Ln_address {
+		t.Fatalf("expected unique ln_addresses, both got %q", card1.Ln_address)
 	}
 }

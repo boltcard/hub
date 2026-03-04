@@ -43,6 +43,10 @@ func (app *App) SetupRoutes() *mux.Router {
 	// public assets that do not need authentication
 	router.PathPrefix("/public/").HandlerFunc(app.CreateHandler_Public())
 
+	// Lightning Address (LNURL-pay)
+	router.Path("/.well-known/lnurlp/{username}").Methods("GET").HandlerFunc(app.CreateHandler_LnurlpRequest())
+	router.Path("/.well-known/lnurlp/{username}/callback").Methods("GET").HandlerFunc(app.CreateHandler_LnurlpCallback())
+
 	// for Bolt Card Programmer app
 	router.Path("/new").Methods("GET", "POST").HandlerFunc(app.CreateHandler_CreateCard())
 

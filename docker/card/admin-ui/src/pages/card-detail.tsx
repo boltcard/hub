@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiPut, apiPost } from "@/lib/api";
 import { formatSats, formatTimestamp } from "@/lib/format";
 import { toast } from "sonner";
+import { QRCodeSVG } from "qrcode.react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,7 +36,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Pencil, Check, X, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Check, X, Trash2, Copy, Zap } from "lucide-react";
 
 interface CardDetail {
   cardId: number;
@@ -48,6 +49,9 @@ interface CardDetail {
   pinEnable: string;
   pinLimitSats: number;
   wiped: string;
+  lnAddress: string;
+  lnAddressEnabled: string;
+  hostDomain: string;
 }
 
 interface CardTx {
@@ -92,6 +96,7 @@ export function CardDetailPage() {
     txLimitSats: string;
     dayLimitSats: string;
     lnurlwEnable: string;
+    lnAddressEnabled: string;
   } | null>(null);
 
   const limitsMutation = useMutation({
@@ -99,6 +104,7 @@ export function CardDetailPage() {
       txLimitSats: number;
       dayLimitSats: number;
       lnurlwEnable: string;
+      lnAddressEnabled: string;
     }) => apiPut(`/cards/${id}/limits`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["card", id] });
@@ -139,6 +145,7 @@ export function CardDetailPage() {
       txLimitSats: String(card!.txLimitSats),
       dayLimitSats: String(card!.dayLimitSats),
       lnurlwEnable: card!.lnurlwEnable,
+      lnAddressEnabled: card!.lnAddressEnabled,
     });
   }
 
@@ -148,6 +155,7 @@ export function CardDetailPage() {
       txLimitSats: Number(limitsForm.txLimitSats) || 0,
       dayLimitSats: Number(limitsForm.dayLimitSats) || 0,
       lnurlwEnable: limitsForm.lnurlwEnable,
+      lnAddressEnabled: limitsForm.lnAddressEnabled,
     });
   }
 
@@ -236,6 +244,48 @@ export function CardDetailPage() {
         </Card>
       </div>
 
+      {/* Lightning Address */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Lightning Address
+          </CardTitle>
+          <Badge variant={card.lnAddressEnabled === "Y" ? "default" : "secondary"}>
+            {card.lnAddressEnabled === "Y" ? "Enabled" : "Disabled"}
+          </Badge>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <code className="text-sm font-mono bg-muted px-2 py-1 rounded">
+              {card.lnAddress}@{card.hostDomain}
+            </code>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7"
+              onClick={() => {
+                navigator.clipboard.writeText(
+                  `${card.lnAddress}@${card.hostDomain}`
+                );
+                toast.success("Copied to clipboard");
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+          {card.lnAddressEnabled === "Y" && (
+            <div className="flex justify-center p-4 bg-white rounded-lg w-fit">
+              <QRCodeSVG
+                value={`lightning:${card.lnAddress}@${card.hostDomain}`}
+                size={160}
+                level="M"
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Limits section */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
@@ -249,7 +299,7 @@ export function CardDetailPage() {
         <CardContent>
           {limitsForm ? (
             <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-3">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
                   <Label>Tx Limit (sats)</Label>
                   <Input
@@ -293,6 +343,23 @@ export function CardDetailPage() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>Lightning Address</Label>
+                  <Select
+                    value={limitsForm.lnAddressEnabled}
+                    onValueChange={(v) =>
+                      setLimitsForm({ ...limitsForm, lnAddressEnabled: v })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Y">Enabled</SelectItem>
+                      <SelectItem value="N">Disabled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="flex gap-2">
                 <Button
@@ -312,7 +379,7 @@ export function CardDetailPage() {
               </div>
             </div>
           ) : (
-            <div className="grid gap-4 text-sm sm:grid-cols-3">
+            <div className="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
               <div>
                 <span className="text-muted-foreground">Tx Limit</span>
                 <p className="font-mono tabular-nums">
@@ -328,6 +395,10 @@ export function CardDetailPage() {
               <div>
                 <span className="text-muted-foreground">Withdrawals</span>
                 <p>{card.lnurlwEnable === "Y" ? "Enabled" : "Disabled"}</p>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Lightning Address</span>
+                <p>{card.lnAddressEnabled === "Y" ? "Enabled" : "Disabled"}</p>
               </div>
             </div>
           )}

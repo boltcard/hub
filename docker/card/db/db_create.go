@@ -1,7 +1,11 @@
 package db
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
+	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -194,4 +198,59 @@ func update_schema_5(db *sql.DB) {
 		log.Printf("%q : %s\n", err, sqlStmt)
 		return
 	}
+}
+
+func update_schema_6(db *sql.DB) {
+
+	// Generate random hex addresses for existing cards
+	rows, err := db.Query("SELECT card_id FROM cards WHERE 1=1")
+	if err != nil {
+		log.Printf("update_schema_6 select error: %q", err)
+		return
+	}
+	var cardIds []int
+	for rows.Next() {
+		var id int
+		rows.Scan(&id)
+		cardIds = append(cardIds, id)
+	}
+	rows.Close()
+
+	sqlStmt := `
+		BEGIN TRANSACTION;
+		ALTER TABLE cards ADD COLUMN ln_address CHAR(12) NOT NULL DEFAULT '';
+		ALTER TABLE cards ADD COLUMN ln_address_enabled CHAR(1) NOT NULL DEFAULT 'Y';
+		UPDATE settings SET value='7' WHERE name='schema_version_number';
+		COMMIT TRANSACTION;
+	`
+	_, err = db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("update_schema_6 alter error: %q", err)
+		return
+	}
+
+	// Backfill existing cards with random hex addresses
+	for _, id := range cardIds {
+		addr := randomHex8()
+		_, err := db.Exec("UPDATE cards SET ln_address = $1 WHERE card_id = $2", addr, id)
+		if err != nil {
+			log.Printf("update_schema_6 backfill error for card %d: %q", id, err)
+		}
+	}
+
+	// Create partial unique index
+	_, err = db.Exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_cards_ln_address ON cards(ln_address) WHERE ln_address != ''")
+	if err != nil {
+		log.Printf("update_schema_6 index error: %q", err)
+	}
+}
+
+// randomHex8 generates an 8-character random hex string for lightning addresses.
+func randomHex8() string {
+	b := make([]byte, 4)
+	_, err := rand.Read(b)
+	if err != nil {
+		return fmt.Sprintf("%08x", time.Now().UnixNano()&0xFFFFFFFF)
+	}
+	return hex.EncodeToString(b)
 }

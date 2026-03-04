@@ -91,17 +91,22 @@ func (app *App) adminApiGetCard(w http.ResponseWriter, _ *http.Request, cardId i
 
 	balance := db.Db_get_card_balance(app.db_conn, cardId)
 
+	hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
+
 	writeJSON(w, map[string]any{
-		"cardId":       card.Card_id,
-		"uid":          card.Uid,
-		"note":         card.Note,
-		"balanceSats":  balance,
-		"lnurlwEnable": card.Lnurlw_enable,
-		"txLimitSats":  card.Tx_limit_sats,
-		"dayLimitSats": card.Day_limit_sats,
-		"pinEnable":    card.Pin_enable,
-		"pinLimitSats": card.Pin_limit_sats,
-		"wiped":        card.Wiped,
+		"cardId":           card.Card_id,
+		"uid":              card.Uid,
+		"note":             card.Note,
+		"balanceSats":      balance,
+		"lnurlwEnable":     card.Lnurlw_enable,
+		"txLimitSats":      card.Tx_limit_sats,
+		"dayLimitSats":     card.Day_limit_sats,
+		"pinEnable":        card.Pin_enable,
+		"pinLimitSats":     card.Pin_limit_sats,
+		"wiped":            card.Wiped,
+		"lnAddress":        card.Ln_address,
+		"lnAddressEnabled": card.Ln_address_enabled,
+		"hostDomain":       hostDomain,
 	})
 }
 
@@ -121,9 +126,10 @@ func (app *App) adminApiUpdateCardNote(w http.ResponseWriter, r *http.Request, c
 
 func (app *App) adminApiUpdateCardLimits(w http.ResponseWriter, r *http.Request, cardId int) {
 	var req struct {
-		TxLimitSats  int    `json:"txLimitSats"`
-		DayLimitSats int    `json:"dayLimitSats"`
-		LnurlwEnable string `json:"lnurlwEnable"`
+		TxLimitSats      int    `json:"txLimitSats"`
+		DayLimitSats     int    `json:"dayLimitSats"`
+		LnurlwEnable     string `json:"lnurlwEnable"`
+		LnAddressEnabled string `json:"lnAddressEnabled"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -138,9 +144,20 @@ func (app *App) adminApiUpdateCardLimits(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	// Validate lnAddressEnabled (optional — default to current value)
+	if req.LnAddressEnabled != "" && req.LnAddressEnabled != "Y" && req.LnAddressEnabled != "N" {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]string{"error": "lnAddressEnabled must be Y or N"})
+		return
+	}
+
 	// Use the update without pin variant — admin doesn't change PIN settings
 	db.Db_update_card_without_pin(app.db_conn, cardId, req.TxLimitSats,
 		req.DayLimitSats, "N", 0, req.LnurlwEnable)
+
+	if req.LnAddressEnabled != "" {
+		db.Db_update_card_ln_address_enabled(app.db_conn, cardId, req.LnAddressEnabled)
+	}
 
 	writeJSON(w, map[string]bool{"ok": true})
 }

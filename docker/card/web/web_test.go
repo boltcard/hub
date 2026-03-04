@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/aead/cmac"
+	"github.com/gorilla/mux"
 )
 
 func openTestDB(t *testing.T) *sql.DB {
@@ -2059,5 +2060,147 @@ func TestPosAddInvoice_NegativeAmount(t *testing.T) {
 	}
 	if !strings.Contains(w.Body.String(), "amount must be positive") {
 		t.Fatalf("expected 'amount must be positive', got %q", w.Body.String())
+	}
+}
+
+// --- LNURL-pay (Lightning Address) Tests ---
+
+func TestLnurlpRequest_ValidAddress(t *testing.T) {
+	app := openTestApp(t)
+	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	card, _ := db.Db_get_card(app.db_conn, 1)
+
+	handler := app.CreateHandler_LnurlpRequest()
+	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address, nil)
+	r = mux.SetURLVars(r, map[string]string{"username": card.Ln_address})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp map[string]any
+	json.Unmarshal(w.Body.Bytes(), &resp)
+
+	if resp["tag"] != "payRequest" {
+		t.Fatalf("expected tag 'payRequest', got %v", resp["tag"])
+	}
+	if resp["minSendable"] != float64(1000) {
+		t.Fatalf("expected minSendable 1000, got %v", resp["minSendable"])
+	}
+	if resp["maxSendable"] != float64(100000000000) {
+		t.Fatalf("expected maxSendable 100000000000, got %v", resp["maxSendable"])
+	}
+}
+
+func TestLnurlpRequest_NotFound(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_LnurlpRequest()
+	r := httptest.NewRequest("GET", "/.well-known/lnurlp/nonexistent", nil)
+	r = mux.SetURLVars(r, map[string]string{"username": "nonexistent"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestLnurlpRequest_DisabledAddress(t *testing.T) {
+	app := openTestApp(t)
+	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+
+	card, _ := db.Db_get_card(app.db_conn, 1)
+	db.Db_update_card_ln_address_enabled(app.db_conn, 1, "N")
+
+	handler := app.CreateHandler_LnurlpRequest()
+	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address, nil)
+	r = mux.SetURLVars(r, map[string]string{"username": card.Ln_address})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404 for disabled address, got %d", w.Code)
+	}
+}
+
+func TestLnurlpCallback_MissingAmount(t *testing.T) {
+	app := openTestApp(t)
+	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	card, _ := db.Db_get_card(app.db_conn, 1)
+
+	handler := app.CreateHandler_LnurlpCallback()
+	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address+"/callback", nil)
+	r = mux.SetURLVars(r, map[string]string{"username": card.Ln_address})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestLnurlpCallback_AmountTooLow(t *testing.T) {
+	app := openTestApp(t)
+	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	card, _ := db.Db_get_card(app.db_conn, 1)
+
+	handler := app.CreateHandler_LnurlpCallback()
+	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address+"/callback?amount=999", nil)
+	r = mux.SetURLVars(r, map[string]string{"username": card.Ln_address})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for amount too low, got %d", w.Code)
+	}
+}
+
+func TestLnurlpCallback_AmountTooHigh(t *testing.T) {
+	app := openTestApp(t)
+	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	card, _ := db.Db_get_card(app.db_conn, 1)
+
+	handler := app.CreateHandler_LnurlpCallback()
+	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address+"/callback?amount=100000000001", nil)
+	r = mux.SetURLVars(r, map[string]string{"username": card.Ln_address})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for amount too high, got %d", w.Code)
+	}
+}
+
+func TestLnurlpCallback_UnknownAddress(t *testing.T) {
+	app := openTestApp(t)
+
+	handler := app.CreateHandler_LnurlpCallback()
+	r := httptest.NewRequest("GET", "/.well-known/lnurlp/unknown/callback?amount=5000", nil)
+	r = mux.SetURLVars(r, map[string]string{"username": "unknown"})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestLnurlpCallback_ValidAmount_PhoenixUnavailable(t *testing.T) {
+	app := openTestApp(t)
+	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	card, _ := db.Db_get_card(app.db_conn, 1)
+
+	handler := app.CreateHandler_LnurlpCallback()
+	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address+"/callback?amount=5000000", nil)
+	r = mux.SetURLVars(r, map[string]string{"username": card.Ln_address})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	// Phoenix is unavailable in tests, so this returns 500 (not 400/404)
+	if w.Code == http.StatusBadRequest || w.Code == http.StatusNotFound {
+		t.Fatalf("expected validation to pass (not 400/404), got %d", w.Code)
 	}
 }

@@ -74,6 +74,11 @@ func (app *App) startPhoenixListener() {
 				continue
 			}
 
+			// Mark any matching receipt as paid (for lightning address payments)
+			if incomingPayment.IsPaid {
+				db.Db_set_receipt_paid(app.db_conn, incomingPayment.PaymentHash)
+			}
+
 			event := wsPaymentEvent{
 				Type:        "payment_received",
 				AmountSat:   incomingPayment.ReceivedSat,

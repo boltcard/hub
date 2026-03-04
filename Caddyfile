@@ -34,7 +34,7 @@ https://{$HOST_DOMAIN} {
 	}
 
 	@api_paths {
-		path /create /payinvoice /addinvoice /ln /cb
+		path /create /payinvoice /addinvoice /ln /cb /.well-known/lnurlp/*
 	}
 	handle @api_paths {
 		rate_limit {
