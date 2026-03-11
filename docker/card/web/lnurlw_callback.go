@@ -5,6 +5,7 @@ import (
 	"card/phoenix"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"math"
 	"net/http"
 	"strconv"
@@ -141,28 +142,31 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 			return
 		}
 
-		// check the card balance with fee headroom
-		total_card_balance := db.Db_get_card_balance(app.db_conn, cardId)
+		// atomically check balance and reserve funds (BEGIN IMMEDIATE transaction)
 		max_network_fee_sats := 4 + amountSats*4/1000 // Phoenix fee: 0.4% + 4 sat
 
 		log.Info("amountSats ", amountSats)
 		log.Info("max_network_fee_sats ", max_network_fee_sats)
-		log.Info("total_card_balance ", total_card_balance)
 
-		if amountSats > total_card_balance {
-			log.Info("amountSats > total_card_balance : insufficient funds on card")
-			lnurlError(w, "Insufficient funds")
+		balance, card_payment_id, err := db.Db_reserve_card_payment(
+			app.db_conn, cardId, amountSats+max_network_fee_sats, amountSats, param_pr)
+		if errors.Is(err, db.ErrInsufficientFunds) {
+			if amountSats > balance {
+				log.Info("insufficient funds on card")
+				lnurlError(w, "Insufficient funds")
+			} else {
+				log.Info("insufficient funds on card with network fees")
+				lnurlError(w, "Insufficient funds with network fees")
+			}
+			return
+		}
+		if err != nil {
+			log.Error("reserve payment error: ", err)
+			lnurlError(w, "payment reservation failed")
 			return
 		}
 
-		if amountSats+max_network_fee_sats > total_card_balance {
-			log.Info("amountSats + max_network_fee_sats > total_card_balance : insufficient funds on card")
-			lnurlError(w, "Insufficient funds with network fees")
-			return
-		}
-
-		// reserve funds by inserting a payment record
-		card_payment_id := db.Db_add_card_payment(app.db_conn, cardId, amountSats, param_pr)
+		log.Info("total_card_balance ", balance)
 
 		// TODO: check the payment rules (max withdrawal amount, max per day, PIN number)
 

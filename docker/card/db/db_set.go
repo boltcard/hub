@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 
@@ -9,31 +10,32 @@ import (
 
 func Db_set_setting(db_conn *sql.DB, name string, value string) {
 
-	// ensure no records with the same name exist
-	sqlStatement := `DELETE FROM settings` +
-		` WHERE name = $1;`
-	_, err := db_conn.Exec(sqlStatement, name)
-	if err != nil {
-		log.Error("db_set_setting delete error: ", err)
-		return
-	}
+	err := withImmediateTx(db_conn, func(ctx context.Context, conn *sql.Conn) error {
 
-	// insert a new record into settings table
-	sqlStatement = `INSERT INTO settings` +
-		` (name, value)` +
-		` VALUES ($1, $2);`
-	res, err := db_conn.Exec(sqlStatement, name, value)
+		_, err := conn.ExecContext(ctx,
+			`DELETE FROM settings WHERE name = $1;`, name)
+		if err != nil {
+			return err
+		}
+
+		res, err := conn.ExecContext(ctx,
+			`INSERT INTO settings (name, value) VALUES ($1, $2);`, name, value)
+		if err != nil {
+			return err
+		}
+
+		count, err := res.RowsAffected()
+		if err != nil {
+			return err
+		}
+		if count != 1 {
+			return errors.New("expected one setting record to be inserted")
+		}
+
+		return nil
+	})
 	if err != nil {
-		log.Error("db_set_setting insert error: ", err)
-		return
-	}
-	count, err := res.RowsAffected()
-	if err != nil {
-		log.Error("db_set_setting rows affected error: ", err)
-		return
-	}
-	if count != 1 {
-		log.Error("db_set_setting: expected one setting record to be inserted")
+		log.Error("db_set_setting error: ", err)
 	}
 }
 

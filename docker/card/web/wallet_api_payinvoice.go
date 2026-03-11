@@ -4,6 +4,7 @@ import (
 	"card/db"
 	"card/phoenix"
 	"encoding/json"
+	"errors"
 	"math"
 	"net/http"
 	"strconv"
@@ -70,20 +71,17 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 			return
 		}
 
-		// check if there is sufficient balance (atomic query)
-
-		total_card_balance := db.Db_get_card_balance(app.db_conn, card_id)
-
-		if actualAmtSat > total_card_balance {
+		// atomically check balance and reserve funds (BEGIN IMMEDIATE transaction)
+		_, _, err = db.Db_reserve_card_payment(
+			app.db_conn, card_id, actualAmtSat, reqObj.Amount, reqObj.Invoice)
+		if errors.Is(err, db.ErrInsufficientFunds) {
 			sendError(w, "Error", 999, "invoice amount too large")
 			return
 		}
-
-		// note that the order matters here -
-		//  the balance must be reduced in the database before the payment is made
-		// insert card_payment record
-
-		db.Db_add_card_payment(app.db_conn, card_id, reqObj.Amount, reqObj.Invoice)
+		if err != nil {
+			sendError(w, "Error", 999, "payment reservation failed")
+			return
+		}
 
 		// make payment
 
