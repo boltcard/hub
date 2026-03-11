@@ -46,7 +46,7 @@ func (app *App) CreateHandler_Auth() http.HandlerFunc {
 			AccessToken := util.Random_hex()
 
 			// update tokens
-			success := db.Db_update_tokens(app.db_conn, t.RefreshToken, RefreshToken, AccessToken)
+			success := db.Db_update_tokens(app.db_write, t.RefreshToken, RefreshToken, AccessToken)
 
 			if !success {
 				sendError(w, "Bad auth", 1, "invalid refresh_token")
@@ -82,7 +82,7 @@ func (app *App) CreateHandler_Auth() http.HandlerFunc {
 			RefreshToken := util.Random_hex()
 
 			// store tokens in database if there is a matching Login & Password
-			err = db.Db_set_tokens(app.db_conn, reqObj.Login, reqObj.Password, AccessToken, RefreshToken)
+			err = db.Db_set_tokens(app.db_write, reqObj.Login, reqObj.Password, AccessToken, RefreshToken)
 			if err != nil {
 				sendError(w, "Bad auth", 1, "invalid login and password")
 				return

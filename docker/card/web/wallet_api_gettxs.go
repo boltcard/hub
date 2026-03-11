@@ -37,7 +37,7 @@ func (app *App) CreateHandler_GetTxs() http.HandlerFunc {
 
 		// query database card payments for card
 
-		cardPayments := db.Db_select_card_payments(app.db_conn, card_id)
+		cardPayments := db.Db_select_card_payments(app.db_read, card_id)
 
 		var resObj Transactions
 		resObj = make([]Transaction, 0)

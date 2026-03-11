@@ -52,7 +52,7 @@ func (app *App) CreateHandler_BalanceAjaxPage() http.HandlerFunc {
 			return
 		}
 
-		cardMatch, cardId, cardCounter := Find_card(app.db_conn, p, c)
+		cardMatch, cardId, cardCounter := Find_card(app.db_read, p, c)
 
 		if !cardMatch {
 			writeJSON(w, AjaxBalanceResponse{Error: "card not found"})
@@ -60,14 +60,14 @@ func (app *App) CreateHandler_BalanceAjaxPage() http.HandlerFunc {
 		}
 
 		// check counter is incremented
-		cardLastCounter := db.Db_get_card_counter(app.db_conn, cardId)
+		cardLastCounter := db.Db_get_card_counter(app.db_read, cardId)
 		if cardCounter <= cardLastCounter {
 			writeJSON(w, AjaxBalanceResponse{Error: "card already scanned, tap again"})
 			return
 		}
 
 		// store new counter value
-		db.Db_set_card_counter(app.db_conn, cardId, cardCounter)
+		db.Db_set_card_counter(app.db_write, cardId, cardCounter)
 
 		log.Info("card_id = " + strconv.Itoa(cardId))
 
@@ -75,17 +75,17 @@ func (app *App) CreateHandler_BalanceAjaxPage() http.HandlerFunc {
 		var resObj AjaxBalanceResponse
 
 		resObj.CardId = cardId
-		card, err := db.Db_get_card(app.db_conn, cardId)
+		card, err := db.Db_get_card(app.db_read, cardId)
 		if err == nil {
 			resObj.Note = card.Note
 		}
 
 		// check the card balance
-		total_card_balance := db.Db_get_card_balance(app.db_conn, cardId)
+		total_card_balance := db.Db_get_card_balance(app.db_read, cardId)
 		resObj.AvailableBalance = total_card_balance
 
 		// get card transactions
-		cardTxs := db.Db_select_card_txs(app.db_conn, cardId)
+		cardTxs := db.Db_select_card_txs(app.db_read, cardId)
 		for _, cardTx := range cardTxs {
 			var cardTxAppend Tx
 			cardTxAppend.AmountSats = cardTx.AmountSats

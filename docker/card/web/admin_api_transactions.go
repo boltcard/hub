@@ -57,7 +57,7 @@ func (app *App) adminApiTransactions(w http.ResponseWriter, r *http.Request) {
 		if !p.IsPaid {
 			continue
 		}
-		cardNote := db.Db_get_card_note_by_invoice(app.db_conn, p.Invoice)
+		cardNote := db.Db_get_card_note_by_invoice(app.db_read, p.Invoice)
 		txOut = append(txOut, txJSON{
 			Direction:   "out",
 			AmountSat:   p.Sent,

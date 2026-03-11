@@ -36,7 +36,7 @@ func openTestDB(t *testing.T) *sql.DB {
 func openTestApp(t *testing.T) *App {
 	t.Helper()
 	db_conn := openTestDB(t)
-	return NewApp(db_conn)
+	return NewApp(db_conn, db_conn) // same DB for both read and write in tests
 }
 
 // Test getBearerToken with valid Bearer token
@@ -143,13 +143,13 @@ func TestBalance_ValidToken(t *testing.T) {
 	// The test data created by db_init includes a test card
 	// We need to set an access token for it
 	// Card 1 should exist from test data - set its access token
-	db.Db_set_setting(app.db_conn, "bolt_card_hub_api", "enabled")
+	db.Db_set_setting(app.db_write, "bolt_card_hub_api", "enabled")
 
 	// Insert a card and set its tokens
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "testlogin", "testpass")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "testlogin", "testpass")
 
 	// Set tokens for the card
-	err := db.Db_set_tokens(app.db_conn, "testlogin", "testpass", "testaccesstoken", "testrefreshtoken")
+	err := db.Db_set_tokens(app.db_write, "testlogin", "testpass", "testaccesstoken", "testrefreshtoken")
 	if err != nil {
 		t.Fatal("failed to set tokens: ", err)
 	}
@@ -178,7 +178,7 @@ func TestAuth_LoginPassword(t *testing.T) {
 	app := openTestApp(t)
 
 	// Insert a card
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "authlogin", "authpass")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "authlogin", "authpass")
 
 	handler := app.CreateHandler_Auth()
 
@@ -448,8 +448,8 @@ func TestGetPC_WrongCLength(t *testing.T) {
 
 func TestGetAuthenticatedCardID_Valid(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "validtoken", "refreshtoken")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "validtoken", "refreshtoken")
 
 	r := httptest.NewRequest("GET", "/balance", nil)
 	r.Header.Set("Authorization", "Bearer validtoken")
@@ -491,13 +491,13 @@ func TestGetAuthenticatedCardID_InvalidToken(t *testing.T) {
 func setupEnabledApp(t *testing.T) *App {
 	t.Helper()
 	app := openTestApp(t)
-	db.Db_set_setting(app.db_conn, "bolt_card_hub_api", "enabled")
+	db.Db_set_setting(app.db_write, "bolt_card_hub_api", "enabled")
 	return app
 }
 
 func TestCreate_ValidInviteSecret(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_set_setting(app.db_conn, "invite_secret", "mysecret")
+	db.Db_set_setting(app.db_write, "invite_secret", "mysecret")
 
 	handler := app.CreateHandler_Create()
 	body := `{"invite_secret":"mysecret"}`
@@ -521,7 +521,7 @@ func TestCreate_ValidInviteSecret(t *testing.T) {
 
 func TestCreate_WrongSecret(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_set_setting(app.db_conn, "invite_secret", "mysecret")
+	db.Db_set_setting(app.db_write, "invite_secret", "mysecret")
 
 	handler := app.CreateHandler_Create()
 	body := `{"invite_secret":"wrongsecret"}`
@@ -564,8 +564,8 @@ func TestCreate_EmptySecretMatchesNoSetting(t *testing.T) {
 
 func TestAuthRefresh_ValidToken(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "access1", "refresh1")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "access1", "refresh1")
 
 	handler := app.CreateHandler_Auth()
 	body := `{"refresh_token":"refresh1"}`
@@ -613,8 +613,8 @@ func TestAuthRefresh_InvalidToken(t *testing.T) {
 
 func TestGetCard_ValidToken(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "cardtoken", "cardrefresh")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "cardtoken", "cardrefresh")
 
 	handler := app.CreateHandler_WalletApi_GetCard()
 	r := httptest.NewRequest("POST", "/getcard", nil)
@@ -653,8 +653,8 @@ func TestGetCard_BadToken(t *testing.T) {
 
 func TestGetTxs_EmptyForNewCard(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "txtoken", "txrefresh")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "txtoken", "txrefresh")
 
 	handler := app.CreateHandler_GetTxs()
 	r := httptest.NewRequest("GET", "/gettxs", nil)
@@ -674,12 +674,12 @@ func TestGetTxs_EmptyForNewCard(t *testing.T) {
 
 func TestGetTxs_ReturnsPayments(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "txtoken2", "txrefresh2")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "txtoken2", "txrefresh2")
 
-	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "txtoken2")
-	db.Db_add_card_payment(app.db_conn, cardId, 100, "lnbc_pay1")
-	db.Db_add_card_payment(app.db_conn, cardId, 200, "lnbc_pay2")
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "txtoken2")
+	db.Db_add_card_payment(app.db_write, cardId, 100, "lnbc_pay1")
+	db.Db_add_card_payment(app.db_write, cardId, 200, "lnbc_pay2")
 
 	handler := app.CreateHandler_GetTxs()
 	r := httptest.NewRequest("GET", "/gettxs", nil)
@@ -701,8 +701,8 @@ func TestGetTxs_ReturnsPayments(t *testing.T) {
 
 func TestUpdateCardWithPin_Valid(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "pintoken", "pinrefresh")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "pintoken", "pinrefresh")
 
 	handler := app.CreateHandler_WalletApi_UpdateCardWithPin()
 	body := `{"enable":true,"card_name":"test","tx_max":"1000","day_max":"10000","enable_pin":true,"pin_limit_sats":"500","card_pin_number":"1234"}`
@@ -722,8 +722,8 @@ func TestUpdateCardWithPin_Valid(t *testing.T) {
 	}
 
 	// Verify the card was updated
-	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "pintoken")
-	card, err := db.Db_get_card(app.db_conn, cardId)
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "pintoken")
+	card, err := db.Db_get_card(app.db_read, cardId)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -746,8 +746,8 @@ func TestUpdateCardWithPin_Valid(t *testing.T) {
 
 func TestUpdateCardWithPin_BadParams(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "pintoken2", "pinrefresh2")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "pintoken2", "pinrefresh2")
 
 	handler := app.CreateHandler_WalletApi_UpdateCardWithPin()
 	// tx_max is not a number
@@ -768,8 +768,8 @@ func TestUpdateCardWithPin_BadParams(t *testing.T) {
 
 func TestUpdateCardWithPin_WithoutPin(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "pintoken3", "pinrefresh3")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "pintoken3", "pinrefresh3")
 
 	handler := app.CreateHandler_WalletApi_UpdateCardWithPin()
 	// No card_pin_number — should use Db_update_card_without_pin
@@ -794,8 +794,8 @@ func TestUpdateCardWithPin_WithoutPin(t *testing.T) {
 
 func TestWipeCard_Success(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "aa00", "bb11", "cc22", "dd33", "ee44", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "wipetoken", "wiperefresh")
+	db.Db_insert_card(app.db_write, "aa00", "bb11", "cc22", "dd33", "ee44", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "wipetoken", "wiperefresh")
 
 	handler := app.CreateHandler_WalletApi_WipeCard()
 	r := httptest.NewRequest("POST", "/wipecard", nil)
@@ -821,8 +821,8 @@ func TestWipeCard_Success(t *testing.T) {
 
 func TestWipeCard_ThenAuthFails(t *testing.T) {
 	app := setupEnabledApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	db.Db_set_tokens(app.db_conn, "login1", "pass1", "wipetoken2", "wiperefresh2")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_set_tokens(app.db_write, "login1", "pass1", "wipetoken2", "wiperefresh2")
 
 	// Wipe the card
 	wipeHandler := app.CreateHandler_WalletApi_WipeCard()
@@ -866,7 +866,7 @@ func TestFeatureFlag_HubApiDisabled(t *testing.T) {
 
 func TestFeatureFlag_HubApiEnabled(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_set_setting(app.db_conn, "bolt_card_hub_api", "enabled")
+	db.Db_set_setting(app.db_write, "bolt_card_hub_api", "enabled")
 
 	router := app.SetupRoutes()
 
@@ -1165,10 +1165,10 @@ func TestLnurlwRequest_ValidTap(t *testing.T) {
 	app := openTestApp(t)
 	key1Hex := hex.EncodeToString(nfcTestKey1)
 	key2Hex := hex.EncodeToString(nfcTestKey2)
-	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
-	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
-	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
-	db.Db_update_card_without_pin(app.db_conn, cardId, 1000000, 1000000, "N", 0, "Y")
+	db.Db_insert_card(app.db_write, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_write, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "lnaccess")
+	db.Db_update_card_without_pin(app.db_write, cardId, 1000000, 1000000, "N", 0, "Y")
 
 	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
 	pHex := hex.EncodeToString(p)
@@ -1201,13 +1201,13 @@ func TestLnurlwRequest_ValidTap(t *testing.T) {
 	}
 
 	// Verify counter was updated in DB
-	newCounter := db.Db_get_card_counter(app.db_conn, cardId)
+	newCounter := db.Db_get_card_counter(app.db_read, cardId)
 	if newCounter != 1 {
 		t.Fatalf("expected counter 1, got %d", newCounter)
 	}
 
 	// Verify k1 was stored
-	k1CardId, _ := db.Db_get_lnurlw_k1(app.db_conn, resp.Lnurlwk1)
+	k1CardId, _ := db.Db_get_lnurlw_k1(app.db_read, resp.Lnurlwk1)
 	if k1CardId != cardId {
 		t.Fatalf("expected k1 to map to card_id %d, got %d", cardId, k1CardId)
 	}
@@ -1243,7 +1243,7 @@ func TestLnurlwRequest_BadParams(t *testing.T) {
 func TestLnurlwRequest_CardNotFound(t *testing.T) {
 	app := openTestApp(t)
 	// Insert a card with different keys so the tap won't match
-	db.Db_insert_card(app.db_conn, "k0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "k3", "k4", "login1", "pass1")
+	db.Db_insert_card(app.db_write, "k0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "k3", "k4", "login1", "pass1")
 
 	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
 	pHex := hex.EncodeToString(p)
@@ -1266,12 +1266,12 @@ func TestLnurlwRequest_CounterReplay(t *testing.T) {
 	app := openTestApp(t)
 	key1Hex := hex.EncodeToString(nfcTestKey1)
 	key2Hex := hex.EncodeToString(nfcTestKey2)
-	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
-	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
-	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
+	db.Db_insert_card(app.db_write, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_write, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "lnaccess")
 
 	// Set counter to 10 so a tap with counter=10 is a replay
-	db.Db_set_card_counter(app.db_conn, cardId, 10)
+	db.Db_set_card_counter(app.db_write, cardId, 10)
 
 	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 10)
 	pHex := hex.EncodeToString(p)
@@ -1294,10 +1294,10 @@ func TestLnurlwRequest_CounterIncrement(t *testing.T) {
 	app := openTestApp(t)
 	key1Hex := hex.EncodeToString(nfcTestKey1)
 	key2Hex := hex.EncodeToString(nfcTestKey2)
-	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
-	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
-	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
-	db.Db_update_card_without_pin(app.db_conn, cardId, 1000000, 1000000, "N", 0, "Y")
+	db.Db_insert_card(app.db_write, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_write, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "lnaccess")
+	db.Db_update_card_without_pin(app.db_write, cardId, 1000000, 1000000, "N", 0, "Y")
 
 	handler := app.CreateHandler_LnurlwRequest()
 
@@ -1315,7 +1315,7 @@ func TestLnurlwRequest_CounterIncrement(t *testing.T) {
 		t.Fatalf("expected withdrawRequest, got %q", resp1.Tag)
 	}
 
-	ctr := db.Db_get_card_counter(app.db_conn, cardId)
+	ctr := db.Db_get_card_counter(app.db_read, cardId)
 	if ctr != 5 {
 		t.Fatalf("expected counter 5 after first tap, got %d", ctr)
 	}
@@ -1334,7 +1334,7 @@ func TestLnurlwRequest_CounterIncrement(t *testing.T) {
 		t.Fatalf("expected withdrawRequest on second tap, got %q", resp2.Tag)
 	}
 
-	ctr = db.Db_get_card_counter(app.db_conn, cardId)
+	ctr = db.Db_get_card_counter(app.db_read, cardId)
 	if ctr != 6 {
 		t.Fatalf("expected counter 6 after second tap, got %d", ctr)
 	}
@@ -1349,10 +1349,10 @@ func TestLnurlwRequest_WithdrawDisabled(t *testing.T) {
 	app := openTestApp(t)
 	key1Hex := hex.EncodeToString(nfcTestKey1)
 	key2Hex := hex.EncodeToString(nfcTestKey2)
-	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
-	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	db.Db_insert_card(app.db_write, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_write, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
 	// explicitly disable withdrawals for this test
-	app.db_conn.Exec("UPDATE cards SET lnurlw_enable='N' WHERE login='lnlogin'")
+	app.db_write.Exec("UPDATE cards SET lnurlw_enable='N' WHERE login='lnlogin'")
 
 	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
 	pHex := hex.EncodeToString(p)
@@ -1377,11 +1377,11 @@ func TestLnurlwRequest_PayLinkIncludedWhenEnabled(t *testing.T) {
 	app := openTestApp(t)
 	key1Hex := hex.EncodeToString(nfcTestKey1)
 	key2Hex := hex.EncodeToString(nfcTestKey2)
-	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
-	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
-	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
-	db.Db_update_card_without_pin(app.db_conn, cardId, 1000000, 1000000, "N", 0, "Y")
-	db.Db_update_card_pay_link_enabled(app.db_conn, cardId, "Y")
+	db.Db_insert_card(app.db_write, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_write, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "lnaccess")
+	db.Db_update_card_without_pin(app.db_write, cardId, 1000000, 1000000, "N", 0, "Y")
+	db.Db_update_card_pay_link_enabled(app.db_write, cardId, "Y")
 
 	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
 	pHex := hex.EncodeToString(p)
@@ -1408,7 +1408,7 @@ func TestLnurlwRequest_PayLinkIncludedWhenEnabled(t *testing.T) {
 	if !strings.HasPrefix(address, "pl.") {
 		t.Fatalf("expected address to start with 'pl.', got %q", address)
 	}
-	resolvedCardId := db.Db_get_card_by_pay_link_address(app.db_conn, address)
+	resolvedCardId := db.Db_get_card_by_pay_link_address(app.db_read, address)
 	if resolvedCardId != cardId {
 		t.Fatalf("payLink address does not resolve to card: expected %d, got %d", cardId, resolvedCardId)
 	}
@@ -1418,10 +1418,10 @@ func TestLnurlwRequest_PayLinkOmittedWhenDisabled(t *testing.T) {
 	app := openTestApp(t)
 	key1Hex := hex.EncodeToString(nfcTestKey1)
 	key2Hex := hex.EncodeToString(nfcTestKey2)
-	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
-	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
-	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
-	db.Db_update_card_without_pin(app.db_conn, cardId, 1000000, 1000000, "N", 0, "Y")
+	db.Db_insert_card(app.db_write, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_write, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "lnaccess")
+	db.Db_update_card_without_pin(app.db_write, cardId, 1000000, 1000000, "N", 0, "Y")
 	// pay_link_enabled defaults to 'N'
 
 	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
@@ -1445,11 +1445,11 @@ func TestLnurlwRequest_PayLinkNewAddressEachTap(t *testing.T) {
 	app := openTestApp(t)
 	key1Hex := hex.EncodeToString(nfcTestKey1)
 	key2Hex := hex.EncodeToString(nfcTestKey2)
-	db.Db_insert_card(app.db_conn, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
-	db.Db_set_tokens(app.db_conn, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
-	cardId := db.Db_get_card_id_from_access_token(app.db_conn, "lnaccess")
-	db.Db_update_card_without_pin(app.db_conn, cardId, 1000000, 1000000, "N", 0, "Y")
-	db.Db_update_card_pay_link_enabled(app.db_conn, cardId, "Y")
+	db.Db_insert_card(app.db_write, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_write, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "lnaccess")
+	db.Db_update_card_without_pin(app.db_write, cardId, 1000000, 1000000, "N", 0, "Y")
+	db.Db_update_card_pay_link_enabled(app.db_write, cardId, "Y")
 
 	handler := app.CreateHandler_LnurlwRequest()
 	var addresses []string
@@ -1476,7 +1476,7 @@ func TestLnurlwRequest_PayLinkNewAddressEachTap(t *testing.T) {
 
 	// All three should still resolve (previous addresses stay valid)
 	for _, addr := range addresses {
-		cardId := db.Db_get_card_by_pay_link_address(app.db_conn, addr)
+		cardId := db.Db_get_card_by_pay_link_address(app.db_read, addr)
 		if cardId != 1 {
 			t.Fatalf("address %s should still resolve to card 1, got %d", addr, cardId)
 		}
@@ -1524,10 +1524,10 @@ func TestLnurlwCallback_UnknownK1(t *testing.T) {
 
 func TestLnurlwCallback_ExpiredK1(t *testing.T) {
 	app := openTestApp(t)
-	cardId := insertFundedCard(t, app.db_conn, 5000)
+	cardId := insertFundedCard(t, app.db_write, 5000)
 
 	// Set k1 with past expiry
-	setupK1(t, app.db_conn, cardId, "expiredk1", -60)
+	setupK1(t, app.db_write, cardId, "expiredk1", -60)
 
 	handler := app.CreateHandler_LnurlwCallback()
 	r := httptest.NewRequest("GET", "/cb?k1=expiredk1&pr="+testBolt11, nil)
@@ -1543,8 +1543,8 @@ func TestLnurlwCallback_ExpiredK1(t *testing.T) {
 
 func TestLnurlwCallback_InvalidInvoice(t *testing.T) {
 	app := openTestApp(t)
-	cardId := insertFundedCard(t, app.db_conn, 5000)
-	setupK1(t, app.db_conn, cardId, "validk1", 300)
+	cardId := insertFundedCard(t, app.db_write, 5000)
+	setupK1(t, app.db_write, cardId, "validk1", 300)
 
 	handler := app.CreateHandler_LnurlwCallback()
 	r := httptest.NewRequest("GET", "/cb?k1=validk1&pr=notaninvoice", nil)
@@ -1561,8 +1561,8 @@ func TestLnurlwCallback_InvalidInvoice(t *testing.T) {
 func TestLnurlwCallback_InsufficientFunds(t *testing.T) {
 	app := openTestApp(t)
 	// Fund with 1000 sats, invoice is 1500 sats
-	cardId := insertFundedCard(t, app.db_conn, 1000)
-	setupK1(t, app.db_conn, cardId, "lowk1", 300)
+	cardId := insertFundedCard(t, app.db_write, 1000)
+	setupK1(t, app.db_write, cardId, "lowk1", 300)
 
 	handler := app.CreateHandler_LnurlwCallback()
 	r := httptest.NewRequest("GET", "/cb?k1=lowk1&pr="+testBolt11, nil)
@@ -1579,8 +1579,8 @@ func TestLnurlwCallback_InsufficientFunds(t *testing.T) {
 func TestLnurlwCallback_InsufficientFundsWithFees(t *testing.T) {
 	app := openTestApp(t)
 	// Fund with 1505 sats; invoice=1500, fee headroom=4+1500*4/1000=10, total needed=1510
-	cardId := insertFundedCard(t, app.db_conn, 1505)
-	setupK1(t, app.db_conn, cardId, "feek1", 300)
+	cardId := insertFundedCard(t, app.db_write, 1505)
+	setupK1(t, app.db_write, cardId, "feek1", 300)
 
 	handler := app.CreateHandler_LnurlwCallback()
 	r := httptest.NewRequest("GET", "/cb?k1=feek1&pr="+testBolt11, nil)
@@ -1597,8 +1597,8 @@ func TestLnurlwCallback_InsufficientFundsWithFees(t *testing.T) {
 func TestLnurlwCallback_SufficientFundsReservesPayment(t *testing.T) {
 	app := openTestApp(t)
 	// Fund with 2000 sats; invoice=1500, fee headroom=10, total needed=1510 — passes
-	cardId := insertFundedCard(t, app.db_conn, 2000)
-	setupK1(t, app.db_conn, cardId, "goodk1", 300)
+	cardId := insertFundedCard(t, app.db_write, 2000)
+	setupK1(t, app.db_write, cardId, "goodk1", 300)
 
 	handler := app.CreateHandler_LnurlwCallback()
 	r := httptest.NewRequest("GET", "/cb?k1=goodk1&pr="+testBolt11, nil)
@@ -1614,7 +1614,7 @@ func TestLnurlwCallback_SufficientFundsReservesPayment(t *testing.T) {
 
 	// Verify payment record was created and then unlocked (paid_flag='N')
 	var paidFlag string
-	err := app.db_conn.QueryRow(
+	err := app.db_write.QueryRow(
 		`SELECT paid_flag FROM card_payments WHERE card_id = $1 ORDER BY card_payment_id DESC LIMIT 1`, cardId,
 	).Scan(&paidFlag)
 	if err != nil {
@@ -1817,7 +1817,7 @@ func TestPayInvoice_MissingAuth(t *testing.T) {
 
 func TestPayInvoice_InvalidJSON(t *testing.T) {
 	app := setupEnabledApp(t)
-	insertFundedCard(t, app.db_conn, 5000)
+	insertFundedCard(t, app.db_write, 5000)
 	handler := app.CreateHandler_WalletApi_PayInvoice()
 
 	r := httptest.NewRequest("POST", "/payinvoice", strings.NewReader(`not json`))
@@ -1835,7 +1835,7 @@ func TestPayInvoice_InvalidJSON(t *testing.T) {
 
 func TestPayInvoice_InvalidInvoice(t *testing.T) {
 	app := setupEnabledApp(t)
-	insertFundedCard(t, app.db_conn, 5000)
+	insertFundedCard(t, app.db_write, 5000)
 	handler := app.CreateHandler_WalletApi_PayInvoice()
 
 	body := `{"invoice":"notaninvoice","amount":100}`
@@ -1854,7 +1854,7 @@ func TestPayInvoice_InvalidInvoice(t *testing.T) {
 
 func TestPayInvoice_InsufficientBalance(t *testing.T) {
 	app := setupEnabledApp(t)
-	insertFundedCard(t, app.db_conn, 500) // only 500 sats
+	insertFundedCard(t, app.db_write, 500) // only 500 sats
 	handler := app.CreateHandler_WalletApi_PayInvoice()
 
 	// testBolt11 is 1500 sats
@@ -1874,11 +1874,11 @@ func TestPayInvoice_InsufficientBalance(t *testing.T) {
 
 func TestPayInvoice_DuplicateInvoice(t *testing.T) {
 	app := setupEnabledApp(t)
-	cardId := insertFundedCard(t, app.db_conn, 50000)
+	cardId := insertFundedCard(t, app.db_write, 50000)
 	handler := app.CreateHandler_WalletApi_PayInvoice()
 
 	// Insert a paid payment with the same invoice
-	db.Db_add_card_payment(app.db_conn, cardId, 1500, testBolt11)
+	db.Db_add_card_payment(app.db_write, cardId, 1500, testBolt11)
 
 	body := fmt.Sprintf(`{"invoice":"%s","amount":1500}`, testBolt11)
 	r := httptest.NewRequest("POST", "/payinvoice", strings.NewReader(body))
@@ -1898,7 +1898,7 @@ func TestPayInvoice_DuplicateInvoice(t *testing.T) {
 
 func TestGetCardKeys_Valid(t *testing.T) {
 	app := setupEnabledApp(t)
-	insertFundedCard(t, app.db_conn, 0)
+	insertFundedCard(t, app.db_write, 0)
 	handler := app.CreateHandler_WalletApi_GetCardKeys()
 
 	r := httptest.NewRequest("POST", "/getcardkeys", nil)
@@ -1924,7 +1924,7 @@ func TestGetCardKeys_Valid(t *testing.T) {
 		t.Fatalf("expected lnurlw_base to contain host domain, got %q", resp.LnurlwBase)
 	}
 	// Verify keys changed from original
-	card, err := db.Db_get_card(app.db_conn, 1)
+	card, err := db.Db_get_card(app.db_read, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1953,7 +1953,7 @@ func TestGetCardKeys_BadAuth(t *testing.T) {
 
 func TestGetUserInvoices_Empty(t *testing.T) {
 	app := setupEnabledApp(t)
-	insertFundedCard(t, app.db_conn, 0)
+	insertFundedCard(t, app.db_write, 0)
 	handler := app.CreateHandler_WalletApi_GetUserInvoices()
 
 	r := httptest.NewRequest("GET", "/getuserinvoices", nil)
@@ -1973,13 +1973,13 @@ func TestGetUserInvoices_Empty(t *testing.T) {
 
 func TestGetUserInvoices_WithReceipts(t *testing.T) {
 	app := setupEnabledApp(t)
-	cardId := insertFundedCard(t, app.db_conn, 0)
+	cardId := insertFundedCard(t, app.db_write, 0)
 	handler := app.CreateHandler_WalletApi_GetUserInvoices()
 
 	// Add 2 receipts: one paid, one unpaid
-	db.Db_add_card_receipt(app.db_conn, cardId, "lnbc_paid", "paidhash", 500)
-	db.Db_set_receipt_paid(app.db_conn, "paidhash", "test")
-	db.Db_add_card_receipt(app.db_conn, cardId, "lnbc_unpaid", "unpaidhash", 300)
+	db.Db_add_card_receipt(app.db_write, cardId, "lnbc_paid", "paidhash", 500)
+	db.Db_set_receipt_paid(app.db_write, "paidhash", "test")
+	db.Db_add_card_receipt(app.db_write, cardId, "lnbc_unpaid", "unpaidhash", 300)
 
 	r := httptest.NewRequest("GET", "/getuserinvoices", nil)
 	r.Header.Set("Authorization", "Bearer lnaccess")
@@ -2023,7 +2023,7 @@ func TestGetUserInvoices_WithReceipts(t *testing.T) {
 
 func TestCreateCard_Valid(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_set_setting(app.db_conn, "new_card_code", "testsecret123")
+	db.Db_set_setting(app.db_write, "new_card_code", "testsecret123")
 	handler := app.CreateHandler_CreateCard()
 
 	r := httptest.NewRequest("GET", "/new?a=testsecret123", nil)
@@ -2060,7 +2060,7 @@ func TestCreateCard_MissingA(t *testing.T) {
 
 func TestCreateCard_WrongA(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_set_setting(app.db_conn, "new_card_code", "correct")
+	db.Db_set_setting(app.db_write, "new_card_code", "correct")
 	handler := app.CreateHandler_CreateCard()
 
 	r := httptest.NewRequest("GET", "/new?a=wrong", nil)
@@ -2079,7 +2079,7 @@ func TestCreateCard_WrongA(t *testing.T) {
 func TestBatchCreateCard_Valid(t *testing.T) {
 	app := openTestApp(t)
 	now := int(time.Now().Unix())
-	db.Db_insert_program_cards(app.db_conn, "batchsecret", "group1", 10, 1000, now-60, now+3600)
+	db.Db_insert_program_cards(app.db_write, "batchsecret", "group1", 10, 1000, now-60, now+3600)
 	handler := app.CreateHandler_BatchCreateCard()
 
 	body := `{"UID":"048B71B22D6B80"}`
@@ -2117,7 +2117,7 @@ func TestBatchCreateCard_InvalidJSON(t *testing.T) {
 func TestBatchCreateCard_ExpiredProgram(t *testing.T) {
 	app := openTestApp(t)
 	now := int(time.Now().Unix())
-	db.Db_insert_program_cards(app.db_conn, "expiredsecret", "group1", 10, 1000, now-7200, now-3600)
+	db.Db_insert_program_cards(app.db_write, "expiredsecret", "group1", 10, 1000, now-7200, now-3600)
 	handler := app.CreateHandler_BatchCreateCard()
 
 	body := `{"UID":"048B71B22D6B80"}`
@@ -2207,9 +2207,9 @@ func TestPosAddInvoice_NegativeAmount(t *testing.T) {
 
 func TestLnurlpRequest_ValidAddress(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
 
-	card, _ := db.Db_get_card(app.db_conn, 1)
+	card, _ := db.Db_get_card(app.db_read, 1)
 
 	handler := app.CreateHandler_LnurlpRequest()
 	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address, nil)
@@ -2250,10 +2250,10 @@ func TestLnurlpRequest_NotFound(t *testing.T) {
 
 func TestLnurlpRequest_DisabledAddress(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
 
-	card, _ := db.Db_get_card(app.db_conn, 1)
-	db.Db_update_card_ln_address_enabled(app.db_conn, 1, "N")
+	card, _ := db.Db_get_card(app.db_read, 1)
+	db.Db_update_card_ln_address_enabled(app.db_write, 1, "N")
 
 	handler := app.CreateHandler_LnurlpRequest()
 	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address, nil)
@@ -2268,11 +2268,11 @@ func TestLnurlpRequest_DisabledAddress(t *testing.T) {
 
 func TestLnurlpRequest_PayLinkAddress(t *testing.T) {
 	app := openTestApp(t)
-	insertFundedCard(t, app.db_conn, 1000)
+	insertFundedCard(t, app.db_write, 1000)
 
 	// Enable pay link and insert a one-time address
-	db.Db_update_card_pay_link_enabled(app.db_conn, 1, "Y")
-	db.Db_add_pay_link_address(app.db_conn, "pl.onetimex", 1, 30)
+	db.Db_update_card_pay_link_enabled(app.db_write, 1, "Y")
+	db.Db_add_pay_link_address(app.db_write, "pl.onetimex", 1, 30)
 
 	handler := app.CreateHandler_LnurlpRequest()
 	r := httptest.NewRequest("GET", "/.well-known/lnurlp/plonetimex", nil)
@@ -2293,10 +2293,10 @@ func TestLnurlpRequest_PayLinkAddress(t *testing.T) {
 
 func TestLnurlpCallback_PayLinkAddress(t *testing.T) {
 	app := openTestApp(t)
-	insertFundedCard(t, app.db_conn, 1000)
+	insertFundedCard(t, app.db_write, 1000)
 
-	db.Db_update_card_pay_link_enabled(app.db_conn, 1, "Y")
-	db.Db_add_pay_link_address(app.db_conn, "pl.callback", 1, 30)
+	db.Db_update_card_pay_link_enabled(app.db_write, 1, "Y")
+	db.Db_add_pay_link_address(app.db_write, "pl.callback", 1, 30)
 
 	handler := app.CreateHandler_LnurlpCallback()
 	r := httptest.NewRequest("GET", "/.well-known/lnurlp/plcallback/callback?amount=10000", nil)
@@ -2312,8 +2312,8 @@ func TestLnurlpCallback_PayLinkAddress(t *testing.T) {
 
 func TestLnurlpCallback_MissingAmount(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	card, _ := db.Db_get_card(app.db_conn, 1)
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	card, _ := db.Db_get_card(app.db_read, 1)
 
 	handler := app.CreateHandler_LnurlpCallback()
 	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address+"/callback", nil)
@@ -2328,8 +2328,8 @@ func TestLnurlpCallback_MissingAmount(t *testing.T) {
 
 func TestLnurlpCallback_AmountTooLow(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	card, _ := db.Db_get_card(app.db_conn, 1)
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	card, _ := db.Db_get_card(app.db_read, 1)
 
 	handler := app.CreateHandler_LnurlpCallback()
 	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address+"/callback?amount=999", nil)
@@ -2344,8 +2344,8 @@ func TestLnurlpCallback_AmountTooLow(t *testing.T) {
 
 func TestLnurlpCallback_AmountTooHigh(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	card, _ := db.Db_get_card(app.db_conn, 1)
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	card, _ := db.Db_get_card(app.db_read, 1)
 
 	handler := app.CreateHandler_LnurlpCallback()
 	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address+"/callback?amount=100000000001", nil)
@@ -2374,8 +2374,8 @@ func TestLnurlpCallback_UnknownAddress(t *testing.T) {
 
 func TestLnurlpCallback_ValidAmount_PhoenixUnavailable(t *testing.T) {
 	app := openTestApp(t)
-	db.Db_insert_card(app.db_conn, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
-	card, _ := db.Db_get_card(app.db_conn, 1)
+	db.Db_insert_card(app.db_write, "k0", "k1", "k2", "k3", "k4", "login1", "pass1")
+	card, _ := db.Db_get_card(app.db_read, 1)
 
 	handler := app.CreateHandler_LnurlpCallback()
 	r := httptest.NewRequest("GET", "/.well-known/lnurlp/"+card.Ln_address+"/callback?amount=5000000", nil)

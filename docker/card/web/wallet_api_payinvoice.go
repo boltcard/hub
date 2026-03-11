@@ -66,14 +66,14 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 		actualAmtSat := max(invAmtSat, reqObj.Amount)
 
 		// check for duplicate payment
-		if db.Db_get_paid_payment_exists(app.db_conn, reqObj.Invoice) {
+		if db.Db_get_paid_payment_exists(app.db_read, reqObj.Invoice) {
 			sendError(w, "Error", 999, "invoice already paid")
 			return
 		}
 
 		// atomically check balance and reserve funds (BEGIN IMMEDIATE transaction)
 		_, _, err = db.Db_reserve_card_payment(
-			app.db_conn, card_id, actualAmtSat, reqObj.Amount, reqObj.Invoice)
+			app.db_write, card_id, actualAmtSat, reqObj.Amount, reqObj.Invoice)
 		if errors.Is(err, db.ErrInsufficientFunds) {
 			sendError(w, "Error", 999, "invoice amount too large")
 			return

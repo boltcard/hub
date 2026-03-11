@@ -19,7 +19,7 @@ func (app *App) CreateHandler_Status() http.HandlerFunc {
 		}
 
 		// check that the database is available
-		_, err = db.Db_get_card_count(app.db_conn)
+		_, err = db.Db_get_card_count(app.db_read)
 		if err != nil {
 			log.Error(err)
 			return

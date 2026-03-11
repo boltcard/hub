@@ -61,7 +61,7 @@ func (app *App) getAuthenticatedCardID(w http.ResponseWriter, r *http.Request) (
 		return 0, false
 	}
 
-	card_id := db.Db_get_card_id_from_access_token(app.db_conn, accessToken)
+	card_id := db.Db_get_card_id_from_access_token(app.db_read, accessToken)
 	if card_id == 0 {
 		sendError(w, "Bad auth", 1, "no card found for access token")
 		return 0, false

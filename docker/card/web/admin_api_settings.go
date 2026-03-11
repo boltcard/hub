@@ -10,7 +10,7 @@ import (
 )
 
 func (app *App) adminApiGetSettings(w http.ResponseWriter, r *http.Request) {
-	settings := db.Db_select_all_settings(app.db_conn)
+	settings := db.Db_select_all_settings(app.db_read)
 
 	type settingJSON struct {
 		Name  string `json:"name"`
@@ -61,7 +61,7 @@ func (app *App) adminApiSetLogLevel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.Db_set_setting(app.db_conn, "log_level", req.Level)
+	db.Db_set_setting(app.db_write, "log_level", req.Level)
 
 	lvl, err := log.ParseLevel(req.Level)
 	if err == nil {

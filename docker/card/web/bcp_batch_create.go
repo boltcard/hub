@@ -48,7 +48,7 @@ func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
 		log.Info("Uid : ", t.Uid)
 
 		// check secret in program_cards exists and is not expired, and get group_tag field
-		programCard := db.Db_select_program_card_for_secret(app.db_conn, secret)
+		programCard := db.Db_select_program_card_for_secret(app.db_read, secret)
 		currentTime := int(time.Now().Unix())
 
 		if currentTime < programCard.CreateTime || currentTime > programCard.ExpireTime {
@@ -61,11 +61,11 @@ func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
 		k0, k1, k2, k3, k4 := generateCardKeys()
 		login := util.Random_hex()
 		password := util.Random_hex()
-		db.Db_insert_card_with_uid(app.db_conn, k0, k1, k2, k3, k4, login, password, t.Uid, programCard.GroupTag)
+		db.Db_insert_card_with_uid(app.db_write, k0, k1, k2, k3, k4, login, password, t.Uid, programCard.GroupTag)
 
 		var bcpBatchResponse BcpBatchResponse
 
-		bcpBatchResponse.Lnurlw = "lnurlw://" + db.Db_get_setting(app.db_conn, "host_domain") + "/ln"
+		bcpBatchResponse.Lnurlw = "lnurlw://" + db.Db_get_setting(app.db_read, "host_domain") + "/ln"
 		bcpBatchResponse.UIDPrivacy = "Y"
 		bcpBatchResponse.K0 = k0
 		bcpBatchResponse.K1 = k1

@@ -33,7 +33,7 @@ func (app *App) CreateHandler_CreateCard() http.HandlerFunc {
 			return
 		}
 
-		if param_a != db.Db_get_setting(app.db_conn, "new_card_code") {
+		if param_a != db.Db_get_setting(app.db_read, "new_card_code") {
 			w.Write([]byte(`{"status": "ERROR", "reason": "a value not valid"}`))
 			return
 		}
@@ -42,14 +42,14 @@ func (app *App) CreateHandler_CreateCard() http.HandlerFunc {
 		k0, k1, k2, k3, k4 := generateCardKeys()
 		login := util.Random_hex()
 		password := util.Random_hex()
-		db.Db_insert_card(app.db_conn, k0, k1, k2, k3, k4, login, password)
+		db.Db_insert_card(app.db_write, k0, k1, k2, k3, k4, login, password)
 
 		var resObj BcpResponse
 
 		resObj.ProtocolName = "new_bolt_card_response"
 		resObj.ProtocolVersion = 1
 		resObj.CardName = "Spending_Card"
-		resObj.LnurlwBase = "lnurlw://" + db.Db_get_setting(app.db_conn, "host_domain") + "/ln"
+		resObj.LnurlwBase = "lnurlw://" + db.Db_get_setting(app.db_read, "host_domain") + "/ln"
 		resObj.UIDPrivacy = "Y"
 		resObj.K0 = k0
 		resObj.K1 = k1

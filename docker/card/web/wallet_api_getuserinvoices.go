@@ -69,9 +69,9 @@ func (app *App) CreateHandler_WalletApi_GetUserInvoices() http.HandlerFunc {
 		var cardReceipts db.CardReceipts
 
 		if limitProvided {
-			cardReceipts = db.Db_select_card_receipts(app.db_conn, card_id, limit)
+			cardReceipts = db.Db_select_card_receipts(app.db_read, card_id, limit)
 		} else {
-			cardReceipts = db.Db_select_card_receipts(app.db_conn, card_id, 0)
+			cardReceipts = db.Db_select_card_receipts(app.db_read, card_id, 0)
 		}
 
 		var resObj UserInvoicesResponse
@@ -95,7 +95,7 @@ func (app *App) CreateHandler_WalletApi_GetUserInvoices() http.HandlerFunc {
 			if cardReceipt.IsPaid == "Y" {
 				userInvoice.IsPaid = true
 			} else {
-				updateInvoiceStatus(app.db_conn, cardReceipt.PaymentHash)
+				updateInvoiceStatus(app.db_write, cardReceipt.PaymentHash)
 				// userInvoice.IsPaid status will be updated on the next call
 			}
 

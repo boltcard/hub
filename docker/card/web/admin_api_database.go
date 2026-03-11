@@ -26,9 +26,9 @@ func (app *App) adminApiDatabaseStats(w http.ResponseWriter, r *http.Request) {
 		stats["fileSizeBytes"] = info.Size()
 	}
 
-	stats["schemaVersion"] = db.Db_get_setting(app.db_conn, "schema_version_number")
+	stats["schemaVersion"] = db.Db_get_setting(app.db_read, "schema_version_number")
 
-	counts, err := db.Db_get_table_counts(app.db_conn)
+	counts, err := db.Db_get_table_counts(app.db_read)
 	if err != nil {
 		log.Warn("database stats table counts: ", err)
 	} else {

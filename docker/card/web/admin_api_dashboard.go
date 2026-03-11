@@ -9,13 +9,13 @@ import (
 )
 
 func (app *App) adminApiDashboard(w http.ResponseWriter, r *http.Request) {
-	cardCount, err := db.Db_get_card_count(app.db_conn)
+	cardCount, err := db.Db_get_card_count(app.db_read)
 	if err != nil {
 		log.Warn("card count error: ", err)
 	}
 
-	totalCardBalance := db.Db_get_total_card_balance(app.db_conn)
-	topCards := db.Db_get_top_cards_by_balance(app.db_conn, 10)
+	totalCardBalance := db.Db_get_total_card_balance(app.db_read)
+	topCards := db.Db_get_top_cards_by_balance(app.db_read, 10)
 
 	type topCardJSON struct {
 		CardId       int    `json:"cardId"`

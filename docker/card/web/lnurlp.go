@@ -46,14 +46,14 @@ func (app *App) CreateHandler_LnurlpRequest() http.HandlerFunc {
 			return
 		}
 
-		cardId := resolveCardByAddress(app.db_conn, username)
+		cardId := resolveCardByAddress(app.db_read, username)
 		if cardId == 0 {
 			w.WriteHeader(http.StatusNotFound)
 			writeJSON(w, map[string]string{"status": "ERROR", "reason": "not found"})
 			return
 		}
 
-		hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
+		hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 		metadata := lnurlpMetadata(username, hostDomain)
 
 		writeJSON(w, map[string]any{
@@ -78,7 +78,7 @@ func (app *App) CreateHandler_LnurlpCallback() http.HandlerFunc {
 			return
 		}
 
-		cardId := resolveCardByAddress(app.db_conn, username)
+		cardId := resolveCardByAddress(app.db_read, username)
 		if cardId == 0 {
 			w.WriteHeader(http.StatusNotFound)
 			writeJSON(w, map[string]string{"status": "ERROR", "reason": "not found"})
@@ -102,7 +102,7 @@ func (app *App) CreateHandler_LnurlpCallback() http.HandlerFunc {
 
 		amountSats := int(amountMsat / 1000)
 
-		hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
+		hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 		metadata := lnurlpMetadata(username, hostDomain)
 		dHash := descriptionHash(metadata)
 
@@ -119,7 +119,7 @@ func (app *App) CreateHandler_LnurlpCallback() http.HandlerFunc {
 		}
 
 		// Insert pending receipt
-		db.Db_add_card_receipt(app.db_conn, cardId,
+		db.Db_add_card_receipt(app.db_write, cardId,
 			createInvoiceResponse.Serialized, createInvoiceResponse.PaymentHash, amountSats)
 
 		log.Info("lnurlp invoice created for ", username, " amount=", amountSats)

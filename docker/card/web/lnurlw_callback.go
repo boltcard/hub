@@ -111,7 +111,7 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 			return
 		}
 
-		cardId, lnurlwK1Expiry := db.Db_get_lnurlw_k1(app.db_conn, param_k1)
+		cardId, lnurlwK1Expiry := db.Db_get_lnurlw_k1(app.db_read, param_k1)
 		if cardId == 0 {
 			lnurlError(w, "card not found for k1 value")
 			return
@@ -149,7 +149,7 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 		log.Info("max_network_fee_sats ", max_network_fee_sats)
 
 		balance, card_payment_id, err := db.Db_reserve_card_payment(
-			app.db_conn, cardId, amountSats+max_network_fee_sats, amountSats, param_pr)
+			app.db_write, cardId, amountSats+max_network_fee_sats, amountSats, param_pr)
 		if errors.Is(err, db.ErrInsufficientFunds) {
 			if amountSats > balance {
 				log.Info("insufficient funds on card")
@@ -186,15 +186,15 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 		log.Info("payInvoiceResponse ", payInvoiceResponse)
 
 		// handle payment result and reason
-		if handlePaymentResult(w, app.db_conn, payInvoiceResult, card_payment_id) {
+		if handlePaymentResult(w, app.db_write, payInvoiceResult, card_payment_id) {
 			return
 		}
-		if handlePaymentReason(w, app.db_conn, payInvoiceResponse.Reason, card_payment_id) {
+		if handlePaymentReason(w, app.db_write, payInvoiceResponse.Reason, card_payment_id) {
 			return
 		}
 
 		// payment succeeded — record the routing fee
-		db.Db_update_card_payment_fee(app.db_conn, card_payment_id, payInvoiceResponse.RoutingFeeSat)
+		db.Db_update_card_payment_fee(app.db_write, card_payment_id, payInvoiceResponse.RoutingFeeSat)
 
 		// broadcast to websocket clients
 		app.broadcastPaymentSent(amountSats, bolt11.PaymentHash, time.Now().Unix())

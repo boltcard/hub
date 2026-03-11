@@ -8,12 +8,13 @@ import (
 )
 
 type App struct {
-	db_conn *sql.DB
-	hub     *wsHub
+	db_read  *sql.DB // read-only pool (many concurrent connections)
+	db_write *sql.DB // single-connection writer (serialised via SetMaxOpenConns(1))
+	hub      *wsHub
 }
 
-func NewApp(db_conn *sql.DB) *App {
-	app := &App{db_conn: db_conn, hub: newWsHub()}
+func NewApp(db_read, db_write *sql.DB) *App {
+	app := &App{db_read: db_read, db_write: db_write, hub: newWsHub()}
 	app.startPhoenixListener()
 	app.startChannelPoller()
 	app.startReceiptPoller()
@@ -59,7 +60,7 @@ func (app *App) SetupRoutes() *mux.Router {
 	router.Path("/ln").Methods("GET").HandlerFunc(app.CreateHandler_LnurlwRequest())
 	router.Path("/cb").Methods("GET").HandlerFunc(app.CreateHandler_LnurlwCallback())
 
-	if db.Db_get_setting(app.db_conn, "bolt_card_hub_api") == "enabled" {
+	if db.Db_get_setting(app.db_read, "bolt_card_hub_api") == "enabled" {
 		// BoltCardHub API
 		// LNDHUB API reference https://github.com/BlueWallet/LndHub/blob/master/doc/Send-requirements.md
 		router.Path("/create").Methods("POST").HandlerFunc(app.CreateHandler_Create())
@@ -76,7 +77,7 @@ func (app *App) SetupRoutes() *mux.Router {
 		router.Path("/updatecardwithpin").Methods("POST").HandlerFunc(app.CreateHandler_WalletApi_UpdateCardWithPin())
 	}
 
-	if db.Db_get_setting(app.db_conn, "bolt_card_pos_api") == "enabled" {
+	if db.Db_get_setting(app.db_read, "bolt_card_pos_api") == "enabled" {
 		// for PoS which uses part of an LndHub API
 		// lndhub://a:b@https://somedomain/pos/
 		router.Path("/pos/getinfo").Methods("GET").HandlerFunc(app.CreateHandler_PosApi_GetInfo())

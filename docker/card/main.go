@@ -18,8 +18,6 @@ import (
 
 func main() {
 
-	var sql_db *sql.DB
-
 	Formatter := new(log.TextFormatter)
 	Formatter.TimestampFormat = "2006-01-02 15:04:05.999 -0700"
 	Formatter.FullTimestamp = true
@@ -30,25 +28,37 @@ func main() {
 	log.Info("build date : ", build.Date)
 	log.Info("build time : ", build.Time)
 
-	// open the database
+	// open the database — two connections for read/write separation
 	log.Info("init database")
-	sql_db, err := sql.Open("sqlite3", "/card_data/cards.db?"+
-		"_journal=WAL&"+
-		"_synchronous=FULL&"+ // ensure commits survive power loss
-		"_timeout=5000&"+ // 5 second timeout for busy
-		"_cache_size=10000&"+ // 5x more memory for caching pages
-		"_temp_store=memory&"+
-		"_foreign_keys=1&"+
-		"_secure_delete=1&"+ // overwrite deleted data
-		"_auto_vacuum=INCREMENTAL") // prevent file bloat
+	dsn := "/card_data/cards.db?" +
+		"_journal=WAL&" +
+		"_synchronous=FULL&" + // ensure commits survive power loss
+		"_timeout=5000&" + // 5 second timeout for busy
+		"_cache_size=10000&" + // 5x more memory for caching pages
+		"_temp_store=memory&" +
+		"_foreign_keys=1&" +
+		"_secure_delete=1&" + // overwrite deleted data
+		"_auto_vacuum=INCREMENTAL" // prevent file bloat
+
+	// write connection: single conn serialises all writes via Go's pool
+	writeDB, err := sql.Open("sqlite3", dsn)
 	if err != nil {
-		log.Fatal("failed to open database: ", err)
+		log.Fatal("failed to open write database: ", err)
 	}
-	defer db.Close(sql_db)
-	db.Db_init(sql_db)
+	writeDB.SetMaxOpenConns(1)
+	defer db.Close(writeDB)
+
+	// read connection: many concurrent readers (WAL allows this)
+	readDB, err := sql.Open("sqlite3", dsn)
+	if err != nil {
+		log.Fatal("failed to open read database: ", err)
+	}
+	defer readDB.Close()
+
+	db.Db_init(writeDB)
 
 	// set log level from database setting
-	logLevel := db.Db_get_setting(sql_db, "log_level")
+	logLevel := db.Db_get_setting(readDB, "log_level")
 	if level, err := log.ParseLevel(logLevel); err == nil {
 		log.SetLevel(level)
 		log.Info("log level set to ", logLevel)
@@ -62,7 +72,7 @@ func main() {
 	// check for command line arguments
 	args := os.Args[1:] // without program name
 	if len(args) > 0 {
-		processArgs(sql_db, args)
+		processArgs(writeDB, args)
 		return
 	}
 
@@ -73,7 +83,7 @@ func main() {
 	log.Info("card service starting")
 
 	// start the app
-	app := web.NewApp(sql_db)
+	app := web.NewApp(readDB, writeDB)
 	router := app.SetupRoutes()
 
 	server := &http.Server{

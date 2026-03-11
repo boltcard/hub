@@ -14,10 +14,10 @@ import (
 func setupAdminSession(t *testing.T, app *App) string {
 	t.Helper()
 	hash, _ := HashPassword("testpass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_write, "admin_password_hash", hash)
 	token := "testtoken123"
-	db.Db_set_setting(app.db_conn, "admin_session_token", token)
-	db.Db_set_setting(app.db_conn, "admin_session_created",
+	db.Db_set_setting(app.db_write, "admin_session_token", token)
+	db.Db_set_setting(app.db_write, "admin_session_created",
 		strconv.FormatInt(time.Now().Unix(), 10))
 	return token
 }
@@ -54,7 +54,7 @@ func TestAdminApiAuthCheck_WithPassword(t *testing.T) {
 	handler := app.CreateHandler_AdminApi()
 
 	hash, _ := HashPassword("testpass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_write, "admin_password_hash", hash)
 
 	r := httptest.NewRequest("GET", "/admin/api/auth/check", nil)
 	w := httptest.NewRecorder()
@@ -92,8 +92,8 @@ func TestAdminApiAuthMiddleware_ValidCookie(t *testing.T) {
 	app := openTestApp(t)
 
 	token := "abc123def456"
-	db.Db_set_setting(app.db_conn, "admin_session_token", token)
-	db.Db_set_setting(app.db_conn, "admin_session_created",
+	db.Db_set_setting(app.db_write, "admin_session_token", token)
+	db.Db_set_setting(app.db_write, "admin_session_created",
 		strconv.FormatInt(time.Now().Unix(), 10))
 
 	handler := app.adminApiAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -114,8 +114,8 @@ func TestAdminApiAuthMiddleware_ExpiredSession(t *testing.T) {
 	app := openTestApp(t)
 
 	token := "abc123def456"
-	db.Db_set_setting(app.db_conn, "admin_session_token", token)
-	db.Db_set_setting(app.db_conn, "admin_session_created",
+	db.Db_set_setting(app.db_write, "admin_session_token", token)
+	db.Db_set_setting(app.db_write, "admin_session_created",
 		strconv.FormatInt(time.Now().Unix()-25*60*60, 10))
 
 	handler := app.adminApiAuth(func(w http.ResponseWriter, r *http.Request) {
@@ -147,7 +147,7 @@ func TestAdminApiRegister(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	hash := db.Db_get_setting(app.db_conn, "admin_password_hash")
+	hash := db.Db_get_setting(app.db_read, "admin_password_hash")
 	if hash == "" {
 		t.Fatal("expected password hash to be stored")
 	}
@@ -161,7 +161,7 @@ func TestAdminApiRegister_AlreadyRegistered(t *testing.T) {
 	handler := app.CreateHandler_AdminApi()
 
 	hash, _ := HashPassword("existing")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_write, "admin_password_hash", hash)
 
 	body := `{"password":"newpass"}`
 	r := httptest.NewRequest("POST", "/admin/api/auth/register",
@@ -180,7 +180,7 @@ func TestAdminApiLogin_Success(t *testing.T) {
 	handler := app.CreateHandler_AdminApi()
 
 	hash, _ := HashPassword("correctpass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_write, "admin_password_hash", hash)
 
 	body := `{"password":"correctpass"}`
 	r := httptest.NewRequest("POST", "/admin/api/auth/login",
@@ -204,7 +204,7 @@ func TestAdminApiLogin_Success(t *testing.T) {
 		t.Fatal("expected admin_session_token cookie")
 	}
 
-	token := db.Db_get_setting(app.db_conn, "admin_session_token")
+	token := db.Db_get_setting(app.db_read, "admin_session_token")
 	if token == "" {
 		t.Fatal("expected session token in DB")
 	}
@@ -215,7 +215,7 @@ func TestAdminApiLogin_WrongPassword(t *testing.T) {
 	handler := app.CreateHandler_AdminApi()
 
 	hash, _ := HashPassword("correctpass")
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_write, "admin_password_hash", hash)
 
 	body := `{"password":"wrongpass"}`
 	r := httptest.NewRequest("POST", "/admin/api/auth/login",
@@ -233,8 +233,8 @@ func TestAdminApiLogout(t *testing.T) {
 	app := openTestApp(t)
 	handler := app.CreateHandler_AdminApi()
 
-	db.Db_set_setting(app.db_conn, "admin_session_token", "sometoken")
-	db.Db_set_setting(app.db_conn, "admin_session_created",
+	db.Db_set_setting(app.db_write, "admin_session_token", "sometoken")
+	db.Db_set_setting(app.db_write, "admin_session_created",
 		strconv.FormatInt(time.Now().Unix(), 10))
 
 	r := httptest.NewRequest("POST", "/admin/api/auth/logout", nil)
@@ -246,7 +246,7 @@ func TestAdminApiLogout(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	token := db.Db_get_setting(app.db_conn, "admin_session_token")
+	token := db.Db_get_setting(app.db_read, "admin_session_token")
 	if token != "" {
 		t.Fatal("expected session token to be cleared")
 	}
@@ -256,7 +256,7 @@ func TestAdminApiDashboard(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
 
-	insertFundedCard(t, app.db_conn, 50000)
+	insertFundedCard(t, app.db_write, 50000)
 
 	handler := app.CreateHandler_AdminApi()
 	r := httptest.NewRequest("GET", "/admin/api/dashboard", nil)
@@ -363,7 +363,7 @@ func TestAdminApiSetLogLevel(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
-	level := db.Db_get_setting(app.db_conn, "log_level")
+	level := db.Db_get_setting(app.db_read, "log_level")
 	if level != "debug" {
 		t.Fatalf("expected log_level=debug, got %s", level)
 	}
@@ -373,7 +373,7 @@ func TestAdminApiListCards(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
 
-	insertFundedCard(t, app.db_conn, 50000)
+	insertFundedCard(t, app.db_write, 50000)
 
 	handler := app.CreateHandler_AdminApi()
 	r := httptest.NewRequest("GET", "/admin/api/cards", nil)
@@ -406,7 +406,7 @@ func TestAdminApiListCards(t *testing.T) {
 func TestAdminApiGetCard(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
-	cardId := insertFundedCard(t, app.db_conn, 75000)
+	cardId := insertFundedCard(t, app.db_write, 75000)
 
 	handler := app.CreateHandler_AdminApi()
 	r := httptest.NewRequest("GET", "/admin/api/cards/"+strconv.Itoa(cardId), nil)
@@ -455,7 +455,7 @@ func TestAdminApiGetCard_NotFound(t *testing.T) {
 func TestAdminApiUpdateCardNote(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
-	cardId := insertFundedCard(t, app.db_conn, 10000)
+	cardId := insertFundedCard(t, app.db_write, 10000)
 
 	handler := app.CreateHandler_AdminApi()
 	body := `{"note":"test card note"}`
@@ -471,7 +471,7 @@ func TestAdminApiUpdateCardNote(t *testing.T) {
 	}
 
 	// Verify note was updated
-	card, err := db.Db_get_card(app.db_conn, cardId)
+	card, err := db.Db_get_card(app.db_read, cardId)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -483,7 +483,7 @@ func TestAdminApiUpdateCardNote(t *testing.T) {
 func TestAdminApiUpdateCardLimits(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
-	cardId := insertFundedCard(t, app.db_conn, 10000)
+	cardId := insertFundedCard(t, app.db_write, 10000)
 
 	handler := app.CreateHandler_AdminApi()
 	body := `{"txLimitSats":5000,"dayLimitSats":50000,"lnurlwEnable":"Y"}`
@@ -499,7 +499,7 @@ func TestAdminApiUpdateCardLimits(t *testing.T) {
 	}
 
 	// Verify limits were updated
-	card, err := db.Db_get_card(app.db_conn, cardId)
+	card, err := db.Db_get_card(app.db_read, cardId)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -517,7 +517,7 @@ func TestAdminApiUpdateCardLimits(t *testing.T) {
 func TestAdminApiUpdateCardLimits_InvalidEnable(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
-	cardId := insertFundedCard(t, app.db_conn, 10000)
+	cardId := insertFundedCard(t, app.db_write, 10000)
 
 	handler := app.CreateHandler_AdminApi()
 	body := `{"txLimitSats":5000,"dayLimitSats":50000,"lnurlwEnable":"X"}`
@@ -536,7 +536,7 @@ func TestAdminApiUpdateCardLimits_InvalidEnable(t *testing.T) {
 func TestAdminApiWipeCard(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
-	cardId := insertFundedCard(t, app.db_conn, 10000)
+	cardId := insertFundedCard(t, app.db_write, 10000)
 
 	handler := app.CreateHandler_AdminApi()
 	r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/wipe", nil)
@@ -549,7 +549,7 @@ func TestAdminApiWipeCard(t *testing.T) {
 	}
 
 	// Db_get_card filters wiped='N', so a wiped card returns error
-	_, err := db.Db_get_card(app.db_conn, cardId)
+	_, err := db.Db_get_card(app.db_read, cardId)
 	if err == nil {
 		t.Fatal("expected error for wiped card (Db_get_card filters wiped='N')")
 	}
@@ -558,7 +558,7 @@ func TestAdminApiWipeCard(t *testing.T) {
 func TestAdminApiCardTxs(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
-	cardId := insertFundedCard(t, app.db_conn, 50000)
+	cardId := insertFundedCard(t, app.db_write, 50000)
 
 	handler := app.CreateHandler_AdminApi()
 	r := httptest.NewRequest("GET", "/admin/api/cards/"+strconv.Itoa(cardId)+"/txs", nil)
@@ -690,7 +690,7 @@ func TestAdminApiCardRouter_InvalidId(t *testing.T) {
 func TestAdminApiGetCard_PayLinkEnabled(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
-	insertFundedCard(t, app.db_conn, 1000)
+	insertFundedCard(t, app.db_write, 1000)
 
 	handler := app.CreateHandler_AdminApi()
 	r := httptest.NewRequest("GET", "/admin/api/cards/1", nil)
@@ -709,7 +709,7 @@ func TestAdminApiGetCard_PayLinkEnabled(t *testing.T) {
 func TestAdminApiUpdateLimits_PayLinkEnabled(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)
-	cardId := insertFundedCard(t, app.db_conn, 1000)
+	cardId := insertFundedCard(t, app.db_write, 1000)
 
 	handler := app.CreateHandler_AdminApi()
 	body := `{"txLimitSats":1000,"dayLimitSats":5000,"lnurlwEnable":"Y","payLinkEnabled":"Y"}`
@@ -725,7 +725,7 @@ func TestAdminApiUpdateLimits_PayLinkEnabled(t *testing.T) {
 	}
 
 	// Verify it was stored
-	card, _ := db.Db_get_card(app.db_conn, cardId)
+	card, _ := db.Db_get_card(app.db_read, cardId)
 	if card.Pay_link_enabled != "Y" {
 		t.Fatalf("expected pay_link_enabled 'Y', got %q", card.Pay_link_enabled)
 	}

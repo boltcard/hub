@@ -92,9 +92,9 @@ func (app *App) CreateHandler_WalletApi_UpdateCardWithPin() http.HandlerFunc {
 		}
 
 		if reqObj.CardPinNumber == "" {
-			db.Db_update_card_without_pin(app.db_conn, card_id, tx_limit_sats, day_limit_sats, pin_enable, pin_limit_sats, lnurlw_enable)
+			db.Db_update_card_without_pin(app.db_write, card_id, tx_limit_sats, day_limit_sats, pin_enable, pin_limit_sats, lnurlw_enable)
 		} else {
-			db.Db_update_card_with_pin(app.db_conn, card_id, tx_limit_sats, day_limit_sats, pin_enable, reqObj.CardPinNumber, pin_limit_sats, lnurlw_enable)
+			db.Db_update_card_with_pin(app.db_write, card_id, tx_limit_sats, day_limit_sats, pin_enable, reqObj.CardPinNumber, pin_limit_sats, lnurlw_enable)
 		}
 
 		var resObj UpdateCardWithPinResponse

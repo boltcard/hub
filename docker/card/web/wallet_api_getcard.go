@@ -29,7 +29,7 @@ func (app *App) CreateHandler_WalletApi_GetCard() http.HandlerFunc {
 			return
 		}
 
-		c, err := db.Db_get_card(app.db_conn, card_id)
+		c, err := db.Db_get_card(app.db_read, card_id)
 		if err != nil {
 			log.Error("db get card error: ", err)
 			sendError(w, "Error", 999, "failed to get card")

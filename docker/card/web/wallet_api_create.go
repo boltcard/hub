@@ -33,7 +33,7 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 		}
 
 		// check the 'invite_secret' if configured
-		db_invite_secret := db.Db_get_setting(app.db_conn, "invite_secret")
+		db_invite_secret := db.Db_get_setting(app.db_read, "invite_secret")
 		req_invite_secret := t.InviteSecret
 
 		if req_invite_secret != db_invite_secret {
@@ -46,7 +46,7 @@ func (app *App) CreateHandler_Create() http.HandlerFunc {
 		login := util.Random_hex()
 		password := util.Random_hex()
 
-		db.Db_insert_card(app.db_conn, key0, key1, k2, key3, key4, login, password)
+		db.Db_insert_card(app.db_write, key0, key1, k2, key3, key4, login, password)
 
 		// return the login & password for the card account
 

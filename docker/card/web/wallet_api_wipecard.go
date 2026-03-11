@@ -33,7 +33,7 @@ func (app *App) CreateHandler_WalletApi_WipeCard() http.HandlerFunc {
 
 		// get card keys and deactivate card
 
-		cardKeys := db.Db_wipe_card(app.db_conn, card_id)
+		cardKeys := db.Db_wipe_card(app.db_write, card_id)
 
 		var resObj WipeCardResponse
 

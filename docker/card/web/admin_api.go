@@ -26,14 +26,14 @@ func (app *App) adminApiAuth(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		adminSessionToken := db.Db_get_setting(app.db_conn, "admin_session_token")
+		adminSessionToken := db.Db_get_setting(app.db_read, "admin_session_token")
 		if subtle.ConstantTimeCompare([]byte(c.Value), []byte(adminSessionToken)) != 1 {
 			w.WriteHeader(http.StatusUnauthorized)
 			writeJSON(w, map[string]string{"error": "invalid session"})
 			return
 		}
 
-		sessionCreatedStr := db.Db_get_setting(app.db_conn, "admin_session_created")
+		sessionCreatedStr := db.Db_get_setting(app.db_read, "admin_session_created")
 		if sessionCreatedStr != "" {
 			sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
 			if err != nil || time.Now().Unix()-sessionCreated > 24*60*60 {
@@ -123,14 +123,14 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 }
 
 func (app *App) adminApiAuthCheck(w http.ResponseWriter, r *http.Request) {
-	registered := db.Db_get_setting(app.db_conn, "admin_password_hash") != ""
+	registered := db.Db_get_setting(app.db_read, "admin_password_hash") != ""
 
 	authenticated := false
 	c, err := r.Cookie("admin_session_token")
 	if err == nil {
-		adminSessionToken := db.Db_get_setting(app.db_conn, "admin_session_token")
+		adminSessionToken := db.Db_get_setting(app.db_read, "admin_session_token")
 		if subtle.ConstantTimeCompare([]byte(c.Value), []byte(adminSessionToken)) == 1 {
-			sessionCreatedStr := db.Db_get_setting(app.db_conn, "admin_session_created")
+			sessionCreatedStr := db.Db_get_setting(app.db_read, "admin_session_created")
 			if sessionCreatedStr != "" {
 				sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
 				if err == nil && time.Now().Unix()-sessionCreated <= 24*60*60 {
@@ -156,7 +156,7 @@ func (app *App) adminApiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	adminPasswordHash := db.Db_get_setting(app.db_conn, "admin_password_hash")
+	adminPasswordHash := db.Db_get_setting(app.db_read, "admin_password_hash")
 	if adminPasswordHash == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(w, map[string]string{"error": "admin not registered"})
@@ -168,14 +168,14 @@ func (app *App) adminApiLogin(w http.ResponseWriter, r *http.Request) {
 		valid = CheckPassword(req.Password, adminPasswordHash)
 	} else {
 		// Legacy SHA256 path — check then migrate to bcrypt
-		legacyHash := GetPwHash(app.db_conn, req.Password)
+		legacyHash := GetPwHash(app.db_read, req.Password)
 		if subtle.ConstantTimeCompare([]byte(legacyHash), []byte(adminPasswordHash)) == 1 {
 			valid = true
 			// Migrate to bcrypt
 			newHash, err := HashPassword(req.Password)
 			if err == nil {
-				db.Db_set_setting(app.db_conn, "admin_password_hash", newHash)
-				db.Db_set_setting(app.db_conn, "admin_password_salt", "")
+				db.Db_set_setting(app.db_write, "admin_password_hash", newHash)
+				db.Db_set_setting(app.db_write, "admin_password_salt", "")
 			}
 		}
 	}
@@ -187,8 +187,8 @@ func (app *App) adminApiLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionToken := util.Random_hex()
-	db.Db_set_setting(app.db_conn, "admin_session_token", sessionToken)
-	db.Db_set_setting(app.db_conn, "admin_session_created",
+	db.Db_set_setting(app.db_write, "admin_session_token", sessionToken)
+	db.Db_set_setting(app.db_write, "admin_session_created",
 		strconv.FormatInt(time.Now().Unix(), 10))
 
 	http.SetCookie(w, &http.Cookie{
@@ -205,7 +205,7 @@ func (app *App) adminApiLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) adminApiRegister(w http.ResponseWriter, r *http.Request) {
-	if db.Db_get_setting(app.db_conn, "admin_password_hash") != "" {
+	if db.Db_get_setting(app.db_read, "admin_password_hash") != "" {
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(w, map[string]string{"error": "admin already registered"})
 		return
@@ -234,14 +234,14 @@ func (app *App) adminApiRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	db.Db_set_setting(app.db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(app.db_write, "admin_password_hash", hash)
 
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
 func (app *App) adminApiLogout(w http.ResponseWriter, r *http.Request) {
 	ClearAdminSessionToken(w)
-	db.Db_set_setting(app.db_conn, "admin_session_token", "")
-	db.Db_set_setting(app.db_conn, "admin_session_created", "")
+	db.Db_set_setting(app.db_write, "admin_session_token", "")
+	db.Db_set_setting(app.db_write, "admin_session_created", "")
 	writeJSON(w, map[string]bool{"ok": true})
 }

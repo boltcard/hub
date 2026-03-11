@@ -79,7 +79,7 @@ func (app *App) startPhoenixListener() {
 
 			// Mark any matching receipt as paid (for lightning address payments)
 			if incomingPayment.IsPaid {
-				db.Db_set_receipt_paid(app.db_conn, incomingPayment.PaymentHash, "websocket")
+				db.Db_set_receipt_paid(app.db_write, incomingPayment.PaymentHash, "websocket")
 			}
 
 			event := wsPaymentEvent{
@@ -152,14 +152,14 @@ func (app *App) startReceiptPoller() {
 		for {
 			time.Sleep(30 * time.Second)
 
-			unpaid := db.Db_select_unpaid_receipts(app.db_conn)
+			unpaid := db.Db_select_unpaid_receipts(app.db_read)
 			for _, r := range unpaid {
 				incoming, err := phoenix.GetIncomingPayment(r.PaymentHash)
 				if err != nil {
 					continue
 				}
 				if incoming.IsPaid {
-					db.Db_set_receipt_paid(app.db_conn, incoming.PaymentHash, "poller")
+					db.Db_set_receipt_paid(app.db_write, incoming.PaymentHash, "poller")
 					log.Info("receipt poller settled: ", incoming.PaymentHash)
 
 					event := wsPaymentEvent{
@@ -179,7 +179,7 @@ func (app *App) startReceiptPoller() {
 }
 
 func (app *App) CreateHandler_Websocket() http.HandlerFunc {
-	hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
+	hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Authenticate admin session cookie
@@ -188,12 +188,12 @@ func (app *App) CreateHandler_Websocket() http.HandlerFunc {
 			http.Error(w, "not authenticated", http.StatusUnauthorized)
 			return
 		}
-		adminSessionToken := db.Db_get_setting(app.db_conn, "admin_session_token")
+		adminSessionToken := db.Db_get_setting(app.db_read, "admin_session_token")
 		if subtle.ConstantTimeCompare([]byte(c.Value), []byte(adminSessionToken)) != 1 {
 			http.Error(w, "invalid session", http.StatusUnauthorized)
 			return
 		}
-		sessionCreatedStr := db.Db_get_setting(app.db_conn, "admin_session_created")
+		sessionCreatedStr := db.Db_get_setting(app.db_read, "admin_session_created")
 		if sessionCreatedStr != "" {
 			sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
 			if err != nil || time.Now().Unix()-sessionCreated > 24*60*60 {

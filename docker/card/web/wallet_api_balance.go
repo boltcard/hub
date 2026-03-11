@@ -27,7 +27,7 @@ func (app *App) CreateHandler_Balance() http.HandlerFunc {
 
 		// get the card balance atomically
 
-		total_card_balance := db.Db_get_card_balance(app.db_conn, card_id)
+		total_card_balance := db.Db_get_card_balance(app.db_read, card_id)
 
 		log.Info("total_card_balance = ", total_card_balance)
 

@@ -85,7 +85,7 @@ func (app *App) CreateHandler_AddInvoice() http.HandlerFunc {
 
 		// insert card_receipt record
 
-		db.Db_add_card_receipt(app.db_conn, card_id,
+		db.Db_add_card_receipt(app.db_write, card_id,
 			createInvoiceResponse.Serialized, createInvoiceResponse.PaymentHash, amountSats)
 
 		// create the invoice response

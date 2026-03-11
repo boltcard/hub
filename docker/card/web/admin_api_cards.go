@@ -14,7 +14,7 @@ import (
 )
 
 func (app *App) adminApiListCards(w http.ResponseWriter, r *http.Request) {
-	cards := db.Db_select_all_cards(app.db_conn)
+	cards := db.Db_select_all_cards(app.db_read)
 
 	type cardJSON struct {
 		CardId       int    `json:"cardId"`
@@ -82,16 +82,16 @@ func (app *App) adminApiCardRouter(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *App) adminApiGetCard(w http.ResponseWriter, _ *http.Request, cardId int) {
-	card, err := db.Db_get_card(app.db_conn, cardId)
+	card, err := db.Db_get_card(app.db_read, cardId)
 	if err != nil {
 		w.WriteHeader(http.StatusNotFound)
 		writeJSON(w, map[string]string{"error": "card not found"})
 		return
 	}
 
-	balance := db.Db_get_card_balance(app.db_conn, cardId)
+	balance := db.Db_get_card_balance(app.db_read, cardId)
 
-	hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
+	hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 
 	writeJSON(w, map[string]any{
 		"cardId":           card.Card_id,
@@ -121,7 +121,7 @@ func (app *App) adminApiUpdateCardNote(w http.ResponseWriter, r *http.Request, c
 		return
 	}
 
-	db.Db_update_card_note(app.db_conn, cardId, req.Note)
+	db.Db_update_card_note(app.db_write, cardId, req.Note)
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
@@ -154,11 +154,11 @@ func (app *App) adminApiUpdateCardLimits(w http.ResponseWriter, r *http.Request,
 	}
 
 	// Use the update without pin variant — admin doesn't change PIN settings
-	db.Db_update_card_without_pin(app.db_conn, cardId, req.TxLimitSats,
+	db.Db_update_card_without_pin(app.db_write, cardId, req.TxLimitSats,
 		req.DayLimitSats, "N", 0, req.LnurlwEnable)
 
 	if req.LnAddressEnabled != "" {
-		db.Db_update_card_ln_address_enabled(app.db_conn, cardId, req.LnAddressEnabled)
+		db.Db_update_card_ln_address_enabled(app.db_write, cardId, req.LnAddressEnabled)
 	}
 
 	// Validate payLinkEnabled (optional)
@@ -169,14 +169,14 @@ func (app *App) adminApiUpdateCardLimits(w http.ResponseWriter, r *http.Request,
 	}
 
 	if req.PayLinkEnabled != "" {
-		db.Db_update_card_pay_link_enabled(app.db_conn, cardId, req.PayLinkEnabled)
+		db.Db_update_card_pay_link_enabled(app.db_write, cardId, req.PayLinkEnabled)
 	}
 
 	writeJSON(w, map[string]bool{"ok": true})
 }
 
 func (app *App) adminApiWipeCard(w http.ResponseWriter, _ *http.Request, cardId int) {
-	keys := db.Db_wipe_card(app.db_conn, cardId)
+	keys := db.Db_wipe_card(app.db_write, cardId)
 	if keys.Key0 == "" {
 		w.WriteHeader(http.StatusNotFound)
 		writeJSON(w, map[string]string{"error": "card not found"})
@@ -188,7 +188,7 @@ func (app *App) adminApiWipeCard(w http.ResponseWriter, _ *http.Request, cardId 
 }
 
 func (app *App) adminApiCardTxs(w http.ResponseWriter, _ *http.Request, cardId int) {
-	txs := db.Db_select_card_txs(app.db_conn, cardId)
+	txs := db.Db_select_card_txs(app.db_read, cardId)
 
 	type txJSON struct {
 		ReceiptId  int `json:"receiptId"`
@@ -237,10 +237,10 @@ func (app *App) adminApiBatchCreate(w http.ResponseWriter, r *http.Request) {
 	createTime := int(time.Now().Unix())
 	expireTime := createTime + req.ExpiryHours*60*60
 
-	db.Db_insert_program_cards(app.db_conn, secret, req.GroupTag,
+	db.Db_insert_program_cards(app.db_write, secret, req.GroupTag,
 		req.MaxCards, req.InitialBalance, createTime, expireTime)
 
-	hostDomain := db.Db_get_setting(app.db_conn, "host_domain")
+	hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 	programUrl := "https://" + hostDomain + "/batch?s=" + secret
 	boltcardLink := "boltcard://program?url=" + url.QueryEscape(programUrl)
 

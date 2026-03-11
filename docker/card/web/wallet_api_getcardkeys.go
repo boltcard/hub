@@ -36,14 +36,14 @@ func (app *App) CreateHandler_WalletApi_GetCardKeys() http.HandlerFunc {
 
 		// TODO: archive card keys
 
-		db.Db_set_card_keys(app.db_conn, card_id, key0, key1, k2, key3, key4)
+		db.Db_set_card_keys(app.db_write, card_id, key0, key1, k2, key3, key4)
 
 		var resObj CardKeysResponse
 
 		resObj.ProtocolName = "create_bolt_card_response"
 		resObj.ProtocolVersion = 2
 		resObj.CardName = "card"
-		resObj.LnurlwBase = "lnurlw://" + db.Db_get_setting(app.db_conn, "host_domain") + "/ln"
+		resObj.LnurlwBase = "lnurlw://" + db.Db_get_setting(app.db_read, "host_domain") + "/ln"
 		resObj.Key0 = key0
 		resObj.Key1 = key1
 		resObj.Key2 = k2
