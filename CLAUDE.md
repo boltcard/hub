@@ -25,7 +25,7 @@ docker compose up -d     # detached
 docker compose watch
 ```
 
-The Go application is in `docker/card/`. The admin UI is a React SPA in `docker/card/admin-ui/`. Both are built via a 3-stage Docker build: Node 22 (frontend) → Go 1.25.7 (backend) → Debian slim runtime (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`. Pre-built images are published to Docker Hub (`boltcard/card:latest`, `boltcard/webproxy:latest`).
+The Go application is in `docker/card/`. The admin UI is a React SPA in `docker/card/admin-ui/`. Both are built via a 3-stage Docker build: Node 22 (frontend) → Go 1.25.11 (backend) → Debian slim runtime (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`. Pre-built images are published to Docker Hub (`boltcard/card:latest`, `boltcard/webproxy:latest`).
 
 There is no Makefile — building is done exclusively through Docker.
 
@@ -54,7 +54,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
 - Docker image builds for both `card` and `webproxy`
 - On push to `main` (not PRs): pushes images to Docker Hub as `latest`
 
-Uses Go 1.25.7 with CGo enabled for sqlite3, Node 22 for frontend. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
+Uses Go 1.25.11 with CGo enabled for sqlite3, Node 22 for frontend. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
 
 ## CLI Commands (run inside card container)
 
