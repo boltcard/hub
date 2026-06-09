@@ -71,7 +71,7 @@ docker exec -it card bash
 
 ### Docker Services (docker-compose.yml)
 
-- **phoenix**: acinq/phoenixd:0.7.2 — Lightning node (384M memory)
+- **phoenix**: acinq/phoenixd:0.8.0 — Lightning node (384M memory)
 - **card**: Custom Go app — card service on `:8000` (192M memory, GOMEMLIMIT=150MiB). Has Docker healthcheck (HEAD / every 30s). Graceful shutdown on SIGTERM with 10s drain timeout. Includes `sqlite3` for database access. Mounts Docker socket for admin update feature.
 - **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`, `/admin/api/auth/login`)
 
@@ -154,6 +154,8 @@ The `settings` table stores key-value config. Active settings used by the app:
 - `schema_version_number` — tracks database migration state
 
 Withdraw limits (`min_withdraw_sats=1`, `max_withdraw_sats=100000000`) are hardcoded in `lnurlw_request.go` and `lnurlw_callback.go`, not stored in the database.
+
+> **Note (Phoenix routing fees):** the hub does *not* send a fee cap to phoenixd — `phoenix/send_lightning_payment.go` posts only `amountSat` + `invoice` to `/payinvoice`, so phoenixd applies its own default fee budget. The `max_network_fee_sats` value (`4 + amountSats*4/1000` in `lnurlw_callback.go`) is used only to reserve card balance, not as the payment fee ceiling. This bit us once: phoenixd 0.7.3 (lightning-kmp 1.11) couldn't route tiny ~20–250 sat payments within its default budget and rejected them with `"routing fees are insufficient"`; upgrading to 0.8.0 (lightning-kmp 1.12.0) fixed it. **Possible future hardening (may never be needed):** pass an explicit `maxFeeFlatSat` (sats) to `/payinvoice` — e.g. a `5 + amountSats*4/1000` floor — so the hub controls the fee budget instead of relying on phoenixd defaults.
 
 The admin settings page (`/admin/settings/`) displays all settings with sensitive values (`_hash`, `_token`, `_code` suffixes) redacted. `log_level` has an inline dropdown that submits on change.
 
