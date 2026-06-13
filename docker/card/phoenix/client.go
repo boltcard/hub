@@ -12,7 +12,10 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const phoenixBaseURL = "http://phoenix:9740"
+// phoenixBaseURL is the base URL for the Phoenix Server API. It is a var
+// (not a const) so tests can point it at an httptest.Server.
+var phoenixBaseURL = "http://phoenix:9740"
+
 const defaultTimeout = 5 * time.Second
 
 var (
