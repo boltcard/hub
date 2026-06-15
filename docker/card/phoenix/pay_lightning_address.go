@@ -89,13 +89,13 @@ func PayLightningAddress(
 	}
 
 	if res.StatusCode != 200 {
-		log.Warn("PayLightningAddress StatusCode ", res.StatusCode, " ResBody ", string(resBody))
+		// Don't log the response body — it derives from a request carrying
+		// the phoenixd credential and may contain sensitive payment data.
+		log.Warn("PayLightningAddress StatusCode ", res.StatusCode)
 		return payLightningAddressResponse,
 			"fail_status_code",
 			errors.New("fail status code returned for PayLightningAddress")
 	}
-
-	log.Info(string(resBody))
 
 	err = json.Unmarshal(resBody, &payLightningAddressResponse)
 	if err != nil {

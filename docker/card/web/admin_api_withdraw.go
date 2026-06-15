@@ -43,7 +43,9 @@ func (app *App) adminApiWithdrawInfo(w http.ResponseWriter, r *http.Request) {
 	nodeBalanceSat := 0
 	balance, err := phoenix.GetBalance()
 	if err != nil {
-		log.Warn("withdraw info balance error: ", err)
+		// Best effort — node may be down. Avoid logging the error value
+		// itself: it can carry response bytes from a credentialed request.
+		log.Warn("withdraw info: phoenix balance unavailable")
 	} else {
 		nodeBalanceSat = balance.BalanceSat
 	}
