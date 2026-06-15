@@ -56,6 +56,10 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
 
 Uses Go 1.25.11 with CGo enabled for sqlite3, Node 22 for frontend. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
 
+## Versioning
+
+**Bump the version for every PR.** Patch-bump `Version` in `docker/card/build/build.go` (e.g. `0.19.3` → `0.19.4`) as part of each PR. On merge to `main`, CI republishes `boltcard/card:latest` with `org.opencontainers.image.version` set to this string; the About-page update check only surfaces the "Update available" button on deployed hubs when that label exceeds their running version. A PR that changes the image without bumping the version therefore ships an update no one can see.
+
 ## CLI Commands (run inside card container)
 
 ```bash
@@ -88,7 +92,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
 - `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
-- `build/` — Version string (currently "0.17.1"), date/time injected at build
+- `build/` — Version string (currently "0.19.3"), date/time injected at build
 - `web-content/` — Static assets under `public/`, SPA build output under `admin/spa/`
 
 ### Route Groups (`web/app.go`)
