@@ -47,6 +47,32 @@ func (app *App) adminApiAuth(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// verifyAdminPassword checks a plaintext password against the stored admin
+// hash. A legacy SHA256 hash is migrated to bcrypt on a successful match,
+// mirroring the login flow. Returns false if no admin is registered.
+func (app *App) verifyAdminPassword(password string) bool {
+	adminPasswordHash := db.Db_get_setting(app.db_read, "admin_password_hash")
+	if adminPasswordHash == "" {
+		return false
+	}
+
+	if isBcryptHash(adminPasswordHash) {
+		return CheckPassword(password, adminPasswordHash)
+	}
+
+	// Legacy SHA256 path — check then migrate to bcrypt
+	legacyHash := GetPwHash(app.db_read, password)
+	if subtle.ConstantTimeCompare([]byte(legacyHash), []byte(adminPasswordHash)) == 1 {
+		if newHash, err := HashPassword(password); err == nil {
+			db.Db_set_setting(app.db_write, "admin_password_hash", newHash)
+			db.Db_set_setting(app.db_write, "admin_password_salt", "")
+		}
+		return true
+	}
+
+	return false
+}
+
 // CreateHandler_AdminApi dispatches /admin/api/* requests.
 func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +104,9 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 
 		case path == "/admin/api/phoenix/transactions":
 			app.adminApiAuth(app.adminApiTransactions)(w, r)
+
+		case path == "/admin/api/phoenix/seed" && r.Method == "POST":
+			app.adminApiAuth(app.adminApiPhoenixSeed)(w, r)
 
 		case path == "/admin/api/cards" && r.Method == "GET":
 			app.adminApiAuth(app.adminApiListCards)(w, r)
@@ -163,24 +192,7 @@ func (app *App) adminApiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	valid := false
-	if isBcryptHash(adminPasswordHash) {
-		valid = CheckPassword(req.Password, adminPasswordHash)
-	} else {
-		// Legacy SHA256 path — check then migrate to bcrypt
-		legacyHash := GetPwHash(app.db_read, req.Password)
-		if subtle.ConstantTimeCompare([]byte(legacyHash), []byte(adminPasswordHash)) == 1 {
-			valid = true
-			// Migrate to bcrypt
-			newHash, err := HashPassword(req.Password)
-			if err == nil {
-				db.Db_set_setting(app.db_write, "admin_password_hash", newHash)
-				db.Db_set_setting(app.db_write, "admin_password_salt", "")
-			}
-		}
-	}
-
-	if !valid {
+	if !app.verifyAdminPassword(req.Password) {
 		w.WriteHeader(http.StatusUnauthorized)
 		writeJSON(w, map[string]string{"error": "invalid password"})
 		return
