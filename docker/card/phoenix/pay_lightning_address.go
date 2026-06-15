@@ -41,7 +41,9 @@ func PayLightningAddress(
 
 	password, err := getPassword()
 	if err != nil {
-		log.Warn(err)
+		// Don't log err: it is returned by getPassword alongside the
+		// credential and CodeQL treats it as sensitive.
+		log.Warn("PayLightningAddress: could not load phoenix config")
 		return payLightningAddressResponse,
 			"no_config",
 			errors.New("could not load config for PayLightningAddress")
