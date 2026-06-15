@@ -7,6 +7,15 @@ services:
       resources:
         limits:
           memory: 384M
+    # phoenix-cli reads the http-password from /phoenix/.phoenix/phoenix.conf and
+    # calls the local HTTP API — a success means phoenixd is up and answering.
+    # Lets `card` wait for service_healthy instead of racing the port at boot.
+    healthcheck:
+      test: ["CMD", "/phoenix/phoenix-cli", "getinfo"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     volumes:
       - phoenix_data:/phoenix/.phoenix
     networks:
@@ -28,8 +37,10 @@ services:
         limits:
           memory: 192M
     depends_on:
-      - phoenix
-      - webproxy
+      phoenix:
+        condition: service_healthy
+      webproxy:
+        condition: service_started
     healthcheck:
       test: ["CMD", "curl", "-fsS", "--head", "http://localhost:8000/"]
       interval: 30s
