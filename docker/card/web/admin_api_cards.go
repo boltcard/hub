@@ -227,9 +227,9 @@ func (app *App) adminApiBatchCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.GroupTag == "" || req.MaxCards <= 0 || req.ExpiryHours <= 0 {
+	if req.MaxCards <= 0 || req.ExpiryHours <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
-		writeJSON(w, map[string]string{"error": "groupTag, maxCards, and expiryHours are required"})
+		writeJSON(w, map[string]string{"error": "maxCards and expiryHours are required"})
 		return
 	}
 
