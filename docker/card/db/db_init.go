@@ -61,7 +61,11 @@ func Db_init(db_conn *sql.DB) {
 		update_schema_10(db_conn) // enable withdrawals on all cards
 	}
 
-	if Db_get_setting(db_conn, "schema_version_number") != "11" {
+	if Db_get_setting(db_conn, "schema_version_number") == "11" {
+		update_schema_11(db_conn) // admin_withdrawals audit table
+	}
+
+	if Db_get_setting(db_conn, "schema_version_number") != "12" {
 		panic("database schema is not as expected")
 	}
 

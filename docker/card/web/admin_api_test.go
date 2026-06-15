@@ -730,3 +730,106 @@ func TestAdminApiUpdateLimits_PayLinkEnabled(t *testing.T) {
 		t.Fatalf("expected pay_link_enabled 'Y', got %q", card.Pay_link_enabled)
 	}
 }
+
+func TestAdminApiWithdrawInfo(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	insertFundedCard(t, app.db_write, 50000)
+
+	handler := app.CreateHandler_AdminApi()
+	r := httptest.NewRequest("GET", "/admin/api/withdraw", nil)
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		NodeBalanceSat   int `json:"nodeBalanceSat"`
+		CardLiabilitySat int `json:"cardLiabilitySat"`
+		ExcessSat        int `json:"excessSat"`
+		Recent           []struct {
+			AmountSats int    `json:"amountSats"`
+			Status     string `json:"status"`
+		} `json:"recent"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.CardLiabilitySat != 50000 {
+		t.Fatalf("expected cardLiabilitySat=50000, got %d", resp.CardLiabilitySat)
+	}
+	// Phoenix is unavailable in tests, so node balance is 0 and excess clamps to 0.
+	if resp.ExcessSat != 0 {
+		t.Fatalf("expected excessSat=0 (node down), got %d", resp.ExcessSat)
+	}
+}
+
+func TestAdminApiWithdraw_Unauthenticated(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_AdminApi()
+
+	body := `{"lnAddress":"a@b.com","amountSat":100,"password":"x"}`
+	r := httptest.NewRequest("POST", "/admin/api/withdraw", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestAdminApiWithdraw_WrongPassword(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+
+	handler := app.CreateHandler_AdminApi()
+	body := `{"lnAddress":"alice@example.com","amountSat":100,"password":"wrongpass"}`
+	r := httptest.NewRequest("POST", "/admin/api/withdraw", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAdminApiWithdraw_InvalidAddress(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+
+	handler := app.CreateHandler_AdminApi()
+	// setupAdminSession sets password to "testpass"
+	body := `{"lnAddress":"notanaddress","amountSat":100,"password":"testpass"}`
+	r := httptest.NewRequest("POST", "/admin/api/withdraw", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAdminApiWithdraw_ZeroAmount(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+
+	handler := app.CreateHandler_AdminApi()
+	body := `{"lnAddress":"alice@example.com","amountSat":0,"password":"testpass"}`
+	r := httptest.NewRequest("POST", "/admin/api/withdraw", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", w.Code, w.Body.String())
+	}
+}

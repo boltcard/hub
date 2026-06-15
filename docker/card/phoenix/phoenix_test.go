@@ -365,3 +365,93 @@ func TestSendLightningPayment_NoConfig(t *testing.T) {
 		t.Fatalf("expected reason no_config, got %q", reason)
 	}
 }
+
+func TestPayLightningAddress_Success(t *testing.T) {
+	withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/paylnaddress" {
+			t.Errorf("unexpected path %q", r.URL.Path)
+		}
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("parse form: %v", err)
+		}
+		if r.PostForm.Get("amountSat") != "1000" {
+			t.Errorf("expected amountSat=1000, got %q", r.PostForm.Get("amountSat"))
+		}
+		if r.PostForm.Get("address") != "alice@example.com" {
+			t.Errorf("expected address=alice@example.com, got %q", r.PostForm.Get("address"))
+		}
+		if r.PostForm.Get("message") != "payout" {
+			t.Errorf("expected message=payout, got %q", r.PostForm.Get("message"))
+		}
+		w.Write([]byte(`{"recipientAmountSat":1000,"routingFeeSat":5,"paymentId":"pid","paymentHash":"hash","paymentPreimage":"pre"}`))
+	})
+
+	resp, reason, err := PayLightningAddress(PayLightningAddressRequest{
+		AmountSat: "1000",
+		Address:   "alice@example.com",
+		Message:   "payout",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if reason != "no_error" {
+		t.Fatalf("expected reason no_error, got %q", reason)
+	}
+	if resp.RoutingFeeSat != 5 || resp.PaymentHash != "hash" {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+}
+
+func TestPayLightningAddress_OmitsEmptyMessage(t *testing.T) {
+	withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("parse form: %v", err)
+		}
+		if r.PostForm.Has("message") {
+			t.Errorf("message should not be set when empty")
+		}
+		w.Write([]byte(`{"routingFeeSat":1,"paymentHash":"h"}`))
+	})
+
+	_, reason, err := PayLightningAddress(PayLightningAddressRequest{
+		AmountSat: "500",
+		Address:   "bob@example.com",
+	})
+	if err != nil || reason != "no_error" {
+		t.Fatalf("unexpected outcome: reason=%q err=%v", reason, err)
+	}
+}
+
+func TestPayLightningAddress_Non200(t *testing.T) {
+	withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("nope"))
+	})
+
+	_, reason, err := PayLightningAddress(PayLightningAddressRequest{
+		AmountSat: "500",
+		Address:   "bob@example.com",
+	})
+	if err == nil {
+		t.Fatal("expected error on non-200")
+	}
+	if reason != "fail_status_code" {
+		t.Fatalf("expected reason fail_status_code, got %q", reason)
+	}
+}
+
+func TestPayLightningAddress_NoConfig(t *testing.T) {
+	primePassword("")
+	defer primePassword("testpass")
+
+	_, reason, err := PayLightningAddress(PayLightningAddressRequest{
+		AmountSat: "500",
+		Address:   "bob@example.com",
+	})
+	if err == nil {
+		t.Fatal("expected error when password unavailable")
+	}
+	if reason != "no_config" {
+		t.Fatalf("expected reason no_config, got %q", reason)
+	}
+}

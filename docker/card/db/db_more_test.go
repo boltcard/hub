@@ -288,3 +288,38 @@ func TestDbUpdateReceiptPaid(t *testing.T) {
 		t.Fatalf("expected balance 1000 after receipt paid, got %d", bal)
 	}
 }
+
+func TestAdminWithdrawalLifecycle(t *testing.T) {
+	db := openTestDB(t)
+	Db_init(db)
+
+	id, err := Db_insert_admin_withdrawal(db, "alice@example.com", 25000)
+	if err != nil {
+		t.Fatalf("insert error: %v", err)
+	}
+	if id <= 0 {
+		t.Fatalf("expected positive id, got %d", id)
+	}
+
+	rows := Db_select_admin_withdrawals(db, 10)
+	if len(rows) != 1 {
+		t.Fatalf("expected 1 withdrawal, got %d", len(rows))
+	}
+	if rows[0].Status != "pending" || rows[0].AmountSats != 25000 {
+		t.Fatalf("unexpected pending row: %+v", rows[0])
+	}
+
+	Db_update_admin_withdrawal_paid(db, id, 7, "paymenthash")
+	rows = Db_select_admin_withdrawals(db, 10)
+	if rows[0].Status != "paid" || rows[0].FeeSats != 7 || rows[0].PaymentHash != "paymenthash" {
+		t.Fatalf("unexpected paid row: %+v", rows[0])
+	}
+
+	id2, _ := Db_insert_admin_withdrawal(db, "bob@example.com", 100)
+	Db_update_admin_withdrawal_failed(db, id2)
+	rows = Db_select_admin_withdrawals(db, 10)
+	// Most recent first
+	if rows[0].Status != "failed" {
+		t.Fatalf("expected most recent to be failed, got %+v", rows[0])
+	}
+}

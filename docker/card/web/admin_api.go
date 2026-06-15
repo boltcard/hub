@@ -115,6 +115,12 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 		case path == "/admin/api/batch/create" && r.Method == "POST":
 			app.adminApiAuth(app.adminApiBatchCreate)(w, r)
 
+		case path == "/admin/api/withdraw" && r.Method == "GET":
+			app.adminApiAuth(app.adminApiWithdrawInfo)(w, r)
+
+		case path == "/admin/api/withdraw" && r.Method == "POST":
+			app.adminApiAuth(app.adminApiWithdraw)(w, r)
+
 		default:
 			w.WriteHeader(http.StatusNotFound)
 			writeJSON(w, map[string]string{"error": "not found"})

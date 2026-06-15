@@ -16,6 +16,7 @@ import {
 import { Zap, Coins, Copy, Check, ArrowDownLeft, ArrowUpRight } from "lucide-react";
 import { useState, useMemo } from "react";
 import { useWebSocketContext } from "@/hooks/use-websocket-context";
+import { WithdrawDialog } from "@/components/withdraw-dialog";
 
 interface PhoenixData {
   balanceSat: number;
@@ -106,7 +107,10 @@ export function PhoenixPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold">Phoenix</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Phoenix</h1>
+        <WithdrawDialog />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2">
         <StatCard title="Balance" value={data.balanceSat} isSats icon={Zap} />
