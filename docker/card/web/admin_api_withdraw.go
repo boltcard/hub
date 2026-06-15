@@ -3,7 +3,6 @@ package web
 import (
 	"card/db"
 	"card/phoenix"
-	"crypto/subtle"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -13,19 +12,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// verifyAdminPassword checks a password against the stored admin hash
-// (bcrypt or legacy SHA256). Verification only — it does not migrate.
-func (app *App) verifyAdminPassword(password string) bool {
-	hash := db.Db_get_setting(app.db_read, "admin_password_hash")
-	if hash == "" {
-		return false
-	}
-	if isBcryptHash(hash) {
-		return CheckPassword(password, hash)
-	}
-	legacyHash := GetPwHash(app.db_read, password)
-	return subtle.ConstantTimeCompare([]byte(legacyHash), []byte(hash)) == 1
-}
+// verifyAdminPassword is defined in admin_api.go (it also migrates legacy
+// SHA256 hashes to bcrypt on a successful match); the withdraw handler reuses it.
 
 type withdrawalJSON struct {
 	AmountSats  int    `json:"amountSats"`
