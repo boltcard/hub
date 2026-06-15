@@ -350,6 +350,35 @@ func update_schema_10(db *sql.DB) {
 	}
 }
 
+func update_schema_11(db *sql.DB) {
+
+	// Audit log of admin-initiated fund withdrawals (paying out the node's
+	// own liquidity, not tied to any card).
+	sqlStmt := `
+		CREATE TABLE IF NOT EXISTS
+		admin_withdrawals (
+			withdrawal_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+			ln_address TEXT NOT NULL DEFAULT '',
+			amount_sats INTEGER NOT NULL DEFAULT 0,
+			fee_sats INTEGER NOT NULL DEFAULT 0,
+			payment_hash TEXT NOT NULL DEFAULT '',
+			status TEXT NOT NULL DEFAULT '',
+			timestamp INTEGER NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_admin_withdrawals_timestamp ON admin_withdrawals(timestamp);
+	`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("update_schema_11 create table error: %q", err)
+		return
+	}
+
+	_, err = db.Exec("UPDATE settings SET value='12' WHERE name='schema_version_number'")
+	if err != nil {
+		log.Printf("update_schema_11 version update error: %q", err)
+	}
+}
+
 // randomHex8 generates an 8-character random hex string for lightning addresses.
 func randomHex8() string {
 	b := make([]byte, 4)

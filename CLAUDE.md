@@ -99,7 +99,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 
 - `/ln`, `/cb` — LNURL-withdraw protocol (NFC card tap → payment)
 - `/admin` — React SPA admin UI (static assets + SPA index fallback, PathPrefix without trailing slash)
-- `/admin/api/` — Admin JSON API (cookie-based session auth, 19 endpoints)
+- `/admin/api/` — Admin JSON API (cookie-based session auth, 21 endpoints)
 - `/new` — Bolt Card Programmer endpoint
 - BoltCardHub API (`/create`, `/auth`, `/balance`, `/payinvoice`, etc.) — LndHub-compatible, feature-gated via `bolt_card_hub_api` setting
 - PoS API (`/pos/`) — Point-of-Sale subset of LndHub API, feature-gated via `bolt_card_pos_api` setting
@@ -108,6 +108,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `/admin/api/database/stats` — Database file size, schema version, table row counts
 - `/admin/api/about/logs` — Last 20 container log lines (via Docker API, ANSI→HTML color conversion)
 - `/admin/api/about/commits` — Last 10 GitHub commits (from GitHub API)
+- `/admin/api/withdraw` — Admin fund withdrawal. `GET` returns node balance, total card liability, and spare/excess liquidity plus recent withdrawals; `POST` pays out node liquidity to a Lightning address. The POST handler re-verifies the admin password (on top of the session cookie), caps the amount at the node balance, and flags (`breachesLiability`) when the payout dips below outstanding card balances. See `web/admin_api_withdraw.go` and `phoenix/pay_lightning_address.go` (phoenixd `/paylnaddress`).
 
 ### Admin Update (`web/update.go`)
 
@@ -124,9 +125,11 @@ Docker socket (`/var/run/docker.sock`) is mounted into the card container. The u
 
 SQLite at `/card_data/cards.db` with WAL mode, FULL synchronous, foreign keys, secure delete.
 
-**Tables:** `settings` (key-value config), `cards` (card keys/auth/limits), `card_payments` (spending), `card_receipts` (loading/receiving), `program_cards` (batch programming)
+**Tables:** `settings` (key-value config), `cards` (card keys/auth/limits), `card_payments` (spending), `card_receipts` (loading/receiving), `program_cards` (batch programming), `pay_link_addresses` (rotating pay-link addresses), `admin_withdrawals` (admin payout audit log)
 
-Schema version managed by idempotent `update_schema_*` functions in `db_create.go`. Current schema version: 8.
+Schema version managed by idempotent `update_schema_*` functions in `db_create.go`. Current schema version: 12.
+
+**Admin withdrawals:** the `admin_withdrawals` table (schema v12) is an audit log of admin-initiated payouts of node liquidity (paying out the hub's own funds, not tied to any card). Each row records the destination Lightning address, amount, routing fee, payment hash, and status (`pending`/`paid`/`failed`). See `db/db_admin_withdrawal.go`.
 
 ### Authentication
 
