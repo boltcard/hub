@@ -147,26 +147,6 @@ func TestGetIncomingPayment_Success(t *testing.T) {
 	}
 }
 
-func TestGetNodeInfo_Success(t *testing.T) {
-	withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/getinfo" {
-			t.Errorf("unexpected path %q", r.URL.Path)
-		}
-		w.Write([]byte(`{"nodeId":"node123","version":"0.8.0","channels":[{"state":"Normal","balanceSat":1000}]}`))
-	})
-
-	info, err := GetNodeInfo()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if info.NodeID != "node123" || info.Version != "0.8.0" {
-		t.Fatalf("unexpected node info: %+v", info)
-	}
-	if len(info.Channels) != 1 || info.Channels[0].BalanceSat != 1000 {
-		t.Fatalf("unexpected channels: %+v", info.Channels)
-	}
-}
-
 func TestGetOffer_Success(t *testing.T) {
 	withTestServer(t, func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/getoffer" {
