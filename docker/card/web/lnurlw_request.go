@@ -68,7 +68,13 @@ func (app *App) CreateHandler_LnurlwRequest() http.HandlerFunc {
 
 		// create and store lnurlw_k1
 		lnurlwK1 := util.Random_hex()
-		lnurlwK1Expiry := time.Now().Unix() + 10 // TODO: get timeout setting
+		k1TimeoutSecs := 10 // default
+		if v := db.Db_get_setting(app.db_read, "lnurlw_k1_timeout_seconds"); v != "" {
+			if secs, err := strconv.Atoi(v); err == nil && secs > 0 {
+				k1TimeoutSecs = secs
+			}
+		}
+		lnurlwK1Expiry := time.Now().Unix() + int64(k1TimeoutSecs)
 		db.Db_set_lnurlw_k1(app.db_write, cardId, lnurlwK1, lnurlwK1Expiry)
 
 		// prepare response

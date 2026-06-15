@@ -151,6 +151,8 @@ The `settings` table stores key-value config. Active settings used by the app:
 - `new_card_code` — secret for card programming endpoint
 - `invite_secret` — optional secret for wallet API card creation
 - `bolt_card_hub_api`, `bolt_card_pos_api` — feature flags ("enabled" to activate)
+- `lnurlw_k1_timeout_seconds` — optional validity window (seconds) for the LNURLw `k1` token in `lnurlw_request.go` (defaults to 10 if unset or invalid)
+- `pay_link_expiry_days` — optional expiry (days) for generated LUD-19 pay links (defaults to 30 if unset or invalid)
 - `schema_version_number` — tracks database migration state
 
 Withdraw limits (`min_withdraw_sats=1`, `max_withdraw_sats=100000000`) are hardcoded in `lnurlw_request.go` and `lnurlw_callback.go`, not stored in the database.
