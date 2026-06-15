@@ -36,7 +36,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Pencil, Check, X, Trash2, Copy, Zap } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Pencil, Check, X, Trash2, Copy, Zap, Plus } from "lucide-react";
 
 interface CardDetail {
   cardId: number;
@@ -116,6 +125,32 @@ export function CardDetailPage() {
     },
     onError: (err) => toast.error(err.message),
   });
+
+  // Allocate funds
+  const [allocateOpen, setAllocateOpen] = useState(false);
+  const [allocateAmount, setAllocateAmount] = useState("");
+
+  const allocateMutation = useMutation({
+    mutationFn: (amountSats: number) =>
+      apiPost(`/cards/${id}/allocate`, { amountSats }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["card", id] });
+      queryClient.invalidateQueries({ queryKey: ["card-txs", id] });
+      setAllocateOpen(false);
+      setAllocateAmount("");
+      toast.success("Funds allocated");
+    },
+    onError: (err) => toast.error(err.message),
+  });
+
+  function submitAllocate() {
+    const amount = Number(allocateAmount);
+    if (!Number.isInteger(amount) || amount <= 0) {
+      toast.error("Enter a whole number of sats greater than 0");
+      return;
+    }
+    allocateMutation.mutate(amount);
+  }
 
   // Wipe
   const wipeMutation = useMutation({
@@ -238,8 +273,54 @@ export function CardDetailPage() {
 
         {/* Balance card */}
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Balance</CardTitle>
+            <Dialog open={allocateOpen} onOpenChange={setAllocateOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" disabled={card.wiped === "Y"}>
+                  <Plus className="mr-1 h-4 w-4" />
+                  Allocate
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Allocate funds to card #{card.cardId}</DialogTitle>
+                  <DialogDescription>
+                    Credit this card with a balance top-up. This records a paid
+                    receipt and increases the spendable balance immediately.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Label htmlFor="allocate-amount">Amount (sats)</Label>
+                  <Input
+                    id="allocate-amount"
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={allocateAmount}
+                    onChange={(e) => setAllocateAmount(e.target.value)}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submitAllocate();
+                    }}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button
+                    variant="outline"
+                    onClick={() => setAllocateOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={submitAllocate}
+                    disabled={allocateMutation.isPending}
+                  >
+                    Allocate
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </CardHeader>
           <CardContent>
             <p className="text-3xl font-bold font-mono tabular-nums">

@@ -533,6 +533,110 @@ func TestAdminApiUpdateCardLimits_InvalidEnable(t *testing.T) {
 	}
 }
 
+func TestAdminApiAllocateFunds(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	cardId := insertFundedCard(t, app.db_write, 10000)
+
+	handler := app.CreateHandler_AdminApi()
+	body := `{"amountSats":25000}`
+	r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/allocate",
+		strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Ok          bool `json:"ok"`
+		BalanceSats int  `json:"balanceSats"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Ok {
+		t.Fatal("expected ok=true")
+	}
+	if resp.BalanceSats != 35000 {
+		t.Fatalf("expected balance 35000, got %d", resp.BalanceSats)
+	}
+
+	// Verify the balance persisted in the database
+	if balance := db.Db_get_card_balance(app.db_read, cardId); balance != 35000 {
+		t.Fatalf("expected db balance 35000, got %d", balance)
+	}
+}
+
+func TestAdminApiAllocateFunds_InvalidAmount(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	cardId := insertFundedCard(t, app.db_write, 10000)
+
+	handler := app.CreateHandler_AdminApi()
+	for _, body := range []string{`{"amountSats":0}`, `{"amountSats":-100}`} {
+		r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/allocate",
+			strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+
+		if w.Code != http.StatusBadRequest {
+			t.Fatalf("body %s: expected 400, got %d", body, w.Code)
+		}
+	}
+
+	// balance must be unchanged
+	if balance := db.Db_get_card_balance(app.db_read, cardId); balance != 10000 {
+		t.Fatalf("expected balance 10000, got %d", balance)
+	}
+}
+
+func TestAdminApiAllocateFunds_NotFound(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+
+	handler := app.CreateHandler_AdminApi()
+	r := httptest.NewRequest("POST", "/admin/api/cards/99999/allocate",
+		strings.NewReader(`{"amountSats":1000}`))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestAdminApiAllocateFunds_Repeatable(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	cardId := insertFundedCard(t, app.db_write, 0)
+
+	handler := app.CreateHandler_AdminApi()
+	// Allocate twice — each must succeed despite the r_hash_hex UNIQUE constraint
+	for i := 0; i < 2; i++ {
+		r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/allocate",
+			strings.NewReader(`{"amountSats":5000}`))
+		r.Header.Set("Content-Type", "application/json")
+		r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code != http.StatusOK {
+			t.Fatalf("allocation %d: expected 200, got %d: %s", i, w.Code, w.Body.String())
+		}
+	}
+
+	if balance := db.Db_get_card_balance(app.db_read, cardId); balance != 10000 {
+		t.Fatalf("expected balance 10000 after two allocations, got %d", balance)
+	}
+}
+
 func TestAdminApiWipeCard(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)

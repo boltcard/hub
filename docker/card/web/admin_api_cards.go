@@ -71,6 +71,8 @@ func (app *App) adminApiCardRouter(w http.ResponseWriter, r *http.Request) {
 		app.adminApiUpdateCardNote(w, r, cardId)
 	case action == "limits" && r.Method == "PUT":
 		app.adminApiUpdateCardLimits(w, r, cardId)
+	case action == "allocate" && r.Method == "POST":
+		app.adminApiAllocateFunds(w, r, cardId)
 	case action == "wipe" && r.Method == "POST":
 		app.adminApiWipeCard(w, r, cardId)
 	case action == "txs" && r.Method == "GET":
@@ -173,6 +175,52 @@ func (app *App) adminApiUpdateCardLimits(w http.ResponseWriter, r *http.Request,
 	}
 
 	writeJSON(w, map[string]bool{"ok": true})
+}
+
+// adminApiAllocateFunds credits a card with a manual balance top-up. It records
+// a paid card_receipt (mirroring the SetupCardAmountForTag CLI command) so the
+// allocation shows up in the card's transaction history and balance.
+func (app *App) adminApiAllocateFunds(w http.ResponseWriter, r *http.Request, cardId int) {
+	var req struct {
+		AmountSats int `json:"amountSats"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]string{"error": "invalid request body"})
+		return
+	}
+
+	// card_receipts has a CHECK (amount_sats > 0) constraint
+	if req.AmountSats <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]string{"error": "amountSats must be greater than 0"})
+		return
+	}
+
+	// Db_get_card filters wiped='N', so this also rejects wiped/unknown cards
+	if _, err := db.Db_get_card(app.db_read, cardId); err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		writeJSON(w, map[string]string{"error": "card not found"})
+		return
+	}
+
+	// a unique r_hash_hex is required (UNIQUE constraint); use a random value
+	// since there is no real Lightning invoice behind a manual allocation
+	receiptId := db.Db_add_card_receipt(app.db_write, cardId, "", util.Random_hex(), req.AmountSats)
+	if receiptId == 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(w, map[string]string{"error": "failed to allocate funds"})
+		return
+	}
+	db.Db_update_receipt_paid(app.db_write, receiptId)
+
+	balance := db.Db_get_card_balance(app.db_read, cardId)
+
+	log.Info("admin allocated funds: card=", cardId, " amount=", req.AmountSats)
+	writeJSON(w, map[string]any{
+		"ok":          true,
+		"balanceSats": balance,
+	})
 }
 
 func (app *App) adminApiWipeCard(w http.ResponseWriter, _ *http.Request, cardId int) {
