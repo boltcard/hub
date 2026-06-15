@@ -316,6 +316,59 @@ func TestAdminApiPhoenix(t *testing.T) {
 	}
 }
 
+func TestAdminApiPhoenixSeed_NoSession(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_AdminApi()
+
+	r := httptest.NewRequest("POST", "/admin/api/phoenix/seed",
+		strings.NewReader(`{"password":"testpass"}`))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 without session, got %d", w.Code)
+	}
+}
+
+func TestAdminApiPhoenixSeed_WrongPassword(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	handler := app.CreateHandler_AdminApi()
+
+	r := httptest.NewRequest("POST", "/admin/api/phoenix/seed",
+		strings.NewReader(`{"password":"wrongpass"}`))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for wrong password, got %d", w.Code)
+	}
+}
+
+func TestAdminApiPhoenixSeed_CorrectPassword(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app) // registers password "testpass"
+	handler := app.CreateHandler_AdminApi()
+
+	r := httptest.NewRequest("POST", "/admin/api/phoenix/seed",
+		strings.NewReader(`{"password":"testpass"}`))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	// The password gate passes; the seed file does not exist in the test
+	// environment, so the handler reaches the read step and returns 500.
+	// This confirms a valid password is distinguished from an invalid one.
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 (seed file absent) after valid password, got %d: %s",
+			w.Code, w.Body.String())
+	}
+}
+
 func TestAdminApiSettings(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)

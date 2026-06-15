@@ -1,10 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch } from "@/lib/api";
+import { apiFetch, apiPost } from "@/lib/api";
 import { formatSats, formatTimestamp } from "@/lib/format";
 import { StatCard } from "@/components/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Table,
   TableBody,
@@ -13,8 +16,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Zap, Coins, Copy, Check, ArrowDownLeft, ArrowUpRight } from "lucide-react";
-import { useState, useMemo } from "react";
+import {
+  Zap,
+  Coins,
+  Copy,
+  Check,
+  ArrowDownLeft,
+  ArrowUpRight,
+  KeyRound,
+  Eye,
+  EyeOff,
+  ShieldAlert,
+} from "lucide-react";
+import { useState, useMemo, type FormEvent } from "react";
 import { useWebSocketContext } from "@/hooks/use-websocket-context";
 import { WithdrawDialog } from "@/components/withdraw-dialog";
 
@@ -196,6 +210,8 @@ export function PhoenixPage() {
         </Card>
       )}
 
+      <SeedCard />
+
       {/* Transactions In */}
       <Card>
         <CardHeader>
@@ -290,5 +306,138 @@ export function PhoenixPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// SeedCard reveals the phoenixd wallet recovery phrase (BIP39 mnemonic).
+// Hidden by default; revealing requires re-entering the admin password, which
+// the server verifies before returning the words. The words live only in
+// local component state and are cleared when hidden.
+function SeedCard() {
+  const [password, setPassword] = useState("");
+  const [words, setWords] = useState<string[] | null>(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [prompting, setPrompting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function handleReveal(e: FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await apiPost<{ words: string[] }>("/phoenix/seed", {
+        password,
+      });
+      setWords(res.words);
+      setPrompting(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to reveal seed");
+    } finally {
+      setPassword("");
+      setLoading(false);
+    }
+  }
+
+  function hide() {
+    setWords(null);
+    setPrompting(false);
+    setPassword("");
+    setError("");
+    setCopied(false);
+  }
+
+  function copyWords() {
+    if (!words) return;
+    navigator.clipboard.writeText(words.join(" "));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <KeyRound className="h-4 w-4" />
+          Wallet Recovery Phrase
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Alert variant="destructive">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription>
+            These words control the entire Phoenix wallet. Anyone with them can
+            steal all funds. Write them down on paper, store them offline, and
+            never share or photograph them.
+          </AlertDescription>
+        </Alert>
+
+        {words ? (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {words.map((word, i) => (
+                <div
+                  key={i}
+                  className="flex items-center gap-2 rounded border bg-muted px-3 py-2 font-mono text-sm"
+                >
+                  <span className="w-6 text-right tabular-nums text-muted-foreground">
+                    {i + 1}.
+                  </span>
+                  <span>{word}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={copyWords}>
+                {copied ? (
+                  <Check className="mr-2 h-4 w-4 text-success" />
+                ) : (
+                  <Copy className="mr-2 h-4 w-4" />
+                )}
+                Copy
+              </Button>
+              <Button variant="secondary" onClick={hide}>
+                <EyeOff className="mr-2 h-4 w-4" />
+                Hide
+              </Button>
+            </div>
+          </div>
+        ) : prompting ? (
+          <form onSubmit={handleReveal} className="space-y-3">
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="seed-password">
+                Confirm your admin password to reveal
+              </Label>
+              <Input
+                id="seed-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={loading}>
+                {loading ? "Revealing..." : "Reveal"}
+              </Button>
+              <Button type="button" variant="ghost" onClick={hide}>
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <Button variant="outline" onClick={() => setPrompting(true)}>
+            <Eye className="mr-2 h-4 w-4" />
+            Reveal recovery phrase
+          </Button>
+        )}
+      </CardContent>
+    </Card>
   );
 }
