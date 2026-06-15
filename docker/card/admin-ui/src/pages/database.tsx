@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { StatCard } from "@/components/stat-card";
-import { Download, Upload, Copy, Check, KeyRound, Database, HardDrive, Layers } from "lucide-react";
+import { Download, Upload, Database, HardDrive, Layers } from "lucide-react";
 import { useState, type FormEvent } from "react";
 
 interface TableCount {
@@ -25,13 +25,7 @@ function formatBytes(bytes: number): string {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-const RESET_COMMANDS = `docker exec -it card bash
-NEW_HASH=$(htpasswd -bnBC 10 "" 'YOUR_NEW_PASSWORD' | tr -d ':\\n' | sed 's/$2y/$2a/')
-sqlite3 /card_data/cards.db "UPDATE settings SET value='$NEW_HASH' WHERE name='admin_password_hash';"
-exit`;
-
 export function DatabasePage() {
-  const [copied, setCopied] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
 
@@ -41,12 +35,6 @@ export function DatabasePage() {
   });
 
   const totalRows = stats?.tables?.reduce((sum, t) => sum + t.count, 0) ?? 0;
-
-  function copyReset() {
-    navigator.clipboard.writeText(RESET_COMMANDS);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
 
   async function handleImport(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -149,29 +137,6 @@ export function DatabasePage() {
               <p className="text-sm text-muted-foreground">{uploadResult}</p>
             )}
           </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">
-              <KeyRound className="mr-2 inline h-5 w-5" />
-              Admin Password Reset
-            </CardTitle>
-            <Button variant="outline" size="icon" onClick={copyReset}>
-              {copied ? (
-                <Check className="h-4 w-4 text-[var(--success)]" />
-              ) : (
-                <Copy className="h-4 w-4" />
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-xs font-mono">
-            {RESET_COMMANDS}
-          </pre>
         </CardContent>
       </Card>
     </div>
