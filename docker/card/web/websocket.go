@@ -33,71 +33,143 @@ type WebSocketMessage struct {
 	PayerKey    string `json:"payerKey,omitempty"`
 }
 
-// startPhoenixListener opens a single websocket to Phoenix and broadcasts
+const phoenixMaxBackoff = 30 * time.Second
+
+// phoenixBackoff returns how long to wait before the next reconnect attempt,
+// given the number of consecutive failures (0 means the last attempt
+// succeeded). It grows exponentially (1s, 2s, 4s, …) capped at
+// phoenixMaxBackoff so a flapping Phoenix never produces a hot reconnect loop.
+func phoenixBackoff(failures int) time.Duration {
+	if failures <= 0 {
+		return 0
+	}
+	if failures > 6 { // 1<<6 == 64s already exceeds the cap; also guards against shift overflow
+		return phoenixMaxBackoff
+	}
+	d := time.Duration(1<<(failures-1)) * time.Second
+	if d > phoenixMaxBackoff {
+		return phoenixMaxBackoff
+	}
+	return d
+}
+
+// interruptibleSleep waits for d, returning early if stop is closed so shutdown
+// is not blocked by a pending backoff delay.
+func interruptibleSleep(d time.Duration, stop <-chan struct{}) {
+	if d <= 0 {
+		return
+	}
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-stop:
+	case <-t.C:
+	}
+}
+
+// reconnectLoop calls connect, which is expected to block while the connection
+// is alive and return when it fails to establish or drops. After each return
+// it waits backoff(consecutiveFailures) before reconnecting; a successful
+// connection (connect returns nil) resets the failure count. The loop exits
+// when stop is closed.
+func reconnectLoop(stop <-chan struct{}, connect func() error, backoff func(int) time.Duration) {
+	failures := 0
+	for {
+		select {
+		case <-stop:
+			return
+		default:
+		}
+
+		if err := connect(); err != nil {
+			failures++
+		} else {
+			failures = 0
+		}
+
+		select {
+		case <-stop:
+			return
+		default:
+		}
+		interruptibleSleep(backoff(failures), stop)
+	}
+}
+
+// startPhoenixListener keeps a websocket open to Phoenix and broadcasts
 // incoming payment events to all connected admin clients via the hub.
-// It runs once and reconnects are not needed (Phoenix connection is long-lived).
+// It reconnects automatically: Phoenix may not be ready when the card service
+// boots (a cold-start race) and may restart later, so a single dial is not
+// enough — connectAndServePhoenix is retried with exponential backoff until
+// app.stop is closed.
 func (app *App) startPhoenixListener() {
+	go reconnectLoop(app.stop, app.connectAndServePhoenix, phoenixBackoff)
+}
+
+// connectAndServePhoenix loads the Phoenix config, dials its websocket and
+// blocks reading payment events until the connection fails to establish or
+// drops, returning the error that ended it (nil on a clean close). It never
+// retries itself — reconnectLoop owns the backoff and reconnection.
+func (app *App) connectAndServePhoenix() error {
 	cfg, err := ini.Load("/root/.phoenix/phoenix.conf")
 	if err != nil {
-		log.Error("failed to load phoenix config: ", err)
-		return
+		log.Info("phoenix config not available, will retry: ", err.Error())
+		return err
 	}
 
 	hp := cfg.Section("").Key("http-password").String()
-	h := http.Header{"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(":" + hp))}}
+	h := http.Header{"Authorization": {"Basic " + base64.StdEncoding.EncodeToString([]byte(":"+hp))}}
 	c, _, err := websocket.DefaultDialer.Dial("ws://phoenix:9740/websocket", h)
 	if err != nil {
-		log.Info("phoenix websocket not available: ", err.Error())
-		return
+		log.Info("phoenix websocket not available, will retry: ", err.Error())
+		return err
 	}
 
 	log.Info("phoenix websocket listener connected")
+	defer c.Close()
 
-	go func() {
-		defer c.Close()
-		for {
-			_, message, err := c.ReadMessage()
-			if err != nil {
-				log.Info("websocket to phoenix is closing: ", err.Error())
-				return
-			}
-
-			log.Info("phoenix ws message: ", string(message))
-
-			var wsMsg WebSocketMessage
-			err = json.Unmarshal(message, &wsMsg)
-			if err != nil {
-				log.Error("websocket json unmarshal error: ", err)
-				continue
-			}
-
-			incomingPayment, err := phoenix.GetIncomingPayment(wsMsg.PaymentHash)
-			if err != nil {
-				log.Error("phoenix GetIncomingPayment error: ", err)
-				continue
-			}
-
-			// Mark any matching receipt as paid (for lightning address payments)
-			if incomingPayment.IsPaid {
-				db.Db_set_receipt_paid(app.db_write, incomingPayment.PaymentHash, "websocket")
-			}
-
-			event := wsPaymentEvent{
-				Type:        "payment_received",
-				AmountSat:   incomingPayment.ReceivedSat,
-				PaymentHash: incomingPayment.PaymentHash,
-				Timestamp:   incomingPayment.CompletedAt / 1000,
-			}
-
-			eventJSON, err := json.Marshal(event)
-			if err != nil {
-				log.Error("websocket json marshal error: ", err)
-				continue
-			}
-
-			app.hub.broadcast(eventJSON)
+	for {
+		_, message, err := c.ReadMessage()
+		if err != nil {
+			log.Info("phoenix websocket closed, will reconnect: ", err.Error())
+			return err
 		}
-	}()
+
+		log.Info("phoenix ws message: ", string(message))
+
+		var wsMsg WebSocketMessage
+		err = json.Unmarshal(message, &wsMsg)
+		if err != nil {
+			log.Error("websocket json unmarshal error: ", err)
+			continue
+		}
+
+		incomingPayment, err := phoenix.GetIncomingPayment(wsMsg.PaymentHash)
+		if err != nil {
+			log.Error("phoenix GetIncomingPayment error: ", err)
+			continue
+		}
+
+		// Mark any matching receipt as paid (for lightning address payments)
+		if incomingPayment.IsPaid {
+			db.Db_set_receipt_paid(app.db_write, incomingPayment.PaymentHash, "websocket")
+		}
+
+		event := wsPaymentEvent{
+			Type:        "payment_received",
+			AmountSat:   incomingPayment.ReceivedSat,
+			PaymentHash: incomingPayment.PaymentHash,
+			Timestamp:   incomingPayment.CompletedAt / 1000,
+		}
+
+		eventJSON, err := json.Marshal(event)
+		if err != nil {
+			log.Error("websocket json marshal error: ", err)
+			continue
+		}
+
+		app.hub.broadcast(eventJSON)
+	}
 }
 
 // startChannelPoller polls Phoenix channel status every 30s and broadcasts

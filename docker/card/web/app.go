@@ -11,10 +11,11 @@ type App struct {
 	db_read  *sql.DB // read-only pool (many concurrent connections)
 	db_write *sql.DB // single-connection writer (serialised via SetMaxOpenConns(1))
 	hub      *wsHub
+	stop     chan struct{} // closed to signal background goroutines (e.g. Phoenix listener) to exit
 }
 
 func NewApp(db_read, db_write *sql.DB) *App {
-	app := &App{db_read: db_read, db_write: db_write, hub: newWsHub()}
+	app := &App{db_read: db_read, db_write: db_write, hub: newWsHub(), stop: make(chan struct{})}
 	app.startPhoenixListener()
 	app.startChannelPoller()
 	app.startReceiptPoller()

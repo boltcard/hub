@@ -36,7 +36,9 @@ func openTestDB(t *testing.T) *sql.DB {
 func openTestApp(t *testing.T) *App {
 	t.Helper()
 	db_conn := openTestDB(t)
-	return NewApp(db_conn, db_conn) // same DB for both read and write in tests
+	app := NewApp(db_conn, db_conn) // same DB for both read and write in tests
+	t.Cleanup(func() { close(app.stop) })
+	return app
 }
 
 // Test getBearerToken with valid Bearer token
