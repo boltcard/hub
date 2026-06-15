@@ -39,6 +39,6 @@ func (app *App) adminApiPhoenixSeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Warn("phoenix seed revealed to authenticated admin")
+	log.Info("phoenix seed revealed to authenticated admin")
 	writeJSON(w, map[string]interface{}{"words": words})
 }
