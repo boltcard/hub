@@ -153,6 +153,7 @@ type CardTx struct {
 	Timestamp  int
 	AmountSats int
 	FeeSats    int
+	Allocated  bool
 }
 
 type CardTxs []CardTx
@@ -161,11 +162,13 @@ func Db_select_card_txs(db_conn *sql.DB, card_id int) (result CardTxs) {
 	var cardTxs CardTxs
 
 	// get card txs
-	sqlStatement := `SELECT card_receipt_id, 0, timestamp, amount_sats, fee_sats` +
+	// receipts with an empty ln_invoice are manual admin allocations
+	// (no real Lightning invoice behind them); flag them as allocated
+	sqlStatement := `SELECT card_receipt_id, 0, timestamp, amount_sats, fee_sats, (ln_invoice = '')` +
 		` FROM card_receipts` +
 		` WHERE card_receipts.card_id = $1 AND card_receipts.paid_flag='Y'` +
 		` UNION` +
-		` SELECT 0, card_payment_id, timestamp, -amount_sats, -fee_sats` +
+		` SELECT 0, card_payment_id, timestamp, -amount_sats, -fee_sats, 0` +
 		` FROM card_payments` +
 		` WHERE card_payments.card_id = $1 AND card_payments.paid_flag='Y'` +
 		` ORDER BY timestamp DESC;`
@@ -184,7 +187,8 @@ func Db_select_card_txs(db_conn *sql.DB, card_id int) (result CardTxs) {
 			&cardTx.PaymentId,
 			&cardTx.Timestamp,
 			&cardTx.AmountSats,
-			&cardTx.FeeSats)
+			&cardTx.FeeSats,
+			&cardTx.Allocated)
 		if err != nil {
 			log.Error("db_select_card_txs scan error: ", err)
 			continue

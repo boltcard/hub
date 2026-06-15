@@ -692,6 +692,57 @@ func TestAdminApiCardTxs(t *testing.T) {
 	}
 }
 
+func TestAdminApiCardTxs_AllocatedFlag(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	// insertFundedCard records a real receipt (non-empty ln_invoice)
+	cardId := insertFundedCard(t, app.db_write, 50000)
+
+	// manual allocation records a receipt with empty ln_invoice
+	r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/allocate",
+		strings.NewReader(`{"amountSats":1234}`))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	app.CreateHandler_AdminApi().ServeHTTP(httptest.NewRecorder(), r)
+
+	handler := app.CreateHandler_AdminApi()
+	req := httptest.NewRequest("GET", "/admin/api/cards/"+strconv.Itoa(cardId)+"/txs", nil)
+	req.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	var resp struct {
+		Txs []struct {
+			AmountSats int  `json:"amountSats"`
+			Allocated  bool `json:"allocated"`
+		} `json:"txs"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Txs) != 2 {
+		t.Fatalf("expected 2 txs, got %d", len(resp.Txs))
+	}
+	for _, tx := range resp.Txs {
+		switch tx.AmountSats {
+		case 1234:
+			if !tx.Allocated {
+				t.Fatal("expected manual allocation to be flagged allocated=true")
+			}
+		case 50000:
+			if tx.Allocated {
+				t.Fatal("expected real Lightning receipt to be allocated=false")
+			}
+		default:
+			t.Fatalf("unexpected tx amount %d", tx.AmountSats)
+		}
+	}
+}
+
 func TestAdminApiAbout(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)

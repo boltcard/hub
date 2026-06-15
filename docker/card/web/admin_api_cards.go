@@ -239,11 +239,12 @@ func (app *App) adminApiCardTxs(w http.ResponseWriter, _ *http.Request, cardId i
 	txs := db.Db_select_card_txs(app.db_read, cardId)
 
 	type txJSON struct {
-		ReceiptId  int `json:"receiptId"`
-		PaymentId  int `json:"paymentId"`
-		Timestamp  int `json:"timestamp"`
-		AmountSats int `json:"amountSats"`
-		FeeSats    int `json:"feeSats"`
+		ReceiptId  int  `json:"receiptId"`
+		PaymentId  int  `json:"paymentId"`
+		Timestamp  int  `json:"timestamp"`
+		AmountSats int  `json:"amountSats"`
+		FeeSats    int  `json:"feeSats"`
+		Allocated  bool `json:"allocated"`
 	}
 
 	result := make([]txJSON, 0, len(txs))
@@ -254,6 +255,7 @@ func (app *App) adminApiCardTxs(w http.ResponseWriter, _ *http.Request, cardId i
 			Timestamp:  tx.Timestamp,
 			AmountSats: tx.AmountSats,
 			FeeSats:    tx.FeeSats,
+			Allocated:  tx.Allocated,
 		})
 	}
 

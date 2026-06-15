@@ -70,6 +70,7 @@ interface CardTx {
   timestamp: number;
   amountSats: number;
   feeSats: number;
+  allocated: boolean;
 }
 
 export function CardDetailPage() {
@@ -549,7 +550,11 @@ export function CardDetailPage() {
                       <TableRow key={i}>
                         <TableCell>
                           <Badge variant="secondary">
-                            {isReceipt ? "Received \u2193" : "Sent \u2191"}
+                            {!isReceipt
+                              ? "Sent \u2191"
+                              : tx.allocated
+                                ? "Allocated \u2193"
+                                : "Received \u2193"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-sm">
