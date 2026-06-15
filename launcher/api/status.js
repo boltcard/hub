@@ -36,38 +36,36 @@ function parseLogStep(line) {
   return 2;
 }
 
-// Probe with strict TLS (valid cert = fully ready)
-function probeStrict(hostname) {
+// TLS handshake completed but the certificate isn't trusted yet — i.e. Caddy
+// is up and serving on 443 but the Let's Encrypt cert hasn't been issued.
+// (vs. ECONNREFUSED/ETIMEDOUT/etc. which mean services aren't up at all)
+const TLS_CERT_ERRORS = new Set([
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'CERT_HAS_EXPIRED',
+  'CERT_NOT_YET_VALID',
+  'ERR_TLS_CERT_ALTNAME_INVALID',
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+]);
+
+// Probe HTTPS with cert validation left ON (the default). A trusted cert means
+// the hub is fully ready; a cert-validation error means services are up but the
+// cert is still pending; anything else means services aren't responding yet.
+function probe(hostname) {
   return new Promise((resolve) => {
     const req = https.request({
       hostname,
       path: '/',
       method: 'HEAD',
       timeout: 5000,
-      rejectUnauthorized: true,
     }, () => {
       resolve('ready');
     });
     req.on('timeout', () => { req.destroy(); resolve(null); });
-    req.on('error', () => resolve(null));
-    req.end();
-  });
-}
-
-// Probe with relaxed TLS (any response = services running, cert may be pending)
-function probeRelaxed(hostname) {
-  return new Promise((resolve) => {
-    const req = https.request({
-      hostname,
-      path: '/',
-      method: 'HEAD',
-      timeout: 5000,
-      rejectUnauthorized: false,
-    }, () => {
-      resolve('tls_pending');
+    req.on('error', (err) => {
+      resolve(TLS_CERT_ERRORS.has(err.code) ? 'tls_pending' : null);
     });
-    req.on('timeout', () => { req.destroy(); resolve(null); });
-    req.on('error', () => resolve(null));
     req.end();
   });
 }
@@ -114,12 +112,11 @@ module.exports = async function handler(req, res) {
   }
 
   // 3. Check HTTPS for TLS status (always try — port 8080 may be unreachable mid-install)
-  const strict = await probeStrict(hostname);
-  if (strict) {
+  const tls = await probe(hostname);
+  if (tls === 'ready') {
     return res.status(200).json({ step: 6, logLine });
   }
-  const relaxed = await probeRelaxed(hostname);
-  if (relaxed) {
+  if (tls === 'tls_pending') {
     return res.status(200).json({ step: 5, logLine });
   }
 
