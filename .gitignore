@@ -4,3 +4,5 @@
 docker/card/card
 notes
 .github/prompts/*
+# local planning docs
+docs/plans/
