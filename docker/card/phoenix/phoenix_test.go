@@ -15,16 +15,14 @@ func primePassword(pw string) {
 }
 
 // withTestServer points phoenixBaseURL at a test server for the duration of a
-// test and primes a non-empty password. The previous base URL is restored on
-// cleanup.
+// test and primes a non-empty password. The previous base URL and password
+// are restored on cleanup via the shared UseMockPhoenix hook.
 func withTestServer(t *testing.T, handler http.HandlerFunc) {
 	t.Helper()
-	primePassword("testpass")
 	srv := httptest.NewServer(handler)
-	old := phoenixBaseURL
-	phoenixBaseURL = srv.URL
+	restore := UseMockPhoenix(srv.URL)
 	t.Cleanup(func() {
-		phoenixBaseURL = old
+		restore()
 		srv.Close()
 	})
 }
