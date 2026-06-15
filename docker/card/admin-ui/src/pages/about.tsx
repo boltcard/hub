@@ -26,7 +26,6 @@ interface AboutData {
   version: string;
   buildDate: string;
   buildTime: string;
-  phoenixdVersion: string;
   latestVersion: string;
   updateAvailable: boolean;
 }
@@ -131,12 +130,6 @@ export function AboutPage() {
                       Update available
                     </Badge>
                   )}
-                </TableCell>
-              </TableRow>
-              <TableRow>
-                <TableCell className="font-medium">Phoenixd Version</TableCell>
-                <TableCell className="font-mono">
-                  {data.phoenixdVersion || "\u2014"}
                 </TableCell>
               </TableRow>
             </TableBody>

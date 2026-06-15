@@ -2,7 +2,6 @@ package web
 
 import (
 	"card/build"
-	"card/phoenix"
 	"encoding/json"
 	"html"
 	"io"
@@ -20,19 +19,10 @@ func (app *App) adminApiAbout(w http.ResponseWriter, r *http.Request) {
 		updateAvailable = CompareVersions(build.Version, latestVersion) == 1
 	}
 
-	phoenixdVersion := ""
-	info, err := phoenix.GetNodeInfo()
-	if err == nil {
-		phoenixdVersion, _, _ = strings.Cut(info.Version, "-")
-	} else {
-		log.Warn("phoenix info error: ", err)
-	}
-
 	writeJSON(w, map[string]interface{}{
 		"version":         build.Version,
 		"buildDate":       build.Date,
 		"buildTime":       build.Time,
-		"phoenixdVersion": phoenixdVersion,
 		"latestVersion":   latestVersion,
 		"updateAvailable": updateAvailable,
 	})
