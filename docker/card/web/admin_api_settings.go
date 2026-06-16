@@ -23,7 +23,8 @@ func (app *App) adminApiGetSettings(w http.ResponseWriter, r *http.Request) {
 		value := s.Value
 		if strings.HasSuffix(s.Name, "_hash") ||
 			strings.HasSuffix(s.Name, "_token") ||
-			strings.HasSuffix(s.Name, "_code") {
+			strings.HasSuffix(s.Name, "_code") ||
+			strings.HasSuffix(s.Name, "_secret") {
 			value = "REDACTED"
 		}
 		if s.Name == "log_level" {

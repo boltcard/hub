@@ -58,7 +58,7 @@ Uses Go 1.25.11 with CGo enabled for sqlite3, Node 22 for frontend. Docker Hub p
 
 ## Versioning
 
-**Bump the version for every PR.** Patch-bump `Version` in `docker/card/build/build.go` (e.g. `0.19.3` → `0.19.4`) as part of each PR. On merge to `main`, CI republishes `boltcard/card:latest` with `org.opencontainers.image.version` set to this string; the About-page update check only surfaces the "Update available" button on deployed hubs when that label exceeds their running version. A PR that changes the image without bumping the version therefore ships an update no one can see.
+**Bump the version for every PR.** Bump `Version` in `docker/card/build/build.go` as part of each PR, following [semantic versioning](https://semver.org/): a new backward-compatible feature bumps MINOR (e.g. `0.19.9` → `0.20.0`), a bug fix or maintenance change bumps PATCH (e.g. `0.19.3` → `0.19.4`), and a breaking change bumps MAJOR. On merge to `main`, CI republishes `boltcard/card:latest` with `org.opencontainers.image.version` set to this string; the About-page update check only surfaces the "Update available" button on deployed hubs when that label exceeds their running version. A PR that changes the image without bumping the version therefore ships an update no one can see.
 
 ## CLI Commands (run inside card container)
 
@@ -69,6 +69,7 @@ docker exec -it card bash
 ./app ClearCardBalancesForTag <group_tag>
 ./app ProgramBatch <group_tag> <max_group_num> <initial_balance> <expiry_hours>
 ./app WipeCard <card_id>
+./app DisableAdmin2FA
 ```
 
 ## Architecture
@@ -92,7 +93,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
 - `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
-- `build/` — Version string (currently "0.19.8"), date/time injected at build
+- `build/` — Version string (currently "0.20.0"), date/time injected at build
 - `web-content/` — Static assets under `public/`, SPA build output under `admin/spa/`
 
 ### Route Groups (`web/app.go`)
@@ -133,7 +134,7 @@ Schema version managed by idempotent `update_schema_*` functions in `db_create.g
 
 ### Authentication
 
-- **Admin**: bcrypt password hash in settings table, session cookies with 24-hour expiry. Legacy SHA256 hashes auto-migrate to bcrypt on login. Constant-time token comparison.
+- **Admin**: bcrypt password hash in settings table, session cookies with 24-hour expiry. Legacy SHA256 hashes auto-migrate to bcrypt on login. Constant-time token comparison. Optional TOTP 2FA (RFC 6238 via `github.com/pquerna/otp`): when `admin_totp_enabled="Y"`, login also requires a 6-digit TOTP code or a single-use recovery code, verified in `adminApiLogin` before a session is issued (login-only enforcement). Enrollment/disable endpoints live in `web/admin_api_2fa.go`, TOTP/recovery helpers in `web/totp.go`. Recovery for a lost authenticator: backup codes or the `DisableAdmin2FA` CLI command.
 - **Bolt Card NFC**: AES-CMAC with 5 keys per card (K0-K4), counter-based replay protection
 - **Wallet/PoS API**: Login/password → access_token + refresh_token (random hex)
 
@@ -155,6 +156,7 @@ The `settings` table stores key-value config. Active settings used by the app:
 - `host_domain` — domain for building LNURL/callback URLs (set from `HOST_DOMAIN` env var on first run)
 - `log_level` — logrus log level, applied at startup and changeable live via admin UI dropdown
 - `admin_password_hash`, `admin_password_salt`, `admin_session_token`, `admin_session_created` — admin auth
+- `admin_totp_enabled`, `admin_totp_secret`, `admin_totp_recovery_hash` — optional admin login 2FA (TOTP). `admin_totp_enabled` ("Y"/"N") gates enforcement at login; `admin_totp_secret` (base32) and `admin_totp_recovery_hash` (JSON array of bcrypt-hashed single-use recovery codes) are redacted in the settings UI. Cleared by the `DisableAdmin2FA` CLI command.
 - `new_card_code` — secret for card programming endpoint
 - `invite_secret` — optional secret for wallet API card creation
 - `bolt_card_hub_api`, `bolt_card_pos_api` — feature flags ("enabled" to activate)
@@ -166,7 +168,7 @@ Withdraw limits (`min_withdraw_sats=1`, `max_withdraw_sats=100000000`) are hardc
 
 > **Note (Phoenix routing fees):** the hub does *not* send a fee cap to phoenixd — `phoenix/send_lightning_payment.go` posts only `amountSat` + `invoice` to `/payinvoice`, so phoenixd applies its own default fee budget. The `max_network_fee_sats` value (`4 + amountSats*4/1000` in `lnurlw_callback.go`) is used only to reserve card balance, not as the payment fee ceiling. This bit us once: phoenixd 0.7.3 (lightning-kmp 1.11) couldn't route tiny ~20–250 sat payments within its default budget and rejected them with `"routing fees are insufficient"`; upgrading to 0.8.0 (lightning-kmp 1.12.0) fixed it. **Possible future hardening (may never be needed):** pass an explicit `maxFeeFlatSat` (sats) to `/payinvoice` — e.g. a `5 + amountSats*4/1000` floor — so the hub controls the fee budget instead of relying on phoenixd defaults.
 
-The admin settings page (`/admin/settings/`) displays all settings with sensitive values (`_hash`, `_token`, `_code` suffixes) redacted. `log_level` has an inline dropdown that submits on change.
+The admin settings page (`/admin/settings/`) displays all settings with sensitive values (`_hash`, `_token`, `_code`, `_secret` suffixes) redacted. `log_level` has an inline dropdown that submits on change.
 
 ## Memory File
 

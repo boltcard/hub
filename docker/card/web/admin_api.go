@@ -96,6 +96,18 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 			app.adminApiLogout(w, r)
 
 		// Protected endpoints (session required)
+		case path == "/admin/api/auth/2fa/status" && r.Method == "GET":
+			app.adminApiAuth(app.adminApi2faStatus)(w, r)
+
+		case path == "/admin/api/auth/2fa/setup" && r.Method == "POST":
+			app.adminApiAuth(app.adminApi2faSetup)(w, r)
+
+		case path == "/admin/api/auth/2fa/enable" && r.Method == "POST":
+			app.adminApiAuth(app.adminApi2faEnable)(w, r)
+
+		case path == "/admin/api/auth/2fa/disable" && r.Method == "POST":
+			app.adminApiAuth(app.adminApi2faDisable)(w, r)
+
 		case path == "/admin/api/dashboard":
 			app.adminApiAuth(app.adminApiDashboard)(w, r)
 
@@ -184,6 +196,7 @@ func (app *App) adminApiAuthCheck(w http.ResponseWriter, r *http.Request) {
 func (app *App) adminApiLogin(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -202,6 +215,26 @@ func (app *App) adminApiLogin(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 		writeJSON(w, map[string]string{"error": "invalid password"})
 		return
+	}
+
+	if app.totpEnabled() {
+		if req.Code == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			writeJSON(w, map[string]interface{}{
+				"error":        "2fa code required",
+				"totpRequired": true,
+			})
+			return
+		}
+		secret := db.Db_get_setting(app.db_read, "admin_totp_secret")
+		if !validateTotpCode(secret, req.Code) && !app.consumeRecoveryCode(req.Code) {
+			w.WriteHeader(http.StatusUnauthorized)
+			writeJSON(w, map[string]interface{}{
+				"error":        "invalid code",
+				"totpRequired": true,
+			})
+			return
+		}
 	}
 
 	sessionToken := util.Random_hex()

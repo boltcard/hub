@@ -27,6 +27,8 @@ func processArgs(db_conn *sql.DB, args []string) {
 		programBatch(db_conn, args)
 	case "WipeCard":
 		wipeCard(db_conn, args)
+	case "DisableAdmin2FA":
+		disableAdmin2FA(db_conn)
 	default:
 		log.Warn("CLI command not found : " + args[0])
 	}
@@ -207,6 +209,15 @@ func programBatch(db_conn *sql.DB, args []string) {
 	fmt.Println("e.g. with https://www.qrcode-monkey.com/#url")
 	fmt.Println("and scan with your mobile device : ")
 	fmt.Println(boltcardLink)
+}
+
+// DisableAdmin2FA clears admin TOTP 2FA. Recovery path for a lost
+// authenticator: run via `docker exec -it card ./app DisableAdmin2FA`.
+func disableAdmin2FA(db_conn *sql.DB) {
+	db.Db_set_setting(db_conn, "admin_totp_enabled", "N")
+	db.Db_set_setting(db_conn, "admin_totp_secret", "")
+	db.Db_set_setting(db_conn, "admin_totp_recovery_hash", "")
+	log.Info("admin 2FA disabled")
 }
 
 // used for testing the wipe card function

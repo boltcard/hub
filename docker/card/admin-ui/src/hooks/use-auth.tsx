@@ -8,6 +8,13 @@ import {
 } from "react";
 import { apiFetch, apiPost } from "@/lib/api";
 
+export class TotpRequiredError extends Error {
+  constructor() {
+    super("2fa required");
+    this.name = "TotpRequiredError";
+  }
+}
+
 interface AuthState {
   loading: boolean;
   authenticated: boolean;
@@ -15,7 +22,7 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (password: string) => Promise<void>;
+  login: (password: string, code?: string) => Promise<void>;
   register: (password: string) => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
@@ -45,9 +52,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refresh();
   }, [refresh]);
 
-  const login = async (password: string) => {
-    await apiPost("/auth/login", { password });
-    await refresh();
+  const login = async (password: string, code?: string) => {
+    const res = await fetch("/admin/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password, code }),
+    });
+    if (res.ok) {
+      await refresh();
+      return;
+    }
+    const body = await res
+      .json()
+      .catch(() => ({}) as { error?: string; totpRequired?: boolean });
+    // Only signal "code required" when we haven't already submitted one;
+    // a rejected code falls through to surface its error message.
+    if (body.totpRequired && !code) {
+      throw new TotpRequiredError();
+    }
+    throw new Error(body.error || `HTTP ${res.status}`);
   };
 
   const register = async (password: string) => {
