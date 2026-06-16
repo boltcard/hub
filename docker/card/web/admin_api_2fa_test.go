@@ -250,3 +250,121 @@ func TestAdminApi2faDisable(t *testing.T) {
 		t.Fatal("recovery hashes should be cleared")
 	}
 }
+
+func enable2faForTest(t *testing.T, app *App) (secret string, recovery []string) {
+	t.Helper()
+	hash, _ := HashPassword("testpass")
+	db.Db_set_setting(app.db_write, "admin_password_hash", hash)
+
+	s, _, err := newTotpKey("hub.example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.Db_set_setting(app.db_write, "admin_totp_secret", s)
+	db.Db_set_setting(app.db_write, "admin_totp_enabled", "Y")
+
+	plain, hashes, err := generateRecoveryCodes(10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	app.saveRecoveryHashes(hashes)
+	return s, plain
+}
+
+func postLogin(app *App, body string) *httptest.ResponseRecorder {
+	handler := app.CreateHandler_AdminApi()
+	r := httptest.NewRequest("POST", "/admin/api/auth/login", strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	return w
+}
+
+func TestAdminLogin_2faRequired_PasswordOnly(t *testing.T) {
+	app := openTestApp(t)
+	enable2faForTest(t, app)
+
+	w := postLogin(app, `{"password":"testpass"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d: %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		TotpRequired bool `json:"totpRequired"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if !resp.TotpRequired {
+		t.Fatal("expected totpRequired=true")
+	}
+	if db.Db_get_setting(app.db_read, "admin_session_token") != "" {
+		t.Fatal("no session should be issued without a code")
+	}
+}
+
+func TestAdminLogin_2fa_ValidCode(t *testing.T) {
+	app := openTestApp(t)
+	secret, _ := enable2faForTest(t, app)
+	code, _ := totp.GenerateCode(secret, time.Now())
+
+	w := postLogin(app, `{"password":"testpass","code":"`+code+`"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	if db.Db_get_setting(app.db_read, "admin_session_token") == "" {
+		t.Fatal("expected a session token to be issued")
+	}
+}
+
+func TestAdminLogin_2fa_InvalidCode(t *testing.T) {
+	app := openTestApp(t)
+	enable2faForTest(t, app)
+
+	w := postLogin(app, `{"password":"testpass","code":"000000"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401, got %d", w.Code)
+	}
+}
+
+func TestAdminLogin_2fa_RecoveryCodeConsumedOnce(t *testing.T) {
+	app := openTestApp(t)
+	_, recovery := enable2faForTest(t, app)
+
+	w1 := postLogin(app, `{"password":"testpass","code":"`+recovery[0]+`"}`)
+	if w1.Code != http.StatusOK {
+		t.Fatalf("recovery first use: expected 200, got %d: %s", w1.Code, w1.Body.String())
+	}
+	if len(app.loadRecoveryHashes()) != 9 {
+		t.Fatalf("expected 9 codes remaining, got %d", len(app.loadRecoveryHashes()))
+	}
+
+	w2 := postLogin(app, `{"password":"testpass","code":"`+recovery[0]+`"}`)
+	if w2.Code != http.StatusUnauthorized {
+		t.Fatalf("recovery reuse: expected 401, got %d", w2.Code)
+	}
+}
+
+func TestAdminLogin_NoTotp_PasswordOnlyStillWorks(t *testing.T) {
+	app := openTestApp(t)
+	hash, _ := HashPassword("testpass")
+	db.Db_set_setting(app.db_write, "admin_password_hash", hash)
+
+	w := postLogin(app, `{"password":"testpass"}`)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 with 2FA off, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestAdminLogin_2fa_WrongPasswordValidCode_Fails(t *testing.T) {
+	app := openTestApp(t)
+	secret, _ := enable2faForTest(t, app)
+	code, _ := totp.GenerateCode(secret, time.Now())
+
+	w := postLogin(app, `{"password":"wrongpass","code":"`+code+`"}`)
+	if w.Code != http.StatusUnauthorized {
+		t.Fatalf("wrong password with valid code: expected 401, got %d", w.Code)
+	}
+	if db.Db_get_setting(app.db_read, "admin_session_token") != "" {
+		t.Fatal("no session should be issued with wrong password")
+	}
+}
