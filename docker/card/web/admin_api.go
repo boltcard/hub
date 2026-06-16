@@ -96,6 +96,9 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 			app.adminApiLogout(w, r)
 
 		// Protected endpoints (session required)
+		case path == "/admin/api/auth/2fa/status" && r.Method == "GET":
+			app.adminApiAuth(app.adminApi2faStatus)(w, r)
+
 		case path == "/admin/api/dashboard":
 			app.adminApiAuth(app.adminApiDashboard)(w, r)
 
