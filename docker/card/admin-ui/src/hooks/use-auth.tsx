@@ -65,7 +65,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const body = await res
       .json()
       .catch(() => ({}) as { error?: string; totpRequired?: boolean });
-    if (body.totpRequired) {
+    // Only signal "code required" when we haven't already submitted one;
+    // a rejected code falls through to surface its error message.
+    if (body.totpRequired && !code) {
       throw new TotpRequiredError();
     }
     throw new Error(body.error || `HTTP ${res.status}`);
