@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch, apiPut } from "@/lib/api";
+import { TwoFactorCard } from "@/components/two-factor-card";
 import { toast } from "sonner";
 import {
   Table,
@@ -51,6 +52,8 @@ export function SettingsPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Settings</h1>
+
+      <TwoFactorCard />
 
       {data.settings.length === 0 ? (
         <div className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
