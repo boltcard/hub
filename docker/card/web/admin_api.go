@@ -105,6 +105,9 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 		case path == "/admin/api/auth/2fa/enable" && r.Method == "POST":
 			app.adminApiAuth(app.adminApi2faEnable)(w, r)
 
+		case path == "/admin/api/auth/2fa/disable" && r.Method == "POST":
+			app.adminApiAuth(app.adminApi2faDisable)(w, r)
+
 		case path == "/admin/api/dashboard":
 			app.adminApiAuth(app.adminApiDashboard)(w, r)
 

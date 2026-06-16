@@ -93,6 +93,29 @@ func (app *App) adminApi2faSetup(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (app *App) adminApi2faDisable(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Password string `json:"password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]string{"error": "invalid request body"})
+		return
+	}
+	if !app.verifyAdminPassword(req.Password) {
+		// in-session re-auth failure → 400 (see enable handler rationale)
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]string{"error": "invalid password"})
+		return
+	}
+
+	db.Db_set_setting(app.db_write, "admin_totp_enabled", "N")
+	db.Db_set_setting(app.db_write, "admin_totp_secret", "")
+	db.Db_set_setting(app.db_write, "admin_totp_recovery_hash", "")
+
+	writeJSON(w, map[string]bool{"ok": true})
+}
+
 func (app *App) adminApi2faEnable(w http.ResponseWriter, r *http.Request) {
 	if app.totpEnabled() {
 		w.WriteHeader(http.StatusBadRequest)

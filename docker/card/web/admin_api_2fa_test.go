@@ -207,3 +207,46 @@ func TestAdminApi2faEnable_WithoutSetup(t *testing.T) {
 		t.Fatalf("expected 400 without prior setup, got %d", w.Code)
 	}
 }
+
+func TestAdminApi2faDisable(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app) // sets admin_password_hash for "testpass"
+	db.Db_set_setting(app.db_write, "admin_totp_enabled", "Y")
+	db.Db_set_setting(app.db_write, "admin_totp_secret", "SOMESECRET")
+	app.saveRecoveryHashes([]string{"h1", "h2"})
+
+	handler := app.CreateHandler_AdminApi()
+	cookie := &http.Cookie{Name: "admin_session_token", Value: token}
+
+	// wrong password → 400, 2FA stays on
+	rbad := httptest.NewRequest("POST", "/admin/api/auth/2fa/disable",
+		strings.NewReader(`{"password":"wrong"}`))
+	rbad.AddCookie(cookie)
+	wbad := httptest.NewRecorder()
+	handler.ServeHTTP(wbad, rbad)
+	if wbad.Code != http.StatusBadRequest {
+		t.Fatalf("disable(wrong pw): expected 400, got %d", wbad.Code)
+	}
+	if !app.totpEnabled() {
+		t.Fatal("2FA should remain enabled after a wrong password")
+	}
+
+	// correct password → 200, all keys cleared
+	rok := httptest.NewRequest("POST", "/admin/api/auth/2fa/disable",
+		strings.NewReader(`{"password":"testpass"}`))
+	rok.AddCookie(cookie)
+	wok := httptest.NewRecorder()
+	handler.ServeHTTP(wok, rok)
+	if wok.Code != http.StatusOK {
+		t.Fatalf("disable(correct pw): expected 200, got %d: %s", wok.Code, wok.Body.String())
+	}
+	if app.totpEnabled() {
+		t.Fatal("2FA should be disabled")
+	}
+	if db.Db_get_setting(app.db_read, "admin_totp_secret") != "" {
+		t.Fatal("secret should be cleared")
+	}
+	if len(app.loadRecoveryHashes()) != 0 {
+		t.Fatal("recovery hashes should be cleared")
+	}
+}
