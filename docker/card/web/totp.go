@@ -8,11 +8,15 @@ import (
 )
 
 // newTotpKey generates a fresh TOTP secret for the admin. accountName is the
-// label shown in the authenticator app (we pass host_domain). Returns the
-// base32 secret and the otpauth:// provisioning URI.
+// label shown in the authenticator app (we pass host_domain). The issuer is
+// "Boltcard Hub" (one token) to avoid wrong-logo brand matching in Authy.
+// Returns the base32 secret and the otpauth:// provisioning URI.
 func newTotpKey(accountName string) (secret string, url string, err error) {
 	key, err := totp.Generate(totp.GenerateOpts{
-		Issuer:      "Bolt Card Hub",
+		// "Boltcard" as a single token (not "Bolt Card") so authenticator apps
+		// that pick a logo by matching the issuer (e.g. Authy) don't false-match
+		// the unrelated "Bolt" brand and suggest the wrong logo.
+		Issuer:      "Boltcard Hub",
 		AccountName: accountName,
 	})
 	if err != nil {

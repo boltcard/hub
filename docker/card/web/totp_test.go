@@ -19,6 +19,11 @@ func TestNewTotpKey_ProducesValidatableSecret(t *testing.T) {
 	if !strings.HasPrefix(url, "otpauth://totp/") {
 		t.Fatalf("expected otpauth URI, got %q", url)
 	}
+	// Issuer must be the single-token "Boltcard" so Authy doesn't match the
+	// unrelated "Bolt" brand and suggest the wrong logo.
+	if !strings.Contains(url, "Boltcard") {
+		t.Fatalf("expected 'Boltcard' issuer in URI, got %q", url)
+	}
 
 	code, err := totp.GenerateCode(secret, time.Now())
 	if err != nil {
