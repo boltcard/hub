@@ -96,6 +96,7 @@ func (app *App) adminApi2faSetup(w http.ResponseWriter, r *http.Request) {
 func (app *App) adminApi2faDisable(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Password string `json:"password"`
+		Code     string `json:"code"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -107,6 +108,25 @@ func (app *App) adminApi2faDisable(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(w, map[string]string{"error": "invalid password"})
 		return
+	}
+
+	// Turning OFF the second factor must prove possession of it — a 2FA-backed
+	// session can be up to 24h old and the password alone is exactly the threat
+	// 2FA defends against. Require a current TOTP code or a single-use recovery
+	// code (recovery codes and the DisableAdmin2FA CLI remain the
+	// lost-authenticator escape hatches, so this can't cause a lockout).
+	if app.totpEnabled() {
+		if req.Code == "" {
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]string{"error": "2fa code required"})
+			return
+		}
+		secret := db.Db_get_setting(app.db_read, "admin_totp_secret")
+		if !validateTotpCode(secret, req.Code) && !app.consumeRecoveryCode(req.Code) {
+			w.WriteHeader(http.StatusBadRequest)
+			writeJSON(w, map[string]string{"error": "invalid code"})
+			return
+		}
 	}
 
 	db.Db_set_setting(app.db_write, "admin_totp_enabled", "N")
