@@ -79,7 +79,10 @@ func RenderStaticContent(w http.ResponseWriter, request string) {
 	content, err := os.Open(fullPath)
 
 	if err != nil {
-		log.Info(err.Error())
+		// Missing static files are normal 404s — mostly vulnerability
+		// scanners probing for .env, .git/config, etc. Log at debug so
+		// this background noise doesn't bury operational INFO lines.
+		log.Debug(err.Error())
 		Blank(w, nil)
 		return
 	}
