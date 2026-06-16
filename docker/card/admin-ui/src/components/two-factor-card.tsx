@@ -134,7 +134,14 @@ export function TwoFactorCard() {
                   inputMode="numeric"
                   value={code}
                   onChange={(e) => setCode(e.target.value.trim())}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && code.length > 0 && !enable.isPending) {
+                      e.preventDefault();
+                      enable.mutate();
+                    }
+                  }}
                   placeholder="123456"
+                  autoFocus
                 />
               </div>
             </div>
