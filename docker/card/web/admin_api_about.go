@@ -2,12 +2,14 @@ package web
 
 import (
 	"card/build"
+	"encoding/base64"
 	"encoding/json"
 	"html"
 	"io"
 	"net/http"
 	"regexp"
 	"strings"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -79,6 +81,7 @@ func (app *App) adminApiCommits(w http.ResponseWriter, r *http.Request) {
 		Sha     string `json:"sha"`
 		Message string `json:"message"`
 		Date    string `json:"date"`
+		Version string `json:"version"`
 	}
 
 	var commits []commit
@@ -123,11 +126,91 @@ func (app *App) adminApiCommits(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Annotate each commit with the app version recorded in build/build.go at
+	// that commit. The commits-list API doesn't return file contents, so this
+	// needs one extra fetch per commit; results are cached by SHA (immutable)
+	// and fetched concurrently so a cold load doesn't serialise 10 round-trips.
+	var wg sync.WaitGroup
+	for i := range commits {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			commits[i].Version = fetchCommitVersion(client, commits[i].Sha)
+		}(i)
+	}
+	wg.Wait()
+
 	if commits == nil {
 		commits = []commit{}
 	}
 
 	writeJSON(w, map[string]interface{}{"commits": commits})
+}
+
+var buildVersionRegex = regexp.MustCompile(`Version string = "([^"]+)"`)
+
+// parseVersionFromBuildGo extracts the version string from build/build.go
+// source, returning "" if no version declaration is found.
+func parseVersionFromBuildGo(content string) string {
+	m := buildVersionRegex.FindStringSubmatch(content)
+	if len(m) == 2 {
+		return m[1]
+	}
+	return ""
+}
+
+var (
+	commitVersionMu    sync.Mutex
+	commitVersionCache = map[string]string{}
+)
+
+// fetchCommitVersion returns the app version recorded in build/build.go at the
+// given commit SHA, fetching it from the GitHub contents API. Results are
+// memoised per SHA — a commit's tree is immutable, so the cache never goes
+// stale. Returns "" on any error (rate limit, missing file in old commits).
+func fetchCommitVersion(client *http.Client, sha string) string {
+	if sha == "" {
+		return ""
+	}
+
+	commitVersionMu.Lock()
+	if v, ok := commitVersionCache[sha]; ok {
+		commitVersionMu.Unlock()
+		return v
+	}
+	commitVersionMu.Unlock()
+
+	url := "https://api.github.com/repos/boltcard/hub/contents/docker/card/build/build.go?ref=" + sha
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	resp, err := client.Do(req)
+	if err != nil {
+		return ""
+	}
+	defer resp.Body.Close()
+
+	version := ""
+	if resp.StatusCode == 200 {
+		var payload struct {
+			Content  string `json:"content"`
+			Encoding string `json:"encoding"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err == nil && payload.Encoding == "base64" {
+			// GitHub wraps base64 content at 60 chars with newlines.
+			decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(payload.Content, "\n", ""))
+			if err == nil {
+				version = parseVersionFromBuildGo(string(decoded))
+			}
+		}
+	}
+
+	commitVersionMu.Lock()
+	commitVersionCache[sha] = version
+	commitVersionMu.Unlock()
+	return version
 }
 
 var ansiColorMap = map[string]string{

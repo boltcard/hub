@@ -38,6 +38,7 @@ interface Commit {
   sha: string;
   message: string;
   date: string;
+  version: string;
 }
 
 interface CommitsData {
@@ -226,7 +227,7 @@ export function AboutPage() {
                 </h3>
                 <ul className="space-y-1">
                   {commits.map((c) => (
-                    <li key={c.sha}>
+                    <li key={c.sha} className="flex items-baseline gap-2">
                       <a
                         href={`https://github.com/boltcard/hub/commit/${c.sha}`}
                         target="_blank"
@@ -235,6 +236,11 @@ export function AboutPage() {
                       >
                         {c.message}
                       </a>
+                      {c.version && (
+                        <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                          v{c.version}
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
