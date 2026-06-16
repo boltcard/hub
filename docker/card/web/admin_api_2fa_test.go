@@ -6,8 +6,11 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"card/db"
+
+	"github.com/pquerna/otp/totp"
 )
 
 func TestAdminApiSettings_RedactsTotpSecret(t *testing.T) {
@@ -107,5 +110,100 @@ func TestAdminApi2faStatus_CorruptRecoveryHash(t *testing.T) {
 	}
 	if strings.Contains(w.Body.String(), `"recoveryCodesRemaining":0`) == false {
 		t.Fatalf("expected recoveryCodesRemaining=0 on corrupt input, got %s", w.Body.String())
+	}
+}
+
+func TestAdminApi2faSetupThenEnable(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	handler := app.CreateHandler_AdminApi()
+	cookie := &http.Cookie{Name: "admin_session_token", Value: token}
+
+	// setup → returns a secret + QR, leaves 2FA disabled
+	rs := httptest.NewRequest("POST", "/admin/api/auth/2fa/setup", nil)
+	rs.AddCookie(cookie)
+	ws := httptest.NewRecorder()
+	handler.ServeHTTP(ws, rs)
+	if ws.Code != http.StatusOK {
+		t.Fatalf("setup: expected 200, got %d: %s", ws.Code, ws.Body.String())
+	}
+	var setup struct {
+		Secret     string `json:"secret"`
+		OtpauthUri string `json:"otpauthUri"`
+		QrPng      string `json:"qrPng"`
+	}
+	if err := json.Unmarshal(ws.Body.Bytes(), &setup); err != nil {
+		t.Fatal(err)
+	}
+	if setup.Secret == "" || setup.QrPng == "" {
+		t.Fatal("expected non-empty secret and qrPng")
+	}
+	if app.totpEnabled() {
+		t.Fatal("2FA must not be enabled until a code is confirmed")
+	}
+
+	// enable with a wrong code → 400 (session is valid; the code is not)
+	rbad := httptest.NewRequest("POST", "/admin/api/auth/2fa/enable",
+		strings.NewReader(`{"code":"000000"}`))
+	rbad.AddCookie(cookie)
+	wbad := httptest.NewRecorder()
+	handler.ServeHTTP(wbad, rbad)
+	if wbad.Code != http.StatusBadRequest {
+		t.Fatalf("enable(bad code): expected 400, got %d", wbad.Code)
+	}
+	if app.totpEnabled() {
+		t.Fatal("2FA must stay disabled after a wrong code")
+	}
+
+	// enable with a valid code → 200, returns recovery codes, 2FA active
+	code, _ := totp.GenerateCode(setup.Secret, time.Now())
+	rok := httptest.NewRequest("POST", "/admin/api/auth/2fa/enable",
+		strings.NewReader(`{"code":"`+code+`"}`))
+	rok.AddCookie(cookie)
+	wok := httptest.NewRecorder()
+	handler.ServeHTTP(wok, rok)
+	if wok.Code != http.StatusOK {
+		t.Fatalf("enable(valid): expected 200, got %d: %s", wok.Code, wok.Body.String())
+	}
+	var en struct {
+		RecoveryCodes []string `json:"recoveryCodes"`
+	}
+	if err := json.Unmarshal(wok.Body.Bytes(), &en); err != nil {
+		t.Fatal(err)
+	}
+	if len(en.RecoveryCodes) != 10 {
+		t.Fatalf("expected 10 recovery codes, got %d", len(en.RecoveryCodes))
+	}
+	if !app.totpEnabled() {
+		t.Fatal("2FA should be enabled after a valid code")
+	}
+}
+
+func TestAdminApi2faSetup_RejectedWhenAlreadyEnabled(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	db.Db_set_setting(app.db_write, "admin_totp_enabled", "Y")
+
+	handler := app.CreateHandler_AdminApi()
+	r := httptest.NewRequest("POST", "/admin/api/auth/2fa/setup", nil)
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 when already enabled, got %d", w.Code)
+	}
+}
+
+func TestAdminApi2faEnable_WithoutSetup(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	handler := app.CreateHandler_AdminApi()
+	r := httptest.NewRequest("POST", "/admin/api/auth/2fa/enable",
+		strings.NewReader(`{"code":"123456"}`))
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 without prior setup, got %d", w.Code)
 	}
 }

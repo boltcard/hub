@@ -99,6 +99,12 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 		case path == "/admin/api/auth/2fa/status" && r.Method == "GET":
 			app.adminApiAuth(app.adminApi2faStatus)(w, r)
 
+		case path == "/admin/api/auth/2fa/setup" && r.Method == "POST":
+			app.adminApiAuth(app.adminApi2faSetup)(w, r)
+
+		case path == "/admin/api/auth/2fa/enable" && r.Method == "POST":
+			app.adminApiAuth(app.adminApi2faEnable)(w, r)
+
 		case path == "/admin/api/dashboard":
 			app.adminApiAuth(app.adminApiDashboard)(w, r)
 
