@@ -17,6 +17,16 @@ import (
 
 const dockerHubImage = "boltcard/card"
 
+// Registry manifest media types. Docker Hub serves the :latest tag as an OCI
+// image index (buildx enables provenance attestations by default), so the Accept
+// header must advertise the index/list types as well as the single-image types.
+const (
+	mediaTypeOCIIndex     = "application/vnd.oci.image.index.v1+json"
+	mediaTypeManifestList = "application/vnd.docker.distribution.manifest.list.v2+json"
+	mediaTypeOCIManifest  = "application/vnd.oci.image.manifest.v1+json"
+	mediaTypeManifestV2   = "application/vnd.docker.distribution.manifest.v2+json"
+)
+
 // CheckLatestVersion queries Docker Hub for the version label on the latest image.
 func CheckLatestVersion() string {
 	client := &http.Client{Timeout: 15 * time.Second}
@@ -46,46 +56,19 @@ func CheckLatestVersion() string {
 		return ""
 	}
 
-	// 2. Fetch manifest to get config digest
-	manifestURL := fmt.Sprintf(
-		"https://registry-1.docker.io/v2/%s/manifests/latest",
-		dockerHubImage,
-	)
-	req, _ := http.NewRequest("GET", manifestURL, nil)
-	req.Header.Set("Authorization", "Bearer "+tokenResp.Token)
-	req.Header.Set("Accept", "application/vnd.docker.distribution.manifest.v2+json")
-
-	resp2, err := client.Do(req)
+	// 2. Resolve the image config digest, following one image-index indirection
+	// if the tag points to a multi-arch / attestation index instead of a plain
+	// single-platform manifest.
+	configDigest, err := resolveConfigDigest(client, tokenResp.Token, "latest")
 	if err != nil {
-		log.Warn("CheckLatestVersion: manifest fetch failed: ", err)
-		return ""
-	}
-	defer resp2.Body.Close()
-
-	if resp2.StatusCode != 200 {
-		log.Warn("CheckLatestVersion: manifest status: ", resp2.StatusCode)
-		return ""
-	}
-
-	var manifest struct {
-		Config struct {
-			Digest string `json:"digest"`
-		} `json:"config"`
-	}
-	if err := json.NewDecoder(resp2.Body).Decode(&manifest); err != nil {
-		log.Warn("CheckLatestVersion: manifest decode failed: ", err)
-		return ""
-	}
-
-	if manifest.Config.Digest == "" {
-		log.Warn("CheckLatestVersion: no config digest in manifest")
+		log.Warn("CheckLatestVersion: ", err)
 		return ""
 	}
 
 	// 3. Fetch config blob to read version label
 	blobURL := fmt.Sprintf(
 		"https://registry-1.docker.io/v2/%s/blobs/%s",
-		dockerHubImage, manifest.Config.Digest,
+		dockerHubImage, configDigest,
 	)
 	req2, _ := http.NewRequest("GET", blobURL, nil)
 	req2.Header.Set("Authorization", "Bearer "+tokenResp.Token)
@@ -125,6 +108,106 @@ func CheckLatestVersion() string {
 	}
 
 	return version
+}
+
+// resolveConfigDigest fetches the manifest for ref and returns the image config
+// blob digest. When the tag resolves to an image index / manifest list it follows
+// the linux/amd64 entry one level down to the single-platform image manifest that
+// actually carries the config digest.
+func resolveConfigDigest(client *http.Client, token, ref string) (string, error) {
+	// At most two hops: index -> image manifest -> config.
+	for range 2 {
+		body, err := fetchManifest(client, token, ref)
+		if err != nil {
+			return "", err
+		}
+		configDigest, childDigest, err := parseManifest(body)
+		if err != nil {
+			return "", err
+		}
+		if configDigest != "" {
+			return configDigest, nil
+		}
+		ref = childDigest // follow the index entry and parse the child manifest
+	}
+	return "", fmt.Errorf("image index nested too deeply")
+}
+
+// fetchManifest GETs a manifest by tag or digest, advertising both the index and
+// single-image media types so the registry returns whichever the tag points to.
+func fetchManifest(client *http.Client, token, ref string) ([]byte, error) {
+	manifestURL := fmt.Sprintf(
+		"https://registry-1.docker.io/v2/%s/manifests/%s",
+		dockerHubImage, ref,
+	)
+	req, _ := http.NewRequest("GET", manifestURL, nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", strings.Join([]string{
+		mediaTypeOCIIndex, mediaTypeManifestList, mediaTypeOCIManifest, mediaTypeManifestV2,
+	}, ", "))
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("manifest fetch failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("manifest status: %d", resp.StatusCode)
+	}
+	return io.ReadAll(resp.Body)
+}
+
+// parseManifest inspects a registry manifest response. For a single-platform image
+// manifest it returns the config blob digest. For an OCI image index / Docker
+// manifest list it returns the digest of the image manifest to fetch next
+// (childDigest), preferring linux/amd64 and falling back to any non-attestation
+// platform. Exactly one of configDigest/childDigest is non-empty on success.
+func parseManifest(body []byte) (configDigest, childDigest string, err error) {
+	var m struct {
+		Config struct {
+			Digest string `json:"digest"`
+		} `json:"config"`
+		Manifests []struct {
+			Digest      string            `json:"digest"`
+			Annotations map[string]string `json:"annotations"`
+			Platform    struct {
+				Architecture string `json:"architecture"`
+				OS           string `json:"os"`
+			} `json:"platform"`
+		} `json:"manifests"`
+	}
+	if err := json.Unmarshal(body, &m); err != nil {
+		return "", "", fmt.Errorf("manifest decode failed: %w", err)
+	}
+
+	if len(m.Manifests) > 0 {
+		fallback := ""
+		for _, entry := range m.Manifests {
+			// Skip build attestation manifests (platform unknown/unknown).
+			if entry.Annotations["vnd.docker.reference.type"] == "attestation-manifest" {
+				continue
+			}
+			if entry.Platform.Architecture == "unknown" || entry.Platform.OS == "unknown" {
+				continue
+			}
+			if entry.Platform.OS == "linux" && entry.Platform.Architecture == "amd64" {
+				return "", entry.Digest, nil
+			}
+			if fallback == "" {
+				fallback = entry.Digest
+			}
+		}
+		if fallback != "" {
+			return "", fallback, nil
+		}
+		return "", "", fmt.Errorf("no usable platform manifest in image index")
+	}
+
+	if m.Config.Digest == "" {
+		return "", "", fmt.Errorf("no config digest in manifest")
+	}
+	return m.Config.Digest, "", nil
 }
 
 // CompareVersions returns 1 if latest > current, 0 if equal, -1 if latest < current.
