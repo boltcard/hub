@@ -37,7 +37,15 @@ export function TwoFactorCard() {
   const [code, setCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
   const [disablePassword, setDisablePassword] = useState("");
+  const [disableCode, setDisableCode] = useState("");
+  const [disableUseRecovery, setDisableUseRecovery] = useState(false);
   const [showDisable, setShowDisable] = useState(false);
+
+  const resetDisable = () => {
+    setDisablePassword("");
+    setDisableCode("");
+    setDisableUseRecovery(false);
+  };
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["2fa-status"] });
@@ -63,10 +71,14 @@ export function TwoFactorCard() {
   });
 
   const disable = useMutation({
-    mutationFn: () => apiPost("/auth/2fa/disable", { password: disablePassword }),
+    mutationFn: () =>
+      apiPost("/auth/2fa/disable", {
+        password: disablePassword,
+        code: disableCode,
+      }),
     onSuccess: () => {
       setShowDisable(false);
-      setDisablePassword("");
+      resetDisable();
       invalidate();
       toast.success("Two-factor authentication disabled");
     },
@@ -188,13 +200,23 @@ export function TwoFactorCard() {
       </Dialog>
 
       {/* Disable confirmation */}
-      <Dialog open={showDisable} onOpenChange={setShowDisable}>
+      <Dialog
+        open={showDisable}
+        onOpenChange={(o) => {
+          setShowDisable(o);
+          if (!o) resetDisable();
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Disable two-factor authentication</DialogTitle>
           </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Turning 2FA off requires your password and a current code, to prove
+            you still hold the second factor.
+          </p>
           <div className="space-y-2">
-            <Label htmlFor="disable-pw">Confirm admin password</Label>
+            <Label htmlFor="disable-pw">Admin password</Label>
             <Input
               id="disable-pw"
               type="password"
@@ -202,11 +224,51 @@ export function TwoFactorCard() {
               onChange={(e) => setDisablePassword(e.target.value)}
             />
           </div>
+          <div className="space-y-2">
+            <Label htmlFor="disable-code">
+              {disableUseRecovery ? "Recovery code" : "Authenticator code"}
+            </Label>
+            <Input
+              id="disable-code"
+              inputMode={disableUseRecovery ? "text" : "numeric"}
+              autoComplete="one-time-code"
+              value={disableCode}
+              onChange={(e) => setDisableCode(e.target.value.trim())}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  disablePassword.length > 0 &&
+                  disableCode.length > 0 &&
+                  !disable.isPending
+                ) {
+                  e.preventDefault();
+                  disable.mutate();
+                }
+              }}
+              placeholder={disableUseRecovery ? "recovery code" : "6-digit code"}
+            />
+            <button
+              type="button"
+              className="text-xs text-muted-foreground underline hover:text-foreground"
+              onClick={() => {
+                setDisableUseRecovery((v) => !v);
+                setDisableCode("");
+              }}
+            >
+              {disableUseRecovery
+                ? "Use authenticator code instead"
+                : "Use a recovery code instead"}
+            </button>
+          </div>
           <DialogFooter>
             <Button
               variant="destructive"
               onClick={() => disable.mutate()}
-              disabled={disable.isPending || disablePassword.length === 0}
+              disabled={
+                disable.isPending ||
+                disablePassword.length === 0 ||
+                disableCode.length === 0
+              }
             >
               {disable.isPending ? "Disabling..." : "Disable"}
             </Button>

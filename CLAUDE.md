@@ -93,7 +93,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
 - `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
-- `build/` — Version string (currently "0.20.2"), date/time injected at build
+- `build/` — Version string (currently "0.20.3"), date/time injected at build
 - `web-content/` — Static assets under `public/`, SPA build output under `admin/spa/`
 
 ### Route Groups (`web/app.go`)
@@ -134,7 +134,7 @@ Schema version managed by idempotent `update_schema_*` functions in `db_create.g
 
 ### Authentication
 
-- **Admin**: bcrypt password hash in settings table, session cookies with 24-hour expiry. Legacy SHA256 hashes auto-migrate to bcrypt on login. Constant-time token comparison. Optional TOTP 2FA (RFC 6238 via `github.com/pquerna/otp`): when `admin_totp_enabled="Y"`, login also requires a 6-digit TOTP code or a single-use recovery code, verified in `adminApiLogin` before a session is issued (login-only enforcement). Enrollment/disable endpoints live in `web/admin_api_2fa.go`, TOTP/recovery helpers in `web/totp.go`. Recovery for a lost authenticator: backup codes or the `DisableAdmin2FA` CLI command.
+- **Admin**: bcrypt password hash in settings table, session cookies with 24-hour expiry. Legacy SHA256 hashes auto-migrate to bcrypt on login. Constant-time token comparison. Optional TOTP 2FA (RFC 6238 via `github.com/pquerna/otp`): when `admin_totp_enabled="Y"`, login also requires a 6-digit TOTP code or a single-use recovery code, verified in `adminApiLogin` before a session is issued (login-only enforcement). Enrollment/disable endpoints live in `web/admin_api_2fa.go`, TOTP/recovery helpers in `web/totp.go`. Disabling 2FA via the admin UI requires the password **and** a current TOTP/recovery code (proof of possession). Recovery for a lost authenticator: backup codes or the `DisableAdmin2FA` CLI command.
 - **Bolt Card NFC**: AES-CMAC with 5 keys per card (K0-K4), counter-based replay protection
 - **Wallet/PoS API**: Login/password → access_token + refresh_token (random hex)
 
