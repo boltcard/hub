@@ -82,6 +82,13 @@ jobs:
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           cache-from: type=gha,scope=card
           cache-to: type=gha,mode=max,scope=card
+          # Publish a single-platform manifest, not an OCI image index. Provenance
+          # attestations (on by default) wrap the image in an index with no
+          # top-level config, which the version check in already-deployed hubs
+          # (<=0.22.3) cannot parse — leaving their "Update available" button stuck.
+          # Keeping this false is what lets existing installs see the update button.
+          # See issue #45.
+          provenance: false
 
   # Webproxy image: pure Caddy (xcaddy compiles the ratelimit plugin), so it
   # depends on neither Go nor frontend — no `needs:`, runs in parallel from t=0.
@@ -108,6 +115,9 @@ jobs:
           push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           cache-from: type=gha,scope=webproxy
           cache-to: type=gha,mode=max,scope=webproxy
+          # Single-platform manifest (no provenance index), for consistency with
+          # the card image. See issue #45.
+          provenance: false
 
   release:
     runs-on: ubuntu-latest
