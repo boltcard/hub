@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
@@ -211,6 +212,46 @@ func fetchCommitVersion(client *http.Client, sha string) string {
 	commitVersionCache[sha] = version
 	commitVersionMu.Unlock()
 	return version
+}
+
+var versionRegex = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
+
+// isVersion reports whether s is a bare three-part numeric version (X.Y.Z).
+func isVersion(s string) bool {
+	return versionRegex.MatchString(s)
+}
+
+// selectReleases returns the release versions to display, newest-first, given
+// the running version, the latest available version (may be "" or invalid),
+// and the available release versions (each a bare "X.Y.Z"). The shown range is
+// running <= ver <= upper, where upper is the latest version when it is a valid
+// version greater than running, otherwise running. Non-version entries are
+// skipped. Returns nil when running is not a valid version.
+func selectReleases(running, latest string, versions []string) []string {
+	if !isVersion(running) {
+		return nil
+	}
+	upper := running
+	if isVersion(latest) && CompareVersions(running, latest) == 1 {
+		upper = latest
+	}
+
+	var out []string
+	for _, v := range versions {
+		if !isVersion(v) {
+			continue
+		}
+		// running <= v <= upper
+		if CompareVersions(running, v) >= 0 && CompareVersions(v, upper) >= 0 {
+			out = append(out, v)
+		}
+	}
+
+	sort.Slice(out, func(i, j int) bool {
+		// descending: out[i] before out[j] when out[i] > out[j]
+		return CompareVersions(out[i], out[j]) == -1
+	})
+	return out
 }
 
 var ansiColorMap = map[string]string{
