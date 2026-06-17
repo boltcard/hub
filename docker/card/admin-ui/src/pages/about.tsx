@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ArrowUpCircle, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
 interface AboutData {
@@ -34,15 +34,81 @@ interface LogsData {
   logs: string[];
 }
 
-interface Commit {
-  sha: string;
-  message: string;
-  date: string;
+interface Release {
   version: string;
+  name: string;
+  body: string;
+  date: string;
+  url: string;
+  isCurrent: boolean;
 }
 
-interface CommitsData {
-  commits: Commit[];
+interface ReleasesData {
+  releases: Release[];
+}
+
+// linkify turns bare http(s) URLs in a line into anchor elements; other text is
+// returned verbatim (React escapes it).
+function linkify(text: string): ReactNode {
+  const parts = text.split(/(https?:\/\/[^\s]+)/g);
+  return parts.map((part, i) =>
+    /^https?:\/\//.test(part) ? (
+      <a
+        key={i}
+        href={part}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-primary hover:underline"
+      >
+        {part}
+      </a>
+    ) : (
+      <span key={i}>{part}</span>
+    ),
+  );
+}
+
+// ReleaseNotes renders a release body: "- " lines become a bullet list, blank
+// lines break groups, everything else is a paragraph. No markdown dependency.
+function ReleaseNotes({ body }: { body: string }) {
+  const elements: ReactNode[] = [];
+  let bullets: string[] = [];
+
+  const flush = () => {
+    if (bullets.length > 0) {
+      const items = bullets;
+      elements.push(
+        <ul
+          key={elements.length}
+          className="list-disc space-y-0.5 pl-5 text-sm"
+        >
+          {items.map((b, i) => (
+            <li key={i}>{linkify(b)}</li>
+          ))}
+        </ul>,
+      );
+      bullets = [];
+    }
+  };
+
+  for (const raw of body.split("\n")) {
+    const line = raw.trimEnd();
+    if (line.startsWith("- ")) {
+      bullets.push(line.slice(2));
+    } else if (line.trim() === "") {
+      flush();
+    } else {
+      flush();
+      elements.push(
+        <p key={elements.length} className="text-sm text-muted-foreground">
+          {linkify(line)}
+        </p>,
+      );
+    }
+  }
+  flush();
+
+  return <div className="space-y-2">{elements}</div>;
 }
 
 export function AboutPage() {
@@ -56,9 +122,13 @@ export function AboutPage() {
     queryFn: () => apiFetch<LogsData>("/about/logs"),
   });
 
-  const { data: commitsData } = useQuery({
-    queryKey: ["about-commits"],
-    queryFn: () => apiFetch<CommitsData>("/about/commits"),
+  const { data: releasesData } = useQuery({
+    queryKey: ["about-releases", data?.latestVersion],
+    queryFn: () =>
+      apiFetch<ReleasesData>(
+        `/about/releases?latest=${encodeURIComponent(data?.latestVersion ?? "")}`,
+      ),
+    enabled: !!data,
   });
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -200,56 +270,50 @@ export function AboutPage() {
         </Card>
       )}
 
-      {commitsData && commitsData.commits.length > 0 && (
+      {releasesData && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Recent Commits</CardTitle>
+            <CardTitle className="text-lg">Recent Releases</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {Object.entries(
-              commitsData.commits.reduce<Record<string, Commit[]>>(
-                (groups, c) => {
-                  const day = new Date(c.date).toLocaleDateString(undefined, {
-                    weekday: "short",
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  });
-                  (groups[day] ??= []).push(c);
-                  return groups;
-                },
-                {},
-              ),
-            ).map(([date, commits]) => (
-              <div key={date}>
-                <h3 className="mb-1 text-xs font-medium text-muted-foreground">
-                  {date}
-                </h3>
-                <ul className="space-y-1">
-                  {commits.map((c) => (
-                    <li key={c.sha} className="flex items-baseline gap-2">
-                      <a
-                        href={`https://github.com/boltcard/hub/commit/${c.sha}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm hover:underline"
-                      >
-                        {c.message}
-                      </a>
-                      {c.version && (
-                        <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                          v{c.version}
-                        </span>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
+          <CardContent className="space-y-6">
+            {releasesData.releases.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No release notes available.
+              </p>
+            ) : (
+              releasesData.releases.map((rel) => (
+                <div key={rel.version} className="space-y-2">
+                  <div className="flex items-baseline gap-2">
+                    <a
+                      href={rel.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-sm font-medium hover:underline"
+                    >
+                      v{rel.version}
+                    </a>
+                    {rel.isCurrent && (
+                      <Badge variant="secondary" className="text-xs">
+                        Current
+                      </Badge>
+                    )}
+                    {rel.date && (
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(rel.date).toLocaleDateString(undefined, {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    )}
+                  </div>
+                  {rel.body.trim() && <ReleaseNotes body={rel.body} />}
+                </div>
+              ))
+            )}
           </CardContent>
         </Card>
       )}
-
     </div>
   );
 }
