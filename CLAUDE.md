@@ -51,10 +51,12 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
 - `go test -race -count=1 ./...`
 - `govulncheck ./...`
 - Frontend build (`npm ci && npm run build` in `docker/card/admin-ui/`)
-- Docker image builds for both `card` and `webproxy`
+- Docker image builds for both `card` and `webproxy` (via `docker/build-push-action@v6`)
 - On push to `main` (not PRs): pushes images to Docker Hub as `latest`
 
 Uses Go 1.25.11 with CGo enabled for sqlite3, Node 22 for frontend. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
+
+> **Keep `provenance: false` on the image build steps.** `docker/build-push-action` enables provenance attestations by default, which wraps the pushed image in an OCI image index (no top-level `config`). The version check in deployed hubs `<=0.22.3` only parses a single-platform manifest, so an index leaves their "Update available" button permanently stuck (issue #45). Newer hubs handle the index too (`web/update.go` follows it), but the published `latest` must stay a single manifest so already-deployed hubs can ever see the update that fixes them.
 
 ## Versioning
 
