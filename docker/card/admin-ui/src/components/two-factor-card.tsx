@@ -171,7 +171,14 @@ export function TwoFactorCard() {
 
       {/* Recovery codes shown once */}
       <Dialog open={!!recoveryCodes} onOpenChange={(o) => !o && setRecoveryCodes(null)}>
-        <DialogContent>
+        <DialogContent
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              setRecoveryCodes(null);
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Save your recovery codes</DialogTitle>
           </DialogHeader>
