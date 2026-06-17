@@ -116,9 +116,10 @@ jobs:
             RANGE="HEAD"
           fi
 
-          # Tidied notes: non-merge commit subjects, version-bump lines dropped.
+          # Tidied notes: non-merge commit subjects, with version-bump,
+          # docs:, and chore: lines dropped (incl. conventional-commit scopes).
           mapfile -t SUBJECTS < <(git log --no-merges --pretty=format:'%s' $RANGE \
-            | grep -viE '^(bump|chore: ?bump).*version|^version bump|^bump to v?[0-9]' || true)
+            | grep -viE '^(bump|chore: ?bump).*version|^version bump|^bump to v?[0-9]|^docs(\(|:)|^chore(\(|:)' || true)
 
           TOTAL=${#SUBJECTS[@]}
           LIMIT=30
