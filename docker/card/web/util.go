@@ -25,8 +25,14 @@ func GetPwHash(db_conn *sql.DB, passwordStr string) (passwordHashStr string) {
 	return passwordHashStr
 }
 
+// bcryptCost is the work factor used for all password/recovery-code hashing.
+// Production keeps bcrypt.DefaultCost; the test suite lowers it (see TestMain
+// in main_test.go) because the admin-login and 2FA tests hash dozens of values
+// and at DefaultCost that alone dominated CI's `go test -race` step.
+var bcryptCost = bcrypt.DefaultCost
+
 func HashPassword(passwordStr string) (string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(passwordStr), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(passwordStr), bcryptCost)
 	return string(hash), err
 }
 
