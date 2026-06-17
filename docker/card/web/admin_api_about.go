@@ -2,14 +2,13 @@ package web
 
 import (
 	"card/build"
-	"encoding/base64"
 	"encoding/json"
 	"html"
 	"io"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
-	"sync"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -76,141 +75,124 @@ func (app *App) adminApiLogs(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]interface{}{"logs": lines})
 }
 
-func (app *App) adminApiCommits(w http.ResponseWriter, r *http.Request) {
-	type commit struct {
-		Sha     string `json:"sha"`
-		Message string `json:"message"`
-		Date    string `json:"date"`
-		Version string `json:"version"`
+func (app *App) adminApiReleases(w http.ResponseWriter, r *http.Request) {
+	type release struct {
+		Version   string `json:"version"`
+		Name      string `json:"name"`
+		Body      string `json:"body"`
+		Date      string `json:"date"`
+		URL       string `json:"url"`
+		IsCurrent bool   `json:"isCurrent"`
 	}
 
-	var commits []commit
+	empty := map[string]interface{}{"releases": []release{}}
+
+	running := build.Version
+	latest := strings.TrimSpace(r.URL.Query().Get("latest"))
 
 	client := &http.Client{Timeout: 10e9}
-	url := "https://api.github.com/repos/boltcard/hub/commits?per_page=10"
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", "https://api.github.com/repos/boltcard/hub/releases?per_page=100", nil)
 	if err != nil {
-		writeJSON(w, map[string]interface{}{"commits": []commit{}})
+		writeJSON(w, empty)
 		return
 	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	resp, err := client.Do(req)
 	if err != nil {
-		writeJSON(w, map[string]interface{}{"commits": []commit{}})
+		writeJSON(w, empty)
 		return
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 200 {
-		var ghCommits []struct {
-			Sha    string `json:"sha"`
-			Commit struct {
-				Message string `json:"message"`
-				Author  struct {
-					Date string `json:"date"`
-				} `json:"author"`
-			} `json:"commit"`
+	if resp.StatusCode != 200 {
+		writeJSON(w, empty)
+		return
+	}
+
+	var ghReleases []struct {
+		TagName     string `json:"tag_name"`
+		Name        string `json:"name"`
+		Body        string `json:"body"`
+		PublishedAt string `json:"published_at"`
+		HTMLURL     string `json:"html_url"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&ghReleases); err != nil {
+		writeJSON(w, empty)
+		return
+	}
+
+	byVersion := map[string]release{}
+	var versions []string
+	for _, g := range ghReleases {
+		ver := strings.TrimPrefix(g.TagName, "v")
+		if !isVersion(ver) {
+			continue
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&ghCommits); err == nil {
-			for _, c := range ghCommits {
-				msg := c.Commit.Message
-				if idx := strings.Index(msg, "\n"); idx != -1 {
-					msg = msg[:idx]
-				}
-				commits = append(commits, commit{
-					Sha:     c.Sha,
-					Message: msg,
-					Date:    c.Commit.Author.Date,
-				})
-			}
+		if _, dup := byVersion[ver]; dup {
+			continue
 		}
+		name := g.Name
+		if name == "" {
+			name = "v" + ver
+		}
+		byVersion[ver] = release{
+			Version:   ver,
+			Name:      name,
+			Body:      g.Body,
+			Date:      g.PublishedAt,
+			URL:       g.HTMLURL,
+			IsCurrent: ver == running,
+		}
+		versions = append(versions, ver)
 	}
 
-	// Annotate each commit with the app version recorded in build/build.go at
-	// that commit. The commits-list API doesn't return file contents, so this
-	// needs one extra fetch per commit; results are cached by SHA (immutable)
-	// and fetched concurrently so a cold load doesn't serialise 10 round-trips.
-	var wg sync.WaitGroup
-	for i := range commits {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			commits[i].Version = fetchCommitVersion(client, commits[i].Sha)
-		}(i)
-	}
-	wg.Wait()
-
-	if commits == nil {
-		commits = []commit{}
+	selected := selectReleases(running, latest, versions)
+	releases := make([]release, 0, len(selected))
+	for _, v := range selected {
+		releases = append(releases, byVersion[v])
 	}
 
-	writeJSON(w, map[string]interface{}{"commits": commits})
+	writeJSON(w, map[string]interface{}{"releases": releases})
 }
 
-var buildVersionRegex = regexp.MustCompile(`Version string = "([^"]+)"`)
+var versionRegex = regexp.MustCompile(`^[0-9]+\.[0-9]+\.[0-9]+$`)
 
-// parseVersionFromBuildGo extracts the version string from build/build.go
-// source, returning "" if no version declaration is found.
-func parseVersionFromBuildGo(content string) string {
-	m := buildVersionRegex.FindStringSubmatch(content)
-	if len(m) == 2 {
-		return m[1]
-	}
-	return ""
+// isVersion reports whether s is a bare three-part numeric version (X.Y.Z).
+func isVersion(s string) bool {
+	return versionRegex.MatchString(s)
 }
 
-var (
-	commitVersionMu    sync.Mutex
-	commitVersionCache = map[string]string{}
-)
-
-// fetchCommitVersion returns the app version recorded in build/build.go at the
-// given commit SHA, fetching it from the GitHub contents API. Results are
-// memoised per SHA — a commit's tree is immutable, so the cache never goes
-// stale. Returns "" on any error (rate limit, missing file in old commits).
-func fetchCommitVersion(client *http.Client, sha string) string {
-	if sha == "" {
-		return ""
+// selectReleases returns the release versions to display, newest-first, given
+// the running version, the latest available version (may be "" or invalid),
+// and the available release versions (each a bare "X.Y.Z"). The shown range is
+// running <= ver <= upper, where upper is the latest version when it is a valid
+// version greater than running, otherwise running. Non-version entries are
+// skipped. Returns nil when running is not a valid version.
+func selectReleases(running, latest string, versions []string) []string {
+	if !isVersion(running) {
+		return nil
+	}
+	upper := running
+	if isVersion(latest) && CompareVersions(running, latest) == 1 {
+		upper = latest
 	}
 
-	commitVersionMu.Lock()
-	if v, ok := commitVersionCache[sha]; ok {
-		commitVersionMu.Unlock()
-		return v
-	}
-	commitVersionMu.Unlock()
-
-	url := "https://api.github.com/repos/boltcard/hub/contents/docker/card/build/build.go?ref=" + sha
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return ""
-	}
-	req.Header.Set("Accept", "application/vnd.github.v3+json")
-	resp, err := client.Do(req)
-	if err != nil {
-		return ""
-	}
-	defer resp.Body.Close()
-
-	version := ""
-	if resp.StatusCode == 200 {
-		var payload struct {
-			Content  string `json:"content"`
-			Encoding string `json:"encoding"`
+	var out []string
+	for _, v := range versions {
+		if !isVersion(v) {
+			continue
 		}
-		if err := json.NewDecoder(resp.Body).Decode(&payload); err == nil && payload.Encoding == "base64" {
-			// GitHub wraps base64 content at 60 chars with newlines.
-			decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(payload.Content, "\n", ""))
-			if err == nil {
-				version = parseVersionFromBuildGo(string(decoded))
-			}
+		// running <= v <= upper
+		if CompareVersions(running, v) >= 0 && CompareVersions(v, upper) >= 0 {
+			out = append(out, v)
 		}
 	}
 
-	commitVersionMu.Lock()
-	commitVersionCache[sha] = version
-	commitVersionMu.Unlock()
-	return version
+	sort.Slice(out, func(i, j int) bool {
+		// descending: out[i] before out[j] when out[i] > out[j]
+		return CompareVersions(out[i], out[j]) == -1
+	})
+	return out
 }
 
 var ansiColorMap = map[string]string{

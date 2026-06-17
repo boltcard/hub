@@ -83,3 +83,66 @@ jobs:
       - name: Push webproxy image
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: docker push boltcard/webproxy:latest
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [docker]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Publish GitHub Release on version bump
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          V=$(grep -oP 'Version string = "\K[0-9]+\.[0-9]+\.[0-9]+' docker/card/build/build.go)
+          echo "Version in build.go: $V"
+
+          if git rev-parse -q --verify "refs/tags/v$V" >/dev/null; then
+            echo "Tag v$V already exists — nothing to release."
+            exit 0
+          fi
+
+          PREV=$(git tag -l 'v*' --sort=-v:refname | head -n1)
+          echo "Previous release tag: ${PREV:-(none)}"
+          if [ -n "$PREV" ]; then
+            RANGE="$PREV..HEAD"
+          else
+            RANGE="HEAD"
+          fi
+
+          # Tidied notes: non-merge commit subjects, with version-bump,
+          # docs:, and chore: lines dropped (incl. conventional-commit scopes).
+          mapfile -t SUBJECTS < <(git log --no-merges --pretty=format:'%s' $RANGE \
+            | grep -viE '^(bump|chore: ?bump).*version|^version bump|^bump to v?[0-9]|^docs(\(|:)|^chore(\(|:)' || true)
+
+          TOTAL=${#SUBJECTS[@]}
+          LIMIT=30
+          BODY=""
+          COUNT=0
+          for s in "${SUBJECTS[@]}"; do
+            [ "$COUNT" -ge "$LIMIT" ] && break
+            BODY+="- $s"$'\n'
+            COUNT=$((COUNT + 1))
+          done
+          if [ "$TOTAL" -gt "$LIMIT" ]; then
+            REMAIN=$((TOTAL - LIMIT))
+            BODY+=$'\n'"…and $REMAIN earlier commits."$'\n'
+            if [ -n "$PREV" ]; then
+              BODY+=$'\n'"Full changelog: https://github.com/boltcard/hub/compare/$PREV...v$V"$'\n'
+            fi
+          fi
+          if [ -z "$BODY" ]; then
+            BODY="Release v$V"
+          fi
+
+          echo "----- release notes -----"
+          printf '%s\n' "$BODY"
+          echo "-------------------------"
+
+          gh release create "v$V" --target "$GITHUB_SHA" --title "v$V" --notes "$BODY"

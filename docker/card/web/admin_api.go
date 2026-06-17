@@ -141,8 +141,8 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 		case path == "/admin/api/about/logs" && r.Method == "GET":
 			app.adminApiAuth(app.adminApiLogs)(w, r)
 
-		case path == "/admin/api/about/commits" && r.Method == "GET":
-			app.adminApiAuth(app.adminApiCommits)(w, r)
+		case path == "/admin/api/about/releases" && r.Method == "GET":
+			app.adminApiAuth(app.adminApiReleases)(w, r)
 
 		case path == "/admin/api/database/stats" && r.Method == "GET":
 			app.adminApiAuth(app.adminApiDatabaseStats)(w, r)

@@ -4,5 +4,6 @@
 docker/card/card
 notes
 .github/prompts/*
-# local planning docs
+# local planning docs (brainstorm specs + implementation plans — kept local, not committed)
 docs/plans/
+docs/superpowers/
