@@ -51,7 +51,10 @@ jobs:
       - run: npm ci
       - run: npm run build
 
-  docker:
+  # Card image: depends on the Go + frontend gates. Cached layers (go mod
+  # download, npm ci, apt) are reused across runs via the GHA cache backend,
+  # so a typical PR only recompiles changed Go/frontend source.
+  docker-card:
     runs-on: ubuntu-latest
     needs: [build, frontend]
     steps:
@@ -61,13 +64,7 @@ jobs:
         id: version
         run: echo "version=$(grep -oP 'Version string = "\K[0-9]+\.[0-9]+\.[0-9]+' docker/card/build/build.go)" >> "$GITHUB_OUTPUT"
 
-      - name: Build card image
-        env:
-          APP_VERSION: ${{ steps.version.outputs.version }}
-        run: docker build --build-arg APP_VERSION="$APP_VERSION" -t boltcard/card:latest docker/card
-
-      - name: Build webproxy image
-        run: docker build -t boltcard/webproxy:latest docker/webproxy
+      - uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -76,17 +73,45 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Push card image
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: docker push boltcard/card:latest
+      - name: Build and push card image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/card
+          build-args: APP_VERSION=${{ steps.version.outputs.version }}
+          tags: boltcard/card:latest
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          cache-from: type=gha,scope=card
+          cache-to: type=gha,mode=max,scope=card
 
-      - name: Push webproxy image
+  # Webproxy image: pure Caddy (xcaddy compiles the ratelimit plugin), so it
+  # depends on neither Go nor frontend — no `needs:`, runs in parallel from t=0.
+  # The expensive xcaddy build is a cache hit whenever docker/webproxy is unchanged.
+  docker-webproxy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: docker push boltcard/webproxy:latest
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push webproxy image
+        uses: docker/build-push-action@v6
+        with:
+          context: docker/webproxy
+          tags: boltcard/webproxy:latest
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          cache-from: type=gha,scope=webproxy
+          cache-to: type=gha,mode=max,scope=webproxy
 
   release:
     runs-on: ubuntu-latest
-    needs: [docker]
+    needs: [docker-card, docker-webproxy]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
