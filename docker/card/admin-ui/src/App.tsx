@@ -45,7 +45,7 @@ function AuthGate() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-dvh items-center justify-center">
         <div className="h-6 w-6 animate-pulse rounded-full bg-primary" />
       </div>
     );
@@ -125,7 +125,7 @@ class ErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       return (
-        <div className="flex h-screen flex-col items-center justify-center gap-4 p-4">
+        <div className="flex h-dvh flex-col items-center justify-center gap-4 p-4">
           <h1 className="text-xl font-bold">Something went wrong</h1>
           <p className="text-sm text-muted-foreground">
             {this.state.error.message}

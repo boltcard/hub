@@ -33,7 +33,7 @@ export function AppShell() {
 
   return (
     <WebSocketProvider>
-      <div className="flex h-screen">
+      <div className="flex h-dvh">
         {/* Desktop sidebar */}
         <aside className="hidden w-56 border-r bg-card md:block">
           <Sidebar />
