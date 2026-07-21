@@ -7,7 +7,7 @@ COPY admin-ui/ .
 RUN npm run build
 
 # Stage 2: Build Go binary (parallel with Stage 1)
-FROM golang:1.25.11 AS builder
+FROM golang:1.25.12 AS builder
 WORKDIR /app
 
 # Copy dependency files first
