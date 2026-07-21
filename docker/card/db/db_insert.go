@@ -11,9 +11,13 @@ func Db_insert_card(db_conn *sql.DB, key0 string, key1 string, k2 string, key3 s
 
 	lnAddress := "c." + randomHex8()
 
+	// lnurlw_enable is set explicitly ('Y') rather than relying on the column
+	// default: hubs deployed before the default was changed from 'N' to 'Y'
+	// still have 'N' as the column default (CREATE TABLE IF NOT EXISTS never
+	// re-applies it), which left newly programmed cards disabled.
 	sqlStatement := `INSERT INTO cards (key0_auth, key1_enc,` +
-		` key2_cmac, key3, key4, login, password, ln_address)` +
-		` VALUES ($1, $2, $3, $4, $5, $6, $7, $8);`
+		` key2_cmac, key3, key4, login, password, ln_address, lnurlw_enable)` +
+		` VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'Y');`
 	res, err := db_conn.Exec(sqlStatement, key0, key1, k2, key3, key4, login, password, lnAddress)
 	if err != nil {
 		log.Error("db_insert_card error: ", err)
@@ -34,9 +38,10 @@ func Db_insert_card_with_uid(db_conn *sql.DB, key0 string, key1 string, k2 strin
 
 	lnAddress := "c." + randomHex8()
 
+	// lnurlw_enable set explicitly ('Y') — see Db_insert_card for why.
 	sqlStatement := `INSERT INTO cards (key0_auth, key1_enc,` +
-		` key2_cmac, key3, key4, login, password, uid, group_tag, ln_address)` +
-		` VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);`
+		` key2_cmac, key3, key4, login, password, uid, group_tag, ln_address, lnurlw_enable)` +
+		` VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Y');`
 	res, err := db_conn.Exec(sqlStatement, key0, key1, k2, key3, key4, login, password, uid, group_tag, lnAddress)
 	if err != nil {
 		log.Error("db_insert_card_with_uid error: ", err)

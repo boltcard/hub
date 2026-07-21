@@ -228,6 +228,79 @@ func TestDbGetCardLnurlwEnable(t *testing.T) {
 	}
 }
 
+// TestDbInsertCard_EnablesWithdrawalsOnLegacyDefault reproduces the upgraded-hub
+// bug: the cards-table schema default for lnurlw_enable was changed from 'N' to
+// 'Y' (commit 2cbd45e), but CREATE TABLE IF NOT EXISTS never re-applies a default
+// on hubs that already had the table. Their column default stays 'N', so newly
+// programmed cards were inserted disabled and would not withdraw. The insert must
+// set lnurlw_enable='Y' explicitly, independent of the column default.
+func TestDbInsertCard_EnablesWithdrawalsOnLegacyDefault(t *testing.T) {
+	db := openTestDB(t)
+
+	// Recreate the deployed-hub condition: cards table with the legacy
+	// lnurlw_enable DEFAULT 'N'. Only the columns the insert/getter touch.
+	_, err := db.Exec(`CREATE TABLE cards (
+		card_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+		key0_auth CHAR(32) NOT NULL,
+		key1_enc CHAR(32) NOT NULL,
+		key2_cmac CHAR(32) NOT NULL,
+		key3 CHAR(32) NOT NULL,
+		key4 CHAR(32) NOT NULL,
+		login CHAR(32) NOT NULL,
+		password CHAR(32) NOT NULL,
+		ln_address CHAR(32) NOT NULL DEFAULT '',
+		lnurlw_enable CHAR(1) NOT NULL DEFAULT 'N',
+		wiped CHAR(1) NOT NULL DEFAULT 'N'
+	);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Db_insert_card(db,
+		"0000000000000000", "1111111111111111",
+		"2222222222222222", "3333333333333333",
+		"4444444444444444", "testlogin", "testpassword")
+
+	if got := Db_get_card_lnurlw_enable(db, 1); got != "Y" {
+		t.Fatalf("newly programmed card should be enabled; got lnurlw_enable=%q", got)
+	}
+}
+
+// TestDbInsertCardWithUid_EnablesWithdrawalsOnLegacyDefault is the batch-programming
+// counterpart to the test above; the batch (/batch) endpoint uses this insert path.
+func TestDbInsertCardWithUid_EnablesWithdrawalsOnLegacyDefault(t *testing.T) {
+	db := openTestDB(t)
+
+	_, err := db.Exec(`CREATE TABLE cards (
+		card_id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+		key0_auth CHAR(32) NOT NULL,
+		key1_enc CHAR(32) NOT NULL,
+		key2_cmac CHAR(32) NOT NULL,
+		key3 CHAR(32) NOT NULL,
+		key4 CHAR(32) NOT NULL,
+		login CHAR(32) NOT NULL,
+		password CHAR(32) NOT NULL,
+		uid VARCHAR(14) NOT NULL DEFAULT '',
+		group_tag TEXT NOT NULL DEFAULT '',
+		ln_address CHAR(32) NOT NULL DEFAULT '',
+		lnurlw_enable CHAR(1) NOT NULL DEFAULT 'N',
+		wiped CHAR(1) NOT NULL DEFAULT 'N'
+	);`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	Db_insert_card_with_uid(db,
+		"0000000000000000", "1111111111111111",
+		"2222222222222222", "3333333333333333",
+		"4444444444444444", "testlogin", "testpassword",
+		"04AABBCCDDEE80", "grp1")
+
+	if got := Db_get_card_lnurlw_enable(db, 1); got != "Y" {
+		t.Fatalf("newly programmed card should be enabled; got lnurlw_enable=%q", got)
+	}
+}
+
 func TestDbUpdateCardWithPin(t *testing.T) {
 	db := openTestDB(t)
 	Db_init(db)
