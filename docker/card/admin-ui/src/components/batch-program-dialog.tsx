@@ -87,8 +87,8 @@ export function BatchProgramDialog() {
           <DialogDescription>
             Creates a programming link.
             <br />
-            Scan the QR code with the Bolt Card app to program{" "}
-            {multiple ? "each card" : "your card"}.
+            Scan this QR code with your phone's camera to open the Bolt Card app
+            and program {multiple ? "each card" : "your card"}.
           </DialogDescription>
         </DialogHeader>
 
