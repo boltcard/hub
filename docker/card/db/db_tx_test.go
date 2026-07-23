@@ -172,3 +172,119 @@ func TestReserveCardPayment_NoDoubleSpend(t *testing.T) {
 		t.Fatalf("expected exactly 1 card_payments row, got %d", rows)
 	}
 }
+
+// TestReserveCardPayment_TxLimitExceeded verifies that a single payment
+// larger than the card's per-transaction limit is rejected before any
+// funds are reserved, leaving the balance untouched.
+func TestReserveCardPayment_TxLimitExceeded(t *testing.T) {
+	db := openConcurrentTestDB(t)
+	Db_init(db)
+
+	cardId := fundCard(t, db, 10000)
+	// 20-sat per-transaction limit, no daily limit
+	Db_update_card_without_pin(db, cardId, 20, 0, "N", 0, "Y")
+
+	balance, paymentID, err := Db_reserve_card_payment(db, cardId, 30, 30, "lnbcpay")
+	if !errors.Is(err, ErrTxLimitExceeded) {
+		t.Fatalf("expected ErrTxLimitExceeded, got %v", err)
+	}
+	if paymentID != 0 {
+		t.Fatalf("expected no payment id on limit rejection, got %d", paymentID)
+	}
+	if balance != 0 {
+		t.Fatalf("expected zero balance reported on limit rejection, got %d", balance)
+	}
+	if bal := Db_get_card_balance(db, cardId); bal != 10000 {
+		t.Fatalf("expected balance unchanged at 10000, got %d", bal)
+	}
+}
+
+// TestReserveCardPayment_TxLimitAtBoundaryAllowed verifies that a payment
+// exactly equal to the per-transaction limit is allowed.
+func TestReserveCardPayment_TxLimitAtBoundaryAllowed(t *testing.T) {
+	db := openConcurrentTestDB(t)
+	Db_init(db)
+
+	cardId := fundCard(t, db, 10000)
+	Db_update_card_without_pin(db, cardId, 20, 0, "N", 0, "Y")
+
+	_, paymentID, err := Db_reserve_card_payment(db, cardId, 20, 20, "lnbcpay")
+	if err != nil {
+		t.Fatalf("expected reservation at the tx limit to succeed, got %v", err)
+	}
+	if paymentID == 0 {
+		t.Fatal("expected a payment id for an at-limit reservation")
+	}
+}
+
+// TestReserveCardPayment_DayLimitExceeded verifies that a payment which,
+// added to the last 24h of spend, would breach the daily limit is rejected.
+func TestReserveCardPayment_DayLimitExceeded(t *testing.T) {
+	db := openConcurrentTestDB(t)
+	Db_init(db)
+
+	cardId := fundCard(t, db, 10000)
+	// no per-tx limit, 20-sat daily limit
+	Db_update_card_without_pin(db, cardId, 0, 20, "N", 0, "Y")
+
+	// spend 15 today — under the daily limit, allowed
+	if _, _, err := Db_reserve_card_payment(db, cardId, 15, 15, "lnbcpay1"); err != nil {
+		t.Fatalf("expected first reservation to succeed, got %v", err)
+	}
+
+	// a further 10 would make 25 > 20 — rejected
+	_, paymentID, err := Db_reserve_card_payment(db, cardId, 10, 10, "lnbcpay2")
+	if !errors.Is(err, ErrDayLimitExceeded) {
+		t.Fatalf("expected ErrDayLimitExceeded, got %v", err)
+	}
+	if paymentID != 0 {
+		t.Fatalf("expected no payment id on daily-limit rejection, got %d", paymentID)
+	}
+	if bal := Db_get_card_balance(db, cardId); bal != 9985 {
+		t.Fatalf("expected balance to reflect only the first payment (9985), got %d", bal)
+	}
+
+	var rows int
+	if err := db.QueryRow(
+		"SELECT COUNT(*) FROM card_payments WHERE card_id = ?", cardId,
+	).Scan(&rows); err != nil {
+		t.Fatal(err)
+	}
+	if rows != 1 {
+		t.Fatalf("expected exactly 1 card_payments row, got %d", rows)
+	}
+}
+
+// TestReserveCardPayment_DayLimitAtBoundaryAllowed verifies that spend up to
+// exactly the daily limit is allowed.
+func TestReserveCardPayment_DayLimitAtBoundaryAllowed(t *testing.T) {
+	db := openConcurrentTestDB(t)
+	Db_init(db)
+
+	cardId := fundCard(t, db, 10000)
+	Db_update_card_without_pin(db, cardId, 0, 20, "N", 0, "Y")
+
+	if _, _, err := Db_reserve_card_payment(db, cardId, 15, 15, "lnbcpay1"); err != nil {
+		t.Fatalf("expected first reservation to succeed, got %v", err)
+	}
+	// 15 + 5 == 20, exactly the limit — allowed
+	if _, _, err := Db_reserve_card_payment(db, cardId, 5, 5, "lnbcpay2"); err != nil {
+		t.Fatalf("expected reservation up to the daily limit to succeed, got %v", err)
+	}
+}
+
+// TestReserveCardPayment_ZeroLimitsAllowLargePayment verifies that a zero
+// tx or daily limit means "no limit", so a large payment (bounded only by
+// balance) is allowed.
+func TestReserveCardPayment_ZeroLimitsAllowLargePayment(t *testing.T) {
+	db := openConcurrentTestDB(t)
+	Db_init(db)
+
+	cardId := fundCard(t, db, 100000)
+	// both limits explicitly zero
+	Db_update_card_without_pin(db, cardId, 0, 0, "N", 0, "Y")
+
+	if _, _, err := Db_reserve_card_payment(db, cardId, 50000, 50000, "lnbcpay"); err != nil {
+		t.Fatalf("expected large reservation to succeed with zero limits, got %v", err)
+	}
+}

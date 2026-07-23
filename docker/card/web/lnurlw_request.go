@@ -83,6 +83,15 @@ func (app *App) CreateHandler_LnurlwRequest() http.HandlerFunc {
 		minWithdrawableSats := 1
 		maxWithdrawableSats := 100_000_000
 
+		// cap the advertised maximum at the card's per-transaction limit
+		// (0 = no limit) so compliant wallets won't offer an over-limit amount;
+		// the daily limit is still enforced server-side in the callback
+		if card, err := db.Db_get_card(app.db_read, cardId); err == nil {
+			if card.Tx_limit_sats > 0 && card.Tx_limit_sats < maxWithdrawableSats {
+				maxWithdrawableSats = card.Tx_limit_sats
+			}
+		}
+
 		hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 
 		resObj.Tag = "withdrawRequest"

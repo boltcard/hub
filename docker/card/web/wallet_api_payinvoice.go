@@ -74,6 +74,14 @@ func (app *App) CreateHandler_WalletApi_PayInvoice() http.HandlerFunc {
 		// atomically check balance and reserve funds (BEGIN IMMEDIATE transaction)
 		_, _, err = db.Db_reserve_card_payment(
 			app.db_write, card_id, actualAmtSat, reqObj.Amount, reqObj.Invoice)
+		if errors.Is(err, db.ErrTxLimitExceeded) {
+			sendError(w, "Error", 999, "amount exceeds card limit")
+			return
+		}
+		if errors.Is(err, db.ErrDayLimitExceeded) {
+			sendError(w, "Error", 999, "daily limit exceeded")
+			return
+		}
 		if errors.Is(err, db.ErrInsufficientFunds) {
 			sendError(w, "Error", 999, "invoice amount too large")
 			return

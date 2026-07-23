@@ -12,6 +12,15 @@ import (
 // to cover the requested payment amount.
 var ErrInsufficientFunds = errors.New("insufficient funds")
 
+// ErrTxLimitExceeded is returned when a payment amount is greater than the
+// card's per-transaction limit (tx_limit_sats). A limit of 0 means no limit.
+var ErrTxLimitExceeded = errors.New("transaction limit exceeded")
+
+// ErrDayLimitExceeded is returned when a payment would push the card's spend
+// over the last 24 hours above its daily limit (day_limit_sats). A limit of 0
+// means no limit.
+var ErrDayLimitExceeded = errors.New("daily limit exceeded")
+
 // withImmediateTx runs fn inside a BEGIN IMMEDIATE transaction on a
 // single pinned connection. BEGIN IMMEDIATE acquires the SQLite write
 // lock at transaction start, preventing other writers from interleaving
@@ -60,6 +69,34 @@ func withImmediateTx(db_conn *sql.DB, fn func(ctx context.Context, conn *sql.Con
 func Db_reserve_card_payment(db_conn *sql.DB, cardId int, requiredBalance int, paymentAmount int, invoice string) (balance int, paymentID int, err error) {
 
 	err = withImmediateTx(db_conn, func(ctx context.Context, conn *sql.Conn) error {
+
+		// read the card's spending limits under the write lock so the
+		// checks below cannot race with a concurrent reservation
+		var txLimit, dayLimit int
+		limitsSQL := `SELECT tx_limit_sats, day_limit_sats FROM cards WHERE card_id=$1`
+		if err := conn.QueryRowContext(ctx, limitsSQL, cardId).Scan(&txLimit, &dayLimit); err != nil {
+			return err
+		}
+
+		// per-transaction limit (0 = no limit)
+		if txLimit > 0 && paymentAmount > txLimit {
+			return ErrTxLimitExceeded
+		}
+
+		// per-day limit over a rolling 24h window (0 = no limit). Reserved
+		// payments count immediately (paid_flag defaults to 'Y') and are
+		// reversed to 'N' on failure, so this sum matches spent value.
+		if dayLimit > 0 {
+			var daySpent int
+			daySQL := `SELECT IFNULL(SUM(amount_sats), 0) FROM card_payments
+				WHERE paid_flag='Y' AND card_id=$1 AND timestamp >= unixepoch() - 86400`
+			if err := conn.QueryRowContext(ctx, daySQL, cardId).Scan(&daySpent); err != nil {
+				return err
+			}
+			if daySpent+paymentAmount > dayLimit {
+				return ErrDayLimitExceeded
+			}
+		}
 
 		// read balance under write lock
 		balanceSQL := `SELECT

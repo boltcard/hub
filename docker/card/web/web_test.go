@@ -1198,8 +1198,9 @@ func TestLnurlwRequest_ValidTap(t *testing.T) {
 	if resp.MinWithdrawable != 1000 {
 		t.Fatalf("expected minWithdrawable 1000, got %d", resp.MinWithdrawable)
 	}
-	if resp.MaxWithdrawable != 100_000_000_000 {
-		t.Fatalf("expected maxWithdrawable 100000000000, got %d", resp.MaxWithdrawable)
+	// capped at the card's 1,000,000-sat tx limit (1,000,000 * 1000 msat)
+	if resp.MaxWithdrawable != 1_000_000_000 {
+		t.Fatalf("expected maxWithdrawable 1000000000, got %d", resp.MaxWithdrawable)
 	}
 
 	// Verify counter was updated in DB
@@ -1624,6 +1625,88 @@ func TestLnurlwCallback_SufficientFundsReservesPayment(t *testing.T) {
 	}
 	if paidFlag != "N" {
 		t.Fatalf("expected paid_flag 'N' (unlocked), got %q", paidFlag)
+	}
+}
+
+// TestLnurlwCallback_TxLimitExceeded verifies the callback rejects a tap for
+// more than the card's per-transaction limit, before any funds are reserved.
+func TestLnurlwCallback_TxLimitExceeded(t *testing.T) {
+	app := openTestApp(t)
+	// Fund generously so balance is not the blocker; testBolt11 is 1500 sats.
+	cardId := insertFundedCard(t, app.db_write, 100000)
+	// 1000-sat per-transaction limit, no daily limit
+	db.Db_update_card_without_pin(app.db_write, cardId, 1000, 0, "N", 0, "Y")
+	setupK1(t, app.db_write, cardId, "txlimk1", 300)
+
+	handler := app.CreateHandler_LnurlwCallback()
+	r := httptest.NewRequest("GET", "/cb?k1=txlimk1&pr="+testBolt11, nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Status != "ERROR" || resp.Reason != "amount exceeds card limit" {
+		t.Fatalf("expected 'amount exceeds card limit', got status=%q reason=%q", resp.Status, resp.Reason)
+	}
+
+	var rows int
+	app.db_read.QueryRow(`SELECT COUNT(*) FROM card_payments WHERE card_id=$1`, cardId).Scan(&rows)
+	if rows != 0 {
+		t.Fatalf("expected no card_payments row after limit rejection, got %d", rows)
+	}
+}
+
+// TestLnurlwCallback_DayLimitExceeded verifies the callback rejects a tap that
+// would breach the card's daily spend limit.
+func TestLnurlwCallback_DayLimitExceeded(t *testing.T) {
+	app := openTestApp(t)
+	cardId := insertFundedCard(t, app.db_write, 100000)
+	// high per-tx limit, 1000-sat daily limit; testBolt11 (1500) exceeds it
+	db.Db_update_card_without_pin(app.db_write, cardId, 1000000, 1000, "N", 0, "Y")
+	setupK1(t, app.db_write, cardId, "daylimk1", 300)
+
+	handler := app.CreateHandler_LnurlwCallback()
+	r := httptest.NewRequest("GET", "/cb?k1=daylimk1&pr="+testBolt11, nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	var resp lnurlStatus
+	json.Unmarshal(w.Body.Bytes(), &resp)
+	if resp.Status != "ERROR" || resp.Reason != "daily limit exceeded" {
+		t.Fatalf("expected 'daily limit exceeded', got status=%q reason=%q", resp.Status, resp.Reason)
+	}
+
+	var rows int
+	app.db_read.QueryRow(`SELECT COUNT(*) FROM card_payments WHERE card_id=$1`, cardId).Scan(&rows)
+	if rows != 0 {
+		t.Fatalf("expected no card_payments row after limit rejection, got %d", rows)
+	}
+}
+
+// TestLnurlwRequest_MaxWithdrawableReflectsTxLimit verifies the advertised
+// maxWithdrawable is capped at the card's per-transaction limit so compliant
+// wallets won't offer an over-limit amount.
+func TestLnurlwRequest_MaxWithdrawableReflectsTxLimit(t *testing.T) {
+	app := openTestApp(t)
+	key1Hex := hex.EncodeToString(nfcTestKey1)
+	key2Hex := hex.EncodeToString(nfcTestKey2)
+	db.Db_insert_card(app.db_write, "k0", key1Hex, key2Hex, "k3", "k4", "lnlogin", "lnpass")
+	db.Db_set_tokens(app.db_write, "lnlogin", "lnpass", "lnaccess", "lnrefresh")
+	cardId := db.Db_get_card_id_from_access_token(app.db_read, "lnaccess")
+	// 5000-sat per-transaction limit
+	db.Db_update_card_without_pin(app.db_write, cardId, 5000, 0, "N", 0, "Y")
+
+	p, c := buildNfcTap(t, nfcTestKey1, nfcTestKey2, nfcTestUID, 1)
+	r := httptest.NewRequest("GET", "/ln?p="+hex.EncodeToString(p)+"&c="+hex.EncodeToString(c), nil)
+	w := httptest.NewRecorder()
+	app.CreateHandler_LnurlwRequest().ServeHTTP(w, r)
+
+	var resp LnurlwResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("expected JSON response, got: %s", w.Body.String())
+	}
+	if resp.MaxWithdrawable != 5000*1000 {
+		t.Fatalf("expected maxWithdrawable %d, got %d", 5000*1000, resp.MaxWithdrawable)
 	}
 }
 
