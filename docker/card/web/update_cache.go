@@ -6,10 +6,12 @@ import (
 )
 
 // latestVersionTTL is how long a Docker Hub version check is cached. The About
-// page polls /about frequently so the "Update available" button appears without
-// a manual refresh; caching keeps those polls cheap and avoids hammering the
-// Docker Hub registry (and its anonymous rate limits).
-const latestVersionTTL = 10 * time.Minute
+// page polls /about every 60s so the "Update available" button appears without
+// a manual refresh; the cache keeps those polls cheap. Kept close to the poll
+// interval so a new release surfaces within ~1-2 min. Raise it if a long-open
+// About page starts tripping Docker Hub's anonymous pull rate limit (the check
+// degrades gracefully to the last-known version).
+const latestVersionTTL = 1 * time.Minute
 
 // versionCache memoises the result of a version-fetch function for a TTL. A
 // failed fetch (empty string) keeps the last known-good value rather than
