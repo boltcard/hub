@@ -718,8 +718,9 @@ func TestAdminApiWipeCard(t *testing.T) {
 	if !resp.Ok {
 		t.Fatal("expected ok:true")
 	}
-	if !strings.HasPrefix(resp.BoltcardLink, "boltcard://program?url=") {
-		t.Fatalf("expected boltcard deeplink, got %q", resp.BoltcardLink)
+	// wiping uses the reset action per the Bolt Card DEEPLINK.md spec
+	if !strings.HasPrefix(resp.BoltcardLink, "boltcard://reset?url=") {
+		t.Fatalf("expected boltcard reset deeplink, got %q", resp.BoltcardLink)
 	}
 	if !strings.Contains(resp.WipeUrl, "/wipe?s=") {
 		t.Fatalf("expected wipe URL with /wipe?s=, got %q", resp.WipeUrl)
