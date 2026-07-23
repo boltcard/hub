@@ -170,6 +170,27 @@ func Db_get_lnurlw_k1(db_conn *sql.DB, lnurlw_k1 string) (card_id int, lnurlw_k1
 	return card_id, lnurlw_k1_expiry
 }
 
+// Db_get_card_keys_for_wipe_secret returns the card's keys for a valid,
+// unexpired wipe secret so the Bolt Card app can reset the physical chip.
+// Deliberately does NOT filter wiped='N' — the card has just been wiped.
+// Returns an empty CardKeys if the secret is empty, unknown, or expired.
+func Db_get_card_keys_for_wipe_secret(db_conn *sql.DB, wipeSecret string) CardKeys {
+
+	var keys CardKeys
+	if wipeSecret == "" {
+		return keys
+	}
+
+	sqlStatement := `SELECT key0_auth, key1_enc, key2_cmac, key3, key4 FROM cards` +
+		` WHERE wipe_secret = $1 AND wipe_secret_expiry > unixepoch();`
+	row := db_conn.QueryRow(sqlStatement, wipeSecret)
+
+	if err := row.Scan(&keys.Key0, &keys.Key1, &keys.Key2, &keys.Key3, &keys.Key4); err != nil {
+		return CardKeys{}
+	}
+	return keys
+}
+
 type Card struct {
 	Card_id                    int
 	Key0_auth                  string

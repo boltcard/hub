@@ -379,6 +379,24 @@ func update_schema_11(db *sql.DB) {
 	}
 }
 
+func update_schema_12(db *sql.DB) {
+
+	// Transient capability token used by the admin "Wipe Card" flow: the wipe
+	// deeplink points the Bolt Card app at /wipe?s=<wipe_secret>, which returns
+	// the card's keys so the physical NFC chip can be reset.
+	sqlStmt := `
+		BEGIN TRANSACTION;
+		ALTER TABLE cards ADD COLUMN wipe_secret CHAR(64) NOT NULL DEFAULT '';
+		ALTER TABLE cards ADD COLUMN wipe_secret_expiry INT NOT NULL DEFAULT 0;
+		UPDATE settings SET value='13' WHERE name='schema_version_number';
+		COMMIT TRANSACTION;
+	`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("update_schema_12 alter error: %q", err)
+	}
+}
+
 // randomHex8 generates an 8-character random hex string for lightning addresses.
 func randomHex8() string {
 	b := make([]byte, 4)

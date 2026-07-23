@@ -23,8 +23,8 @@ func TestDbInit_SchemaMigratesToLatest(t *testing.T) {
 	Db_init(db)
 
 	version := Db_get_setting(db, "schema_version_number")
-	if version != "12" {
-		t.Fatalf("expected schema version 12, got %q", version)
+	if version != "13" {
+		t.Fatalf("expected schema version 13, got %q", version)
 	}
 }
 
