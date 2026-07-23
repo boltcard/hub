@@ -150,6 +150,16 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 
 		balance, card_payment_id, err := db.Db_reserve_card_payment(
 			app.db_write, cardId, amountSats+max_network_fee_sats, amountSats, param_pr)
+		if errors.Is(err, db.ErrTxLimitExceeded) {
+			log.Info("payment exceeds card transaction limit")
+			lnurlError(w, "amount exceeds card limit")
+			return
+		}
+		if errors.Is(err, db.ErrDayLimitExceeded) {
+			log.Info("payment exceeds card daily limit")
+			lnurlError(w, "daily limit exceeded")
+			return
+		}
 		if errors.Is(err, db.ErrInsufficientFunds) {
 			if amountSats > balance {
 				log.Info("insufficient funds on card")
@@ -168,7 +178,8 @@ func (app *App) CreateHandler_LnurlwCallback() http.HandlerFunc {
 
 		log.Info("total_card_balance ", balance)
 
-		// TODO: check the payment rules (max withdrawal amount, max per day, PIN number)
+		// per-transaction and daily limits are enforced atomically inside
+		// Db_reserve_card_payment above (ErrTxLimitExceeded / ErrDayLimitExceeded)
 
 		// execute the lightning payment
 		var payInvoiceRequest phoenix.SendLightningPaymentRequest
