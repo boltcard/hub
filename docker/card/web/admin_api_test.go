@@ -775,21 +775,27 @@ func TestWipeCardEndpoint_ReturnsKeys(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
-	var keys struct {
-		K0 string `json:"K0"`
-		K1 string `json:"K1"`
-		K2 string `json:"K2"`
-		K3 string `json:"K3"`
-		K4 string `json:"K4"`
+	var resp struct {
+		LNURLW string `json:"LNURLW"`
+		K0     string `json:"K0"`
+		K1     string `json:"K1"`
+		K2     string `json:"K2"`
+		K3     string `json:"K3"`
+		K4     string `json:"K4"`
 	}
-	if err := json.Unmarshal(w.Body.Bytes(), &keys); err != nil {
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
 		t.Fatal(err)
 	}
-	// insertFundedCard sets key0_auth='k0', key3='k3', key4='k4'
-	if keys.K0 != "k0" || keys.K3 != "k3" || keys.K4 != "k4" {
-		t.Fatalf("expected keys k0/k3/k4, got %q/%q/%q", keys.K0, keys.K3, keys.K4)
+	// The Bolt Card app requires LNURLW/lnurlw_base alongside the keys
+	// (bolt-card-programmer DisplayAuthInfo.tsx), or it rejects the response.
+	if resp.LNURLW == "" {
+		t.Fatal("expected non-empty LNURLW in wipe response")
 	}
-	if keys.K1 == "" || keys.K2 == "" {
+	// insertFundedCard sets key0_auth='k0', key3='k3', key4='k4'
+	if resp.K0 != "k0" || resp.K3 != "k3" || resp.K4 != "k4" {
+		t.Fatalf("expected keys k0/k3/k4, got %q/%q/%q", resp.K0, resp.K3, resp.K4)
+	}
+	if resp.K1 == "" || resp.K2 == "" {
 		t.Fatal("expected non-empty k1/k2")
 	}
 }
