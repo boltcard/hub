@@ -7,15 +7,18 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// BcpWipeResponse is what the Bolt Card app expects when resetting a card: the
-// card's current keys. The app accepts either K0-K4 or k0-k4; we send K0-K4 to
-// match the /batch programming response.
+// BcpWipeResponse is what the Bolt Card app expects when resetting a card. The
+// app's "Check URLs and Keys" screen (bolt-card-programmer DisplayAuthInfo.tsx)
+// requires an LNURLW/lnurlw_base field alongside the keys, or it rejects the
+// response ("The JSON response must contain lnurlw_base, k0, k1, k2, k3, k4").
+// The app accepts either K0-K4 or k0-k4; we send K0-K4 to match /batch.
 type BcpWipeResponse struct {
-	K0 string `json:"K0"`
-	K1 string `json:"K1"`
-	K2 string `json:"K2"`
-	K3 string `json:"K3"`
-	K4 string `json:"K4"`
+	LNURLW string `json:"LNURLW"`
+	K0     string `json:"K0"`
+	K1     string `json:"K1"`
+	K2     string `json:"K2"`
+	K3     string `json:"K3"`
+	K4     string `json:"K4"`
 }
 
 // CreateHandler_WipeCard serves a card's keys for a valid wipe capability
@@ -36,12 +39,14 @@ func (app *App) CreateHandler_WipeCard() http.HandlerFunc {
 			return
 		}
 
+		hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 		writeJSON(w, BcpWipeResponse{
-			K0: keys.Key0,
-			K1: keys.Key1,
-			K2: keys.Key2,
-			K3: keys.Key3,
-			K4: keys.Key4,
+			LNURLW: "lnurlw://" + hostDomain + "/ln",
+			K0:     keys.Key0,
+			K1:     keys.Key1,
+			K2:     keys.Key2,
+			K3:     keys.Key3,
+			K4:     keys.Key4,
 		})
 	}
 }
