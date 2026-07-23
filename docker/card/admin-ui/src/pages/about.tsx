@@ -144,11 +144,20 @@ export function AboutPage() {
       setDialogOpen(false);
       setUpdating(true);
       toast.success("Update triggered — restarting containers…");
-      // Poll until the server comes back with a new version
+      // Reload only once the NEW container is actually serving. The update
+      // recreates just the card container, and the OLD card keeps answering 200
+      // for the whole image-pull window before the restart — so reloading on
+      // mere reachability fires too early and can land a full-page navigation on
+      // the 502 window during the restart, which kills the SPA and can't
+      // self-recover (WWT-137). Instead wait for the reported version to change,
+      // and treat any non-200 (the restart's 502) as "keep waiting".
+      const before = data?.version;
       const poll = setInterval(async () => {
         try {
           const res = await fetch("/admin/api/about");
-          if (res.ok) {
+          if (!res.ok) return; // 502 during restart — keep waiting
+          const j = await res.json();
+          if (j?.version && j.version !== before) {
             clearInterval(poll);
             window.location.reload();
           }
@@ -156,8 +165,12 @@ export function AboutPage() {
           // server still restarting
         }
       }, 3000);
-      // Stop polling after 2 minutes
-      setTimeout(() => clearInterval(poll), 120_000);
+      // Fallback: after 2 min the restart is long done — reload regardless so a
+      // failed/no-op update doesn't leave the page stuck on "Updating…".
+      setTimeout(() => {
+        clearInterval(poll);
+        window.location.reload();
+      }, 120_000);
     },
   });
 
