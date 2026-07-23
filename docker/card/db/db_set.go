@@ -108,3 +108,16 @@ func Db_set_lnurlw_k1(db_conn *sql.DB, cardId int, lnurlwK1 string, lnurlwK1Expi
 		log.Error("db_set_lnurlw_k1 error: ", err)
 	}
 }
+
+// Db_set_card_wipe_secret stores the transient capability secret for the admin
+// wipe deeplink. No wiped='N' filter: this is set right after the card is
+// wiped ('Y').
+func Db_set_card_wipe_secret(db_conn *sql.DB, cardId int, wipeSecret string, wipeSecretExpiry int64) {
+
+	sqlStatement := `UPDATE cards SET wipe_secret = $1, wipe_secret_expiry = $2` +
+		` WHERE card_id = $3;`
+	_, err := db_conn.Exec(sqlStatement, wipeSecret, wipeSecretExpiry, cardId)
+	if err != nil {
+		log.Error("db_set_card_wipe_secret error: ", err)
+	}
+}

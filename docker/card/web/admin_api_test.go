@@ -705,10 +705,106 @@ func TestAdminApiWipeCard(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
 	}
 
+	// the response must carry a Bolt Card programmer deeplink pointing at a
+	// /wipe capability URL, so the admin can reset the physical card
+	var resp struct {
+		Ok           bool   `json:"ok"`
+		BoltcardLink string `json:"boltcardLink"`
+		WipeUrl      string `json:"wipeUrl"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Ok {
+		t.Fatal("expected ok:true")
+	}
+	if !strings.HasPrefix(resp.BoltcardLink, "boltcard://program?url=") {
+		t.Fatalf("expected boltcard deeplink, got %q", resp.BoltcardLink)
+	}
+	if !strings.Contains(resp.WipeUrl, "/wipe?s=") {
+		t.Fatalf("expected wipe URL with /wipe?s=, got %q", resp.WipeUrl)
+	}
+
 	// Db_get_card filters wiped='N', so a wiped card returns error
 	_, err := db.Db_get_card(app.db_read, cardId)
 	if err == nil {
 		t.Fatal("expected error for wiped card (Db_get_card filters wiped='N')")
+	}
+}
+
+// wipeCardAndGetSecret wipes a card via the admin API and returns the wipe
+// secret embedded in the returned /wipe URL.
+func wipeCardAndGetSecret(t *testing.T, app *App, token string, cardId int) string {
+	t.Helper()
+	handler := app.CreateHandler_AdminApi()
+	r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/wipe", nil)
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("wipe failed: %d %s", w.Code, w.Body.String())
+	}
+	var resp struct {
+		WipeUrl string `json:"wipeUrl"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	idx := strings.Index(resp.WipeUrl, "s=")
+	if idx < 0 {
+		t.Fatalf("no secret in wipe url %q", resp.WipeUrl)
+	}
+	return resp.WipeUrl[idx+2:]
+}
+
+// TestWipeCardEndpoint_ReturnsKeys verifies the capability URL the Bolt Card app
+// POSTs to returns the card's keys (K0-K4) so it can reset the chip.
+func TestWipeCardEndpoint_ReturnsKeys(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+	cardId := insertFundedCard(t, app.db_write, 10000)
+
+	secret := wipeCardAndGetSecret(t, app, token, cardId)
+
+	// the app POSTs {"LNURLW": ...} to the wipe url
+	handler := app.CreateHandler_WipeCard()
+	r := httptest.NewRequest("POST", "/wipe?s="+secret, strings.NewReader(`{"LNURLW":"lnurlw://x"}`))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	var keys struct {
+		K0 string `json:"K0"`
+		K1 string `json:"K1"`
+		K2 string `json:"K2"`
+		K3 string `json:"K3"`
+		K4 string `json:"K4"`
+	}
+	if err := json.Unmarshal(w.Body.Bytes(), &keys); err != nil {
+		t.Fatal(err)
+	}
+	// insertFundedCard sets key0_auth='k0', key3='k3', key4='k4'
+	if keys.K0 != "k0" || keys.K3 != "k3" || keys.K4 != "k4" {
+		t.Fatalf("expected keys k0/k3/k4, got %q/%q/%q", keys.K0, keys.K3, keys.K4)
+	}
+	if keys.K1 == "" || keys.K2 == "" {
+		t.Fatal("expected non-empty k1/k2")
+	}
+}
+
+// TestWipeCardEndpoint_UnknownSecret verifies an unknown/expired secret is
+// rejected rather than leaking keys.
+func TestWipeCardEndpoint_UnknownSecret(t *testing.T) {
+	app := openTestApp(t)
+	handler := app.CreateHandler_WipeCard()
+	r := httptest.NewRequest("POST", "/wipe?s=deadbeef", nil)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code == http.StatusOK {
+		t.Fatalf("expected error for unknown secret, got 200: %s", w.Body.String())
 	}
 }
 

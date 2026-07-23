@@ -56,6 +56,7 @@ func (app *App) SetupRoutes() *mux.Router {
 	// for Bolt Card Programmer app
 	router.Path("/new").Methods("GET", "POST").HandlerFunc(app.CreateHandler_CreateCard())
 	router.Path("/batch").Methods("POST").HandlerFunc(app.CreateHandler_BatchCreateCard())
+	router.Path("/wipe").Methods("POST").HandlerFunc(app.CreateHandler_WipeCard()) // reset physical card (admin wipe deeplink)
 
 	// Bolt Card interface (hit from PoS when a card is tapped)
 	router.Path("/ln").Methods("GET").HandlerFunc(app.CreateHandler_LnurlwRequest())

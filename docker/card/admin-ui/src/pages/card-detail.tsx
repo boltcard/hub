@@ -64,6 +64,11 @@ interface CardDetail {
   hostDomain: string;
 }
 
+interface WipeResult {
+  boltcardLink: string;
+  wipeUrl: string;
+}
+
 interface CardTx {
   receiptId: number;
   paymentId: number;
@@ -154,11 +159,23 @@ export function CardDetailPage() {
   }
 
   // Wipe
+  const [wipeResult, setWipeResult] = useState<WipeResult | null>(null);
   const wipeMutation = useMutation({
-    mutationFn: () => apiPost(`/cards/${id}/wipe`),
-    onSuccess: () => {
-      toast.success("Card wiped");
-      navigate("/cards");
+    mutationFn: () =>
+      apiPost<{ boltcardLink?: string; wipeUrl?: string }>(`/cards/${id}/wipe`),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["card", id] });
+      if (data?.boltcardLink) {
+        // show a deeplink QR so the admin can reset the physical card
+        setWipeResult({
+          boltcardLink: data.boltcardLink,
+          wipeUrl: data.wipeUrl ?? "",
+        });
+        toast.success("Card wiped — scan the QR to reset the physical card");
+      } else {
+        toast.success("Card wiped");
+        navigate("/cards");
+      }
     },
     onError: (err) => toast.error(err.message),
   });
@@ -605,9 +622,9 @@ export function CardDetailPage() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Wipe Card #{card.cardId}?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently disable this card. The card's keys will
-                  be reset and it can no longer be used for payments. This action
-                  cannot be undone.
+                  This disables the card in the hub and can't be undone. You'll
+                  then get a QR code with the card's keys — scan it with the Bolt
+                  Card app to reset the physical NFC chip.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -624,6 +641,66 @@ export function CardDetailPage() {
           </AlertDialog>
         </CardContent>
       </Card>
+
+      {/* Wipe result: show the keys as a QR to reset the physical NFC chip */}
+      <Dialog
+        open={wipeResult !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setWipeResult(null);
+            navigate("/cards");
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset the physical card</DialogTitle>
+            <DialogDescription>
+              Card #{card.cardId} is now disabled in the hub. To reset the NFC
+              chip back to factory keys, scan this QR with the Bolt Card app and
+              hold the card to your phone. The link is valid for 24 hours.
+            </DialogDescription>
+          </DialogHeader>
+          {wipeResult && (
+            <div className="space-y-3">
+              <div className="mx-auto flex w-fit justify-center rounded-lg bg-white p-4">
+                <QRCodeSVG
+                  value={wipeResult.boltcardLink}
+                  size={220}
+                  level="M"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Input
+                  readOnly
+                  value={wipeResult.boltcardLink}
+                  className="font-mono text-xs"
+                />
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => {
+                    navigator.clipboard.writeText(wipeResult.boltcardLink);
+                    toast.success("Copied to clipboard");
+                  }}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setWipeResult(null);
+                navigate("/cards");
+              }}
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
