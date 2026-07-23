@@ -234,13 +234,16 @@ func (app *App) adminApiWipeCard(w http.ResponseWriter, _ *http.Request, cardId 
 	// Issue a short-lived capability secret and build a Bolt Card programmer
 	// deeplink to /wipe?s=<secret>. The app fetches that URL to get the card's
 	// keys and reset the physical NFC chip. The card is already disabled above.
+	// Per the Bolt Card DEEPLINK.md spec the wipe uses the "reset" action (not
+	// "program"), so the app runs its reset flow: authenticate with the card's
+	// current keys and restore them to the factory defaults.
 	secret := util.Random_hex()
 	expiry := time.Now().Unix() + 24*60*60 // 24h to complete the reset
 	db.Db_set_card_wipe_secret(app.db_write, cardId, secret, expiry)
 
 	hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 	wipeUrl := "https://" + hostDomain + "/wipe?s=" + secret
-	boltcardLink := "boltcard://program?url=" + url.QueryEscape(wipeUrl)
+	boltcardLink := "boltcard://reset?url=" + url.QueryEscape(wipeUrl)
 
 	log.Info("admin wiped card: ", cardId)
 	writeJSON(w, map[string]any{
