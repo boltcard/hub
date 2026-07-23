@@ -14,7 +14,9 @@ import (
 )
 
 func (app *App) adminApiAbout(w http.ResponseWriter, r *http.Request) {
-	latestVersion := CheckLatestVersion()
+	// served from a TTL cache so the About page can poll frequently (to surface
+	// updates without a manual refresh) without hitting Docker Hub each time
+	latestVersion := latestVersionCache.get()
 	updateAvailable := false
 	if latestVersion != "" {
 		updateAvailable = CompareVersions(build.Version, latestVersion) == 1
