@@ -115,6 +115,9 @@ export function AboutPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["about"],
     queryFn: () => apiFetch<AboutData>("/about"),
+    // poll so a newly-published version surfaces the "Update available" button
+    // without a manual refresh; the backend caches the Docker Hub check
+    refetchInterval: 60_000,
   });
 
   const { data: logsData } = useQuery({
