@@ -1,9 +1,11 @@
 package db
 
 import (
+	"card/util"
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -20,6 +22,101 @@ var ErrTxLimitExceeded = errors.New("transaction limit exceeded")
 // over the last 24 hours above its daily limit (day_limit_sats). A limit of 0
 // means no limit.
 var ErrDayLimitExceeded = errors.New("daily limit exceeded")
+
+// ErrBatchNotFound is returned when no program_cards row matches the secret.
+var ErrBatchNotFound = errors.New("batch not found")
+
+// ErrBatchExpired is returned when the batch exists but the current time is
+// outside its create_time..expire_time window.
+var ErrBatchExpired = errors.New("batch expired")
+
+// ErrBatchExhausted is returned when a batch has already dispensed
+// max_group_num cards. A max_group_num of 0 means no limit.
+var ErrBatchExhausted = errors.New("batch limit reached")
+
+// Db_dispense_batch_card atomically validates a batch secret, claims one of
+// its card slots and creates the card, all inside a single BEGIN IMMEDIATE
+// transaction so concurrent dispenses cannot both read a stale cards_issued
+// and overshoot max_group_num.
+//
+// When the batch carries an initial_balance the card is credited with a paid
+// card_receipt in the same transaction, so a dispensed card is never visible
+// with the wrong balance.
+//
+// Returns the new card's id and the batch's group tag.
+func Db_dispense_batch_card(db_conn *sql.DB, secret string, uid string, keys CardKeys,
+	login string, password string) (cardId int, groupTag string, err error) {
+
+	lnAddress := "c." + randomHex8()
+
+	err = withImmediateTx(db_conn, func(ctx context.Context, conn *sql.Conn) error {
+
+		// read the batch under the write lock so the limit check below
+		// cannot race with a concurrent dispense
+		var maxGroupNum, initialBalance, createTime, expireTime, cardsIssued int
+		batchSQL := `SELECT group_tag, max_group_num, initial_balance,
+			create_time, expire_time, cards_issued
+			FROM program_cards WHERE secret = $1`
+		err := conn.QueryRowContext(ctx, batchSQL, secret).Scan(&groupTag,
+			&maxGroupNum, &initialBalance, &createTime, &expireTime, &cardsIssued)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrBatchNotFound
+		}
+		if err != nil {
+			return err
+		}
+
+		now := int(time.Now().Unix())
+		if now < createTime || now > expireTime {
+			return ErrBatchExpired
+		}
+
+		// batch size limit (0 = no limit)
+		if maxGroupNum > 0 && cardsIssued >= maxGroupNum {
+			return ErrBatchExhausted
+		}
+
+		// claim the slot
+		claimSQL := `UPDATE program_cards SET cards_issued = cards_issued + 1 WHERE secret = $1`
+		if _, err := conn.ExecContext(ctx, claimSQL, secret); err != nil {
+			return err
+		}
+
+		// lnurlw_enable set explicitly ('Y') — see Db_insert_card for why.
+		insertSQL := `INSERT INTO cards (key0_auth, key1_enc, key2_cmac, key3, key4,
+			login, password, uid, group_tag, ln_address, lnurlw_enable)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'Y');`
+		res, err := conn.ExecContext(ctx, insertSQL, keys.Key0, keys.Key1, keys.Key2,
+			keys.Key3, keys.Key4, login, password, uid, groupTag, lnAddress)
+		if err != nil {
+			return err
+		}
+		id, err := res.LastInsertId()
+		if err != nil {
+			return err
+		}
+		cardId = int(id)
+
+		// credit the batch's initial balance as a settled receipt, mirroring
+		// adminApiAllocateFunds. r_hash_hex is UNIQUE and there is no real
+		// invoice behind an allocation, so use a random value.
+		if initialBalance > 0 {
+			receiptSQL := `INSERT INTO card_receipts (card_id, ln_invoice, r_hash_hex,
+				amount_sats, paid_flag, timestamp, expire_time)
+				VALUES ($1, '', $2, $3, 'Y', unixepoch(), unixepoch() + 86400);`
+			if _, err := conn.ExecContext(ctx, receiptSQL, cardId, util.Random_hex(), initialBalance); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return 0, "", err
+	}
+	return cardId, groupTag, nil
+}
 
 // withImmediateTx runs fn inside a BEGIN IMMEDIATE transaction on a
 // single pinned connection. BEGIN IMMEDIATE acquires the SQLite write

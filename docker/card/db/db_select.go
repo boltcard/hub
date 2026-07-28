@@ -329,14 +329,15 @@ type ProgramCard struct {
 	InitialBalance int
 	CreateTime     int
 	ExpireTime     int
+	CardsIssued    int
 }
 
 func Db_select_program_card_for_secret(db_conn *sql.DB, secret string) (result ProgramCard) {
 	var programCard ProgramCard
 
 	// get card id
-	sqlStatement := `SELECT secret, group_tag, max_group_num, initial_balance, create_time, expire_time` +
-		` FROM program_cards WHERE secret = $1;`
+	sqlStatement := `SELECT secret, group_tag, max_group_num, initial_balance, create_time, expire_time,` +
+		` cards_issued FROM program_cards WHERE secret = $1;`
 	rows, err := db_conn.Query(sqlStatement, secret)
 	if err != nil {
 		log.Error("db_select_program_card_for_secret query error: ", err)
@@ -351,7 +352,8 @@ func Db_select_program_card_for_secret(db_conn *sql.DB, secret string) (result P
 			&programCard.MaxGroupNum,
 			&programCard.InitialBalance,
 			&programCard.CreateTime,
-			&programCard.ExpireTime)
+			&programCard.ExpireTime,
+			&programCard.CardsIssued)
 		if err != nil {
 			log.Error("db_select_program_card_for_secret scan error: ", err)
 		}

@@ -69,7 +69,11 @@ func Db_init(db_conn *sql.DB) {
 		update_schema_12(db_conn) // wipe_secret columns (admin wipe deeplink)
 	}
 
-	if Db_get_setting(db_conn, "schema_version_number") != "13" {
+	if Db_get_setting(db_conn, "schema_version_number") == "13" {
+		update_schema_13(db_conn) // program_cards.cards_issued (batch slot counter)
+	}
+
+	if Db_get_setting(db_conn, "schema_version_number") != "14" {
 		panic("database schema is not as expected")
 	}
 

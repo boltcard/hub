@@ -983,6 +983,24 @@ func TestAdminApiBatchCreate_InvalidInput(t *testing.T) {
 	}
 }
 
+func TestAdminApiBatchCreate_RejectsNegativeBalance(t *testing.T) {
+	app := openTestApp(t)
+	token := setupAdminSession(t, app)
+
+	handler := app.CreateHandler_AdminApi()
+	body := `{"groupTag":"g","maxCards":5,"initialBalance":-1,"expiryHours":24}`
+	r := httptest.NewRequest("POST", "/admin/api/batch/create",
+		strings.NewReader(body))
+	r.Header.Set("Content-Type", "application/json")
+	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for a negative initial balance, got %d", w.Code)
+	}
+}
+
 func TestAdminApiCardRouter_InvalidId(t *testing.T) {
 	app := openTestApp(t)
 	token := setupAdminSession(t, app)

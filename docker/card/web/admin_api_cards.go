@@ -301,6 +301,14 @@ func (app *App) adminApiBatchCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// each dispensed card is credited with initialBalance, so a negative
+	// value has no meaning
+	if req.InitialBalance < 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		writeJSON(w, map[string]string{"error": "initialBalance cannot be negative"})
+		return
+	}
+
 	secret := util.Random_hex()
 	createTime := int(time.Now().Unix())
 	expireTime := createTime + req.ExpiryHours*60*60

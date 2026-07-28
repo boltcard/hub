@@ -2219,6 +2219,60 @@ func TestBatchCreateCard_ExpiredProgram(t *testing.T) {
 	}
 }
 
+func TestBatchCreateCard_ExhaustedBatch(t *testing.T) {
+	app := openTestApp(t)
+	now := int(time.Now().Unix())
+	db.Db_insert_program_cards(app.db_write, "onecard", "group1", 1, 0, now-60, now+3600)
+	handler := app.CreateHandler_BatchCreateCard()
+
+	body := `{"UID":"048B71B22D6B80"}`
+	r := httptest.NewRequest("POST", "/batch?s=onecard", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected first dispense to succeed, got %d: %s", w.Code, w.Body.String())
+	}
+
+	r = httptest.NewRequest("POST", "/batch?s=onecard", strings.NewReader(body))
+	w = httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 once the batch is used up, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "batch limit reached") {
+		t.Fatalf("expected 'batch limit reached', got %q", w.Body.String())
+	}
+
+	cards := db.Db_select_cards_with_group_tag(app.db_read, "group1")
+	if len(cards) != 1 {
+		t.Fatalf("expected the batch to have minted 1 card, got %d", len(cards))
+	}
+}
+
+func TestBatchCreateCard_CreditsInitialBalance(t *testing.T) {
+	app := openTestApp(t)
+	now := int(time.Now().Unix())
+	db.Db_insert_program_cards(app.db_write, "fundedbatch", "group2", 10, 2500, now-60, now+3600)
+	handler := app.CreateHandler_BatchCreateCard()
+
+	r := httptest.NewRequest("POST", "/batch?s=fundedbatch", strings.NewReader(`{"UID":"048B71B22D6B80"}`))
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, r)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+
+	cards := db.Db_select_cards_with_group_tag(app.db_read, "group2")
+	if len(cards) != 1 {
+		t.Fatalf("expected 1 card, got %d", len(cards))
+	}
+	if balance := db.Db_get_card_balance(app.db_read, cards[0].CardId); balance != 2500 {
+		t.Fatalf("expected the card to arrive with 2500 sats, got %d", balance)
+	}
+}
+
 // --- PoS API Tests ---
 
 func TestPosGetInfo_ReturnsEmpty(t *testing.T) {

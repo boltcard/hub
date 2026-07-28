@@ -2,9 +2,11 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 func openTestDB(t *testing.T) *sql.DB {
@@ -23,8 +25,8 @@ func TestDbInit_SchemaMigratesToLatest(t *testing.T) {
 	Db_init(db)
 
 	version := Db_get_setting(db, "schema_version_number")
-	if version != "13" {
-		t.Fatalf("expected schema version 13, got %q", version)
+	if version != "14" {
+		t.Fatalf("expected schema version 14, got %q", version)
 	}
 }
 
@@ -1097,5 +1099,165 @@ func TestDbInsertCard_UniqueLnAddresses(t *testing.T) {
 	card2, _ := Db_get_card(db, 2)
 	if card1.Ln_address == card2.Ln_address {
 		t.Fatalf("expected unique ln_addresses, both got %q", card1.Ln_address)
+	}
+}
+
+// --- Db_dispense_batch_card tests (batch slot enforcement) ---
+
+func insertTestBatch(t *testing.T, db_conn *sql.DB, secret string, maxCards int, initialBalance int) {
+	t.Helper()
+	now := int(time.Now().Unix())
+	Db_insert_program_cards(db_conn, secret, "batchtag", maxCards, initialBalance, now-60, now+3600)
+}
+
+func testBatchKeys() CardKeys {
+	return CardKeys{Key0: "k0", Key1: "k1", Key2: "k2", Key3: "k3", Key4: "k4"}
+}
+
+func countCards(t *testing.T, db_conn *sql.DB) int {
+	t.Helper()
+	var n int
+	if err := db_conn.QueryRow(`SELECT count(*) FROM cards`).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	return n
+}
+
+func TestDbDispenseBatchCard_CreatesCardAndCountsIssue(t *testing.T) {
+	db_conn := openTestDB(t)
+	Db_init(db_conn)
+	insertTestBatch(t, db_conn, "s1", 10, 0)
+
+	cardId, groupTag, err := Db_dispense_batch_card(db_conn, "s1", "04AABBCCDDEE80", testBatchKeys(), "login1", "pass1")
+	if err != nil {
+		t.Fatalf("expected dispense to succeed, got %v", err)
+	}
+	if cardId == 0 {
+		t.Fatal("expected a card id")
+	}
+	if groupTag != "batchtag" {
+		t.Fatalf("expected group tag 'batchtag', got %q", groupTag)
+	}
+
+	var uid, tag, lnurlwEnable string
+	err = db_conn.QueryRow(`SELECT uid, group_tag, lnurlw_enable FROM cards WHERE card_id=$1`,
+		cardId).Scan(&uid, &tag, &lnurlwEnable)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if uid != "04AABBCCDDEE80" {
+		t.Fatalf("expected uid to be stored, got %q", uid)
+	}
+	if tag != "batchtag" {
+		t.Fatalf("expected group_tag 'batchtag', got %q", tag)
+	}
+	if lnurlwEnable != "Y" {
+		t.Fatalf("expected withdrawals enabled, got %q", lnurlwEnable)
+	}
+
+	pc := Db_select_program_card_for_secret(db_conn, "s1")
+	if pc.CardsIssued != 1 {
+		t.Fatalf("expected cards_issued 1, got %d", pc.CardsIssued)
+	}
+}
+
+func TestDbDispenseBatchCard_EnforcesMaxGroupNum(t *testing.T) {
+	db_conn := openTestDB(t)
+	Db_init(db_conn)
+	insertTestBatch(t, db_conn, "s1", 2, 0)
+
+	for i := 0; i < 2; i++ {
+		if _, _, err := Db_dispense_batch_card(db_conn, "s1", "", testBatchKeys(), "login", "pass"); err != nil {
+			t.Fatalf("dispense %d should succeed, got %v", i+1, err)
+		}
+	}
+
+	_, _, err := Db_dispense_batch_card(db_conn, "s1", "", testBatchKeys(), "login", "pass")
+	if !errors.Is(err, ErrBatchExhausted) {
+		t.Fatalf("expected ErrBatchExhausted, got %v", err)
+	}
+	if n := countCards(t, db_conn); n != 2 {
+		t.Fatalf("expected 2 cards, got %d", n)
+	}
+	pc := Db_select_program_card_for_secret(db_conn, "s1")
+	if pc.CardsIssued != 2 {
+		t.Fatalf("expected cards_issued to stay at 2, got %d", pc.CardsIssued)
+	}
+}
+
+func TestDbDispenseBatchCard_ZeroMaxIsUnlimited(t *testing.T) {
+	db_conn := openTestDB(t)
+	Db_init(db_conn)
+	insertTestBatch(t, db_conn, "s1", 0, 0)
+
+	for i := 0; i < 3; i++ {
+		if _, _, err := Db_dispense_batch_card(db_conn, "s1", "", testBatchKeys(), "login", "pass"); err != nil {
+			t.Fatalf("dispense %d should succeed with no limit, got %v", i+1, err)
+		}
+	}
+	if n := countCards(t, db_conn); n != 3 {
+		t.Fatalf("expected 3 cards, got %d", n)
+	}
+}
+
+func TestDbDispenseBatchCard_CreditsInitialBalance(t *testing.T) {
+	db_conn := openTestDB(t)
+	Db_init(db_conn)
+	insertTestBatch(t, db_conn, "s1", 10, 5000)
+
+	cardId, _, err := Db_dispense_batch_card(db_conn, "s1", "", testBatchKeys(), "login", "pass")
+	if err != nil {
+		t.Fatalf("expected dispense to succeed, got %v", err)
+	}
+
+	if balance := Db_get_card_balance(db_conn, cardId); balance != 5000 {
+		t.Fatalf("expected balance 5000, got %d", balance)
+	}
+}
+
+func TestDbDispenseBatchCard_ZeroInitialBalanceAddsNoReceipt(t *testing.T) {
+	db_conn := openTestDB(t)
+	Db_init(db_conn)
+	insertTestBatch(t, db_conn, "s1", 10, 0)
+
+	cardId, _, err := Db_dispense_batch_card(db_conn, "s1", "", testBatchKeys(), "login", "pass")
+	if err != nil {
+		t.Fatalf("expected dispense to succeed, got %v", err)
+	}
+
+	var n int
+	if err := db_conn.QueryRow(`SELECT count(*) FROM card_receipts WHERE card_id=$1`, cardId).Scan(&n); err != nil {
+		t.Fatal(err)
+	}
+	if n != 0 {
+		t.Fatalf("expected no receipt for a zero initial balance, got %d", n)
+	}
+}
+
+func TestDbDispenseBatchCard_ExpiredBatch(t *testing.T) {
+	db_conn := openTestDB(t)
+	Db_init(db_conn)
+	now := int(time.Now().Unix())
+	Db_insert_program_cards(db_conn, "expired", "batchtag", 10, 0, now-7200, now-3600)
+
+	_, _, err := Db_dispense_batch_card(db_conn, "expired", "", testBatchKeys(), "login", "pass")
+	if !errors.Is(err, ErrBatchExpired) {
+		t.Fatalf("expected ErrBatchExpired, got %v", err)
+	}
+	if n := countCards(t, db_conn); n != 0 {
+		t.Fatalf("expected no card to be created, got %d", n)
+	}
+}
+
+func TestDbDispenseBatchCard_UnknownSecret(t *testing.T) {
+	db_conn := openTestDB(t)
+	Db_init(db_conn)
+
+	_, _, err := Db_dispense_batch_card(db_conn, "nosuchsecret", "", testBatchKeys(), "login", "pass")
+	if !errors.Is(err, ErrBatchNotFound) {
+		t.Fatalf("expected ErrBatchNotFound, got %v", err)
+	}
+	if n := countCards(t, db_conn); n != 0 {
+		t.Fatalf("expected no card to be created, got %d", n)
 	}
 }

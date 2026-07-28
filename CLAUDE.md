@@ -104,6 +104,8 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `/admin` — React SPA admin UI (static assets + SPA index fallback, PathPrefix without trailing slash)
 - `/admin/api/` — Admin JSON API (cookie-based session auth, 21 endpoints)
 - `/new`, `/batch`, `/wipe` — Bolt Card Programmer endpoints (`/wipe?s=<secret>` returns a card's keys for the admin Wipe Card deeplink so the app can reset the physical chip)
+
+> **`POST /batch?s=<secret>` mints a real card on every call** — there is no idempotency and no preview mode. `db.Db_dispense_batch_card` (`db/db_tx.go`) claims a slot and inserts the card in one `BEGIN IMMEDIATE` transaction: it checks the batch's expiry window, refuses past `max_group_num` (`program_cards.cards_issued`, schema v14; `0` = no limit), and credits `initial_balance` as a settled `card_receipt` so the card arrives funded. Errors come back as `{"status": "ERROR", "reason": ...}` with a 4xx — `"batch limit reached"` vs `"program card expired or not found"`. Before v0.24.0 neither `max_group_num` nor `initial_balance` was enforced or applied, so a batch link was an unlimited card printing press (WWT-140).
 - BoltCardHub API (`/create`, `/auth`, `/balance`, `/payinvoice`, etc.) — LndHub-compatible, feature-gated via `bolt_card_hub_api` setting
 - PoS API (`/pos/`) — Point-of-Sale subset of LndHub API, feature-gated via `bolt_card_pos_api` setting
 - `/admin/api/websocket` — Real-time payment notifications (JSON events via `wsHub` broadcast, requires admin session cookie)
@@ -130,7 +132,7 @@ SQLite at `/card_data/cards.db` with WAL mode, FULL synchronous, foreign keys, s
 
 **Tables:** `settings` (key-value config), `cards` (card keys/auth/limits), `card_payments` (spending), `card_receipts` (loading/receiving), `program_cards` (batch programming), `pay_link_addresses` (rotating pay-link addresses), `admin_withdrawals` (admin payout audit log)
 
-Schema version managed by idempotent `update_schema_*` functions in `db_create.go`. Current schema version: 13. (v13 adds `wipe_secret`/`wipe_secret_expiry` columns to `cards` — the transient capability token for the admin Wipe Card deeplink; see `web/bcp_wipe.go`.)
+Schema version managed by idempotent `update_schema_*` functions in `db_create.go`. Current schema version: 14. (v13 adds `wipe_secret`/`wipe_secret_expiry` columns to `cards` — the transient capability token for the admin Wipe Card deeplink; see `web/bcp_wipe.go`. v14 adds `program_cards.cards_issued`, the batch slot counter; see below.)
 
 **Admin withdrawals:** the `admin_withdrawals` table (schema v12) is an audit log of admin-initiated payouts of node liquidity (paying out the hub's own funds, not tied to any card). Each row records the destination Lightning address, amount, routing fee, payment hash, and status (`pending`/`paid`/`failed`). See `db/db_admin_withdrawal.go`.
 
