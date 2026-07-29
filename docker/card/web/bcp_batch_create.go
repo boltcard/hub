@@ -4,8 +4,8 @@ import (
 	"card/db"
 	"card/util"
 	"encoding/json"
+	"errors"
 	"net/http"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -20,6 +20,20 @@ type BcpBatchResponse struct {
 	K3         string `json:"K3"`
 	K4         string `json:"K4"`
 	UIDPrivacy string `json:"uid_privacy"` // looks like this is not in the BCP app yet
+}
+
+// bcpError replies with the Bolt Card Programmer error shape used by /new
+// ({"status": "ERROR", "reason": ...}) alongside an HTTP error status, so a
+// client can tell an exhausted batch from an expired one.
+func bcpError(w http.ResponseWriter, status int, reason string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(map[string]string{
+		"status": "ERROR",
+		"reason": reason,
+	}); err != nil {
+		log.Error("bcpError encode error: ", err)
+	}
 }
 
 func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
@@ -47,21 +61,32 @@ func (app *App) CreateHandler_BatchCreateCard() http.HandlerFunc {
 
 		log.Info("Uid : ", t.Uid)
 
-		// check secret in program_cards exists and is not expired, and get group_tag field
-		programCard := db.Db_select_program_card_for_secret(app.db_read, secret)
-		currentTime := int(time.Now().Unix())
+		// Claim a slot in the batch and create the card in one transaction:
+		// the secret has to be live, within its expiry window, and still have
+		// cards left on its max_group_num allowance. Each POST here mints a
+		// real card, so an unbounded batch link is a card printing press.
+		k0, k1, k2, k3, k4 := generateCardKeys()
+		keys := db.CardKeys{Key0: k0, Key1: k1, Key2: k2, Key3: k3, Key4: k4}
+		login := util.Random_hex()
+		password := util.Random_hex()
 
-		if currentTime < programCard.CreateTime || currentTime > programCard.ExpireTime {
-			log.Warn("ProgramCard record within expiry time not found")
-			http.Error(w, "program card expired or not found", http.StatusBadRequest)
+		cardId, _, err := db.Db_dispense_batch_card(app.db_write, secret, t.Uid, keys, login, password)
+		if err != nil {
+			switch {
+			case errors.Is(err, db.ErrBatchExhausted):
+				log.Warn("batch has already dispensed all of its cards")
+				bcpError(w, http.StatusBadRequest, "batch limit reached")
+			case errors.Is(err, db.ErrBatchNotFound), errors.Is(err, db.ErrBatchExpired):
+				log.Warn("ProgramCard record within expiry time not found")
+				bcpError(w, http.StatusBadRequest, "program card expired or not found")
+			default:
+				log.Error("batch card dispense error: ", err)
+				bcpError(w, http.StatusInternalServerError, "could not create card")
+			}
 			return
 		}
 
-		// create a new card in the database
-		k0, k1, k2, k3, k4 := generateCardKeys()
-		login := util.Random_hex()
-		password := util.Random_hex()
-		db.Db_insert_card_with_uid(app.db_write, k0, k1, k2, k3, k4, login, password, t.Uid, programCard.GroupTag)
+		log.Info("batch dispensed card_id ", cardId)
 
 		var bcpBatchResponse BcpBatchResponse
 

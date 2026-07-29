@@ -151,6 +151,11 @@ export function BatchProgramDialog() {
                 One link programs up to this many cards. Leave at 1 for a single card.
               </p>
             )}
+            {Number(form.initialBalance) > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Each card is credited with this balance as it is programmed.
+              </p>
+            )}
 
             <button
               type="button"

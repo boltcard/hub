@@ -397,6 +397,24 @@ func update_schema_12(db *sql.DB) {
 	}
 }
 
+func update_schema_13(db *sql.DB) {
+
+	// Number of cards dispensed by a batch so far. Db_dispense_batch_card
+	// increments it under the write lock and refuses to go past
+	// max_group_num, so a /batch?s= link mints at most the number of cards
+	// the admin asked for (0 = no limit).
+	sqlStmt := `
+		BEGIN TRANSACTION;
+		ALTER TABLE program_cards ADD COLUMN cards_issued INTEGER NOT NULL DEFAULT 0;
+		UPDATE settings SET value='14' WHERE name='schema_version_number';
+		COMMIT TRANSACTION;
+	`
+	_, err := db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("update_schema_13 alter error: %q", err)
+	}
+}
+
 // randomHex8 generates an 8-character random hex string for lightning addresses.
 func randomHex8() string {
 	b := make([]byte, 4)
