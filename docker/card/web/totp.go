@@ -24,6 +24,11 @@ func newTotpKey(accountName string) (secret string, url string, err error) {
 // validateTotpCode checks a 6-digit code against the secret. totp.Validate
 // already applies a ±1 time-step skew to tolerate clock drift.
 func validateTotpCode(secret, code string) bool {
+	// an empty secret is a valid (empty) key to the otp library, so codes
+	// generated from it would validate; fail closed instead
+	if secret == "" {
+		return false
+	}
 	return totp.Validate(code, secret)
 }
 

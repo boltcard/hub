@@ -52,6 +52,12 @@ func Db_get_total_card_balance(db_conn *sql.DB) int {
 
 func Db_get_card_id_from_access_token(db_conn *sql.DB, access_token string) (card_id int) {
 
+	// access_token defaults to '' for cards that never authenticated, so an
+	// empty token would match them
+	if access_token == "" {
+		return 0
+	}
+
 	// get card id
 	sqlStatement := `SELECT card_id FROM cards WHERE access_token=$1 AND wiped = 'N';`
 	row := db_conn.QueryRow(sqlStatement, access_token)

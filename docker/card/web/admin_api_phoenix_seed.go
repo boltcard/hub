@@ -26,7 +26,8 @@ func (app *App) adminApiPhoenixSeed(w http.ResponseWriter, r *http.Request) {
 
 	if !app.verifyAdminPassword(req.Password) {
 		log.Warn("phoenix seed reveal denied: invalid password")
-		w.WriteHeader(http.StatusUnauthorized)
+		// 403, not 401: the admin UI treats any 401 as an expired session
+		w.WriteHeader(http.StatusForbidden)
 		writeJSON(w, map[string]string{"error": "invalid password"})
 		return
 	}

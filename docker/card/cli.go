@@ -4,8 +4,10 @@ import (
 	"card/db"
 	"card/phoenix"
 	"card/util"
+	"card/web"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"strconv"
@@ -29,6 +31,16 @@ func processArgs(db_conn *sql.DB, args []string) {
 		wipeCard(db_conn, args)
 	case "DisableAdmin2FA":
 		disableAdmin2FA(db_conn)
+	case "ResetAdminPassword":
+		if password, err := resetAdminPassword(db_conn); err != nil {
+			log.Error("ResetAdminPassword failed: ", err)
+		} else {
+			// printed to the exec session only, never to the container log
+			fmt.Println("New admin password: " + password)
+			if db.Db_get_setting(db_conn, "admin_totp_enabled") == "Y" {
+				fmt.Println("Note: admin 2FA is still enabled. If the authenticator is also lost, run: ./app DisableAdmin2FA")
+			}
+		}
 	default:
 		log.Warn("CLI command not found : " + args[0])
 	}
@@ -218,6 +230,36 @@ func disableAdmin2FA(db_conn *sql.DB) {
 	db.Db_set_setting(db_conn, "admin_totp_secret", "")
 	db.Db_set_setting(db_conn, "admin_totp_recovery_hash", "")
 	log.Info("admin 2FA disabled")
+}
+
+// resetAdminPassword sets a new random admin password and ends any admin
+// session. Run via `docker exec -it card ./app ResetAdminPassword`; the new
+// password is printed once. The hub never becomes unregistered (and so
+// claimable by anyone) during the reset. Returns the new password.
+func resetAdminPassword(db_conn *sql.DB) (string, error) {
+	password := util.Random_hex() // 128 bits
+	hash, err := web.HashPassword(password)
+	if err != nil {
+		return "", err
+	}
+	newToken := util.Random_hex()
+	db.Db_set_setting(db_conn, "admin_password_hash", hash)
+	db.Db_set_setting(db_conn, "admin_password_salt", "")
+	db.Db_set_setting(db_conn, "admin_session_token", newToken)
+	db.Db_set_setting(db_conn, "admin_session_created", "")
+
+	// Db_set_setting only logs failures (e.g. the running server holding the
+	// write lock past the busy timeout), so read back before reporting
+	// success; never print a password that was not stored.
+	if !web.CheckPassword(password, db.Db_get_setting(db_conn, "admin_password_hash")) {
+		return "", errors.New("new password hash was not saved; try again")
+	}
+	if db.Db_get_setting(db_conn, "admin_session_token") != newToken {
+		return "", errors.New("password changed but admin session was not ended; run again")
+	}
+
+	log.Info("admin password reset via CLI; admin sessions ended")
+	return password, nil
 }
 
 // used for testing the wipe card function

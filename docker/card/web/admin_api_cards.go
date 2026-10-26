@@ -182,7 +182,8 @@ func (app *App) adminApiUpdateCardLimits(w http.ResponseWriter, r *http.Request,
 // allocation shows up in the card's transaction history and balance.
 func (app *App) adminApiAllocateFunds(w http.ResponseWriter, r *http.Request, cardId int) {
 	var req struct {
-		AmountSats int `json:"amountSats"`
+		AmountSats int    `json:"amountSats"`
+		Password   string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -194,6 +195,15 @@ func (app *App) adminApiAllocateFunds(w http.ResponseWriter, r *http.Request, ca
 	if req.AmountSats <= 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(w, map[string]string{"error": "amountSats must be greater than 0"})
+		return
+	}
+
+	// credits spendable balance out of node funds, so re-check the admin
+	// password on top of the session cookie
+	if !app.verifyAdminPassword(req.Password) {
+		log.Warn("admin allocate funds denied: invalid password")
+		w.WriteHeader(http.StatusForbidden)
+		writeJSON(w, map[string]string{"error": "invalid password"})
 		return
 	}
 
@@ -288,6 +298,7 @@ func (app *App) adminApiBatchCreate(w http.ResponseWriter, r *http.Request) {
 		MaxCards       int    `json:"maxCards"`
 		InitialBalance int    `json:"initialBalance"`
 		ExpiryHours    int    `json:"expiryHours"`
+		Password       string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -306,6 +317,15 @@ func (app *App) adminApiBatchCreate(w http.ResponseWriter, r *http.Request) {
 	if req.InitialBalance < 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		writeJSON(w, map[string]string{"error": "initialBalance cannot be negative"})
+		return
+	}
+
+	// a funded batch credits every dispensed card out of node funds, so
+	// re-check the admin password on top of the session cookie
+	if req.InitialBalance > 0 && !app.verifyAdminPassword(req.Password) {
+		log.Warn("admin funded batch create denied: invalid password")
+		w.WriteHeader(http.StatusForbidden)
+		writeJSON(w, map[string]string{"error": "invalid password"})
 		return
 	}
 

@@ -33,6 +33,23 @@ https://{$HOST_DOMAIN} {
 		reverse_proxy card:8000
 	}
 
+	# admin actions that re-check the admin password: limit guessing by
+	# anyone holding a session (POST only, so page loads are unaffected)
+	@reauth_paths {
+		method POST
+		path /admin/api/withdraw /admin/api/phoenix/seed /admin/api/database/download /admin/api/database/import /admin/api/cards/*/allocate /admin/api/batch/create
+	}
+	handle @reauth_paths {
+		rate_limit {
+			zone reauth_zone {
+				key {remote_host}
+				events 30
+				window 1m
+			}
+		}
+		reverse_proxy card:8000
+	}
+
 	@api_paths {
 		path /create /payinvoice /addinvoice /ln /cb /.well-known/lnurlp/*
 	}

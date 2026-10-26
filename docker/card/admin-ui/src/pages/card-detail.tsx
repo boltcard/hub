@@ -135,15 +135,17 @@ export function CardDetailPage() {
   // Allocate funds
   const [allocateOpen, setAllocateOpen] = useState(false);
   const [allocateAmount, setAllocateAmount] = useState("");
+  const [allocatePassword, setAllocatePassword] = useState("");
 
   const allocateMutation = useMutation({
-    mutationFn: (amountSats: number) =>
-      apiPost(`/cards/${id}/allocate`, { amountSats }),
+    mutationFn: (data: { amountSats: number; password: string }) =>
+      apiPost(`/cards/${id}/allocate`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["card", id] });
       queryClient.invalidateQueries({ queryKey: ["card-txs", id] });
       setAllocateOpen(false);
       setAllocateAmount("");
+      setAllocatePassword("");
       toast.success("Funds allocated");
     },
     onError: (err) => toast.error(err.message),
@@ -155,7 +157,11 @@ export function CardDetailPage() {
       toast.error("Enter a whole number of sats greater than 0");
       return;
     }
-    allocateMutation.mutate(amount);
+    if (!allocatePassword) {
+      toast.error("Enter the admin password");
+      return;
+    }
+    allocateMutation.mutate({ amountSats: amount, password: allocatePassword });
   }
 
   // Wipe
@@ -293,7 +299,13 @@ export function CardDetailPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Balance</CardTitle>
-            <Dialog open={allocateOpen} onOpenChange={setAllocateOpen}>
+            <Dialog
+              open={allocateOpen}
+              onOpenChange={(next) => {
+                setAllocateOpen(next);
+                if (!next) setAllocatePassword("");
+              }}
+            >
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" disabled={card.wiped === "Y"}>
                   <Plus className="mr-1 h-4 w-4" />
@@ -318,6 +330,19 @@ export function CardDetailPage() {
                     value={allocateAmount}
                     onChange={(e) => setAllocateAmount(e.target.value)}
                     autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") submitAllocate();
+                    }}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="allocate-password">Admin Password</Label>
+                  <Input
+                    id="allocate-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={allocatePassword}
+                    onChange={(e) => setAllocatePassword(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") submitAllocate();
                     }}

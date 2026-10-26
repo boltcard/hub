@@ -25,7 +25,7 @@ docker compose up -d     # detached
 docker compose watch
 ```
 
-The Go application is in `docker/card/`. The admin UI is a React SPA in `docker/card/admin-ui/`. Both are built via a 3-stage Docker build: Node 22 (frontend) → Go 1.25.11 (backend) → Debian slim runtime (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`. Pre-built images are published to Docker Hub (`boltcard/card:latest`, `boltcard/webproxy:latest`).
+The Go application is in `docker/card/`. The admin UI is a React SPA in `docker/card/admin-ui/`. Both are built via a 3-stage Docker build: Node 22 (frontend) → Go 1.26.10 (backend) → Debian slim runtime (see `docker/card/Dockerfile`). Build flags inject version/date/time into `card/build`. Pre-built images are published to Docker Hub (`boltcard/card:latest`, `boltcard/webproxy:latest`).
 
 There is no Makefile — building is done exclusively through Docker.
 
@@ -54,7 +54,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to `main`:
 - Docker image builds for both `card` and `webproxy` (via `docker/build-push-action@v6`)
 - On push to `main` (not PRs): pushes images to Docker Hub as `latest`
 
-Uses Go 1.25.11 with CGo enabled for sqlite3, Node 22 for frontend. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
+Uses Go 1.26.10 with CGo enabled for sqlite3, Node 22 for frontend. Docker Hub push requires GitHub secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`.
 
 > **Keep `provenance: false` on the image build steps.** `docker/build-push-action` enables provenance attestations by default, which wraps the pushed image in an OCI image index (no top-level `config`). The version check in deployed hubs `<=0.22.3` only parses a single-platform manifest, so an index leaves their "Update available" button permanently stuck (issue #45). Newer hubs handle the index too (`web/update.go` follows it), but the published `latest` must stay a single manifest so already-deployed hubs can ever see the update that fixes them.
 
@@ -72,6 +72,7 @@ docker exec -it card bash
 ./app ProgramBatch <group_tag> <max_group_num> <initial_balance> <expiry_hours>
 ./app WipeCard <card_id>
 ./app DisableAdmin2FA
+./app ResetAdminPassword   # sets and prints a new random admin password, ends admin sessions
 ```
 
 ## Architecture
@@ -80,7 +81,7 @@ docker exec -it card bash
 
 - **phoenix**: acinq/phoenixd:0.8.0 — Lightning node (384M memory)
 - **card**: Custom Go app — card service on `:8000` (192M memory, GOMEMLIMIT=150MiB). Has Docker healthcheck (HEAD / every 30s). Graceful shutdown on SIGTERM with 10s drain timeout. Includes `sqlite3` for database access. Mounts Docker socket for admin update feature.
-- **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting on auth endpoints (10 req/min per IP on `/admin/login/`, `/auth`, `/admin/api/auth/login`)
+- **webproxy**: Custom Caddy build (via xcaddy with `caddy-ratelimit` plugin) — reverse proxy with auto-TLS, CORS, zstd compression, and rate limiting (10 req/min per IP on the login/2FA endpoints and `/auth`; 30 req/min per IP shared across POSTs to the admin actions that re-check the password; 30 req/min on the public wallet/LNURL endpoints). The Caddyfile is bind-mounted from `~/hub/` (downloaded by `install.sh`, or a git checkout), and the in-app update only recreates the `card` container — so Caddyfile changes reach deployed hubs only when the operator re-downloads it (`curl -fsSL https://raw.githubusercontent.com/boltcard/hub/main/Caddyfile -o ~/hub/Caddyfile`, or `git pull`) and runs `docker compose up -d --force-recreate webproxy`
 
 All on internal `hubnet` bridge network. Card container mounts phoenix volume read-only for config access and Docker socket for self-update. `HOST_DOMAIN` is set in `.env` and shared with both card and webproxy containers via `env_file`. The Caddyfile uses `{$HOST_DOMAIN}` for the site address — no templating or init scripts needed.
 
@@ -95,7 +96,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `phoenix/` — HTTP client for Phoenix Server API (invoices, payments, balance, channels). Uses basic auth from phoenix config (password cached at startup with `sync.Once`)
 - `crypto/` — AES-CMAC authentication and AES decryption for Bolt Card NFC protocol
 - `util/` — Error handling helpers (`CheckAndLog`), random hex generation, QR code encoding
-- `build/` — Version string (currently "0.22.5"), date/time injected at build
+- `build/` — Version string (currently "0.24.1"), date/time injected at build
 - `web-content/` — Static assets under `public/`, SPA build output under `admin/spa/`
 
 ### Route Groups (`web/app.go`)
@@ -111,6 +112,7 @@ Entry point: `main.go` → opens SQLite DB → runs CLI or starts HTTP server on
 - `/admin/api/websocket` — Real-time payment notifications (JSON events via `wsHub` broadcast, requires admin session cookie)
 - `/admin/api/phoenix/transactions` — Last 5 incoming/outgoing Phoenix payments
 - `/admin/api/database/stats` — Database file size, schema version, table row counts
+- `/admin/api/database/download` (`POST {"password"}`) and `/admin/api/database/import` (multipart with `password`) — both re-check the admin password: the DB holds every card's keys (enough to forge taps) and import replaces everything
 - `/admin/api/about/logs` — Last 20 container log lines (via Docker API, ANSI→HTML color conversion)
 - `/admin/api/about/commits` — Last 10 GitHub commits (from GitHub API)
 - `/admin/api/withdraw` — Admin fund withdrawal. `GET` returns node balance, total card liability, and spare/excess liquidity plus recent withdrawals; `POST` pays out node liquidity to a Lightning address. The POST handler re-verifies the admin password (on top of the session cookie), caps the amount at the node balance, and flags (`breachesLiability`) when the payout dips below outstanding card balances. See `web/admin_api_withdraw.go` and `phoenix/pay_lightning_address.go` (phoenixd `/paylnaddress`).
@@ -138,9 +140,10 @@ Schema version managed by idempotent `update_schema_*` functions in `db_create.g
 
 ### Authentication
 
-- **Admin**: bcrypt password hash in settings table, session cookies with 24-hour expiry. Legacy SHA256 hashes auto-migrate to bcrypt on login. Constant-time token comparison. Optional TOTP 2FA (RFC 6238 via `github.com/pquerna/otp`): when `admin_totp_enabled="Y"`, login also requires a 6-digit TOTP code or a single-use recovery code, verified in `adminApiLogin` before a session is issued (login-only enforcement). Enrollment/disable endpoints live in `web/admin_api_2fa.go`, TOTP/recovery helpers in `web/totp.go`. Disabling 2FA via the admin UI requires the password **and** a current TOTP/recovery code (proof of possession). Recovery for a lost authenticator: backup codes or the `DisableAdmin2FA` CLI command.
+- **Admin**: bcrypt password hash in settings table, session cookies with 24-hour expiry. Every admin session check (API middleware, `/admin/api/auth/check`, websocket) goes through `app.adminSessionValid` in `web/admin_api.go`, which fails closed: an empty cookie, an empty/missing stored token, or a missing/unparseable/expired `admin_session_created` all reject. Logout stores a fresh random token rather than `""`. Before v0.24.1 an empty cookie matched the empty token left by logout (or by never logging in), and the expiry check was skipped when `admin_session_created` was empty — a full admin bypass. Actions that can create or move funds re-check the admin password on top of the session cookie: database import (multipart `password` field — it replaces balances and the password hash), card allocate, batch create when `initialBalance > 0`, withdraw, and Phoenix seed. Database download (`POST` with JSON `password`) is gated the same way, since the DB holds every card's keys. These return 403 `invalid password` on mismatch — never 401, which `apiFetch` turns into a "Session expired" error (2FA disable uses 400 for the same reason). Logout only rotates the token when the caller holds a valid session, so it can't be used to kick the admin out. Lost password: `./app ResetAdminPassword` (never clear `admin_password_hash` — an unregistered hub can be claimed by anyone). Legacy SHA256 hashes auto-migrate to bcrypt on login. Constant-time token comparison. Optional TOTP 2FA (RFC 6238 via `github.com/pquerna/otp`): when `admin_totp_enabled="Y"`, login also requires a 6-digit TOTP code or a single-use recovery code, verified in `adminApiLogin` before a session is issued (login-only enforcement). Enrollment/disable endpoints live in `web/admin_api_2fa.go`, TOTP/recovery helpers in `web/totp.go`. Disabling 2FA via the admin UI requires the password **and** a current TOTP/recovery code (proof of possession). Recovery for a lost authenticator: backup codes or the `DisableAdmin2FA` CLI command.
 - **Bolt Card NFC**: AES-CMAC with 5 keys per card (K0-K4), counter-based replay protection
-- **Wallet/PoS API**: Login/password → access_token + refresh_token (random hex)
+- **Wallet/PoS API**: Login/password → access_token + refresh_token (random hex). `cards.access_token`/`refresh_token` default to `''` for cards that never called `/auth`, so empty tokens/credentials are rejected both in `getBearerToken` and in the `db` lookups (`Db_get_card_id_from_access_token`, `Db_update_tokens`, `Db_set_tokens`).
+- **Empty-secret rule**: never look anything up by a caller-supplied secret or token that may be `""` — many columns and settings default to `''` (session token, wallet tokens, `program_cards.secret`, `admin_totp_secret`), and `""` matching `""` caused the v0.24.1 admin bypass. Check for empty before comparing or querying.
 
 ## Key Dependencies
 

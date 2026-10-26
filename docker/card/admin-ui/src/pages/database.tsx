@@ -28,6 +28,10 @@ function formatBytes(bytes: number): string {
 export function DatabasePage() {
   const [uploading, setUploading] = useState(false);
   const [uploadResult, setUploadResult] = useState<string | null>(null);
+  const [password, setPassword] = useState("");
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [downloadPassword, setDownloadPassword] = useState("");
 
   const { data: stats } = useQuery({
     queryKey: ["database-stats"],
@@ -35,6 +39,46 @@ export function DatabasePage() {
   });
 
   const totalRows = stats?.tables?.reduce((sum, t) => sum + t.count, 0) ?? 0;
+
+  // The download carries every card's keys, so the server re-checks the
+  // admin password; POST it and save the returned file from a blob.
+  async function handleDownload(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const res = await fetch("/admin/api/database/download", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: downloadPassword }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setDownloadError(
+          res.status === 401
+            ? "Session expired"
+            : body.error || `HTTP ${res.status}`
+        );
+        return;
+      }
+      const disposition = res.headers.get("Content-Disposition") ?? "";
+      const filename =
+        /filename="([^"]+)"/.exec(disposition)?.[1] ?? "cards.db";
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setDownloadPassword("");
+    } catch {
+      setDownloadError("network error");
+    } finally {
+      setDownloading(false);
+    }
+  }
 
   async function handleImport(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,6 +93,7 @@ export function DatabasePage() {
 
     const formData = new FormData();
     formData.append("database_file", fileInput.files[0]);
+    formData.append("password", password);
 
     try {
       const res = await fetch("/admin/api/database/import", {
@@ -56,6 +101,7 @@ export function DatabasePage() {
         body: formData,
       });
       if (res.ok) {
+        setPassword("");
         setUploadResult("Database imported. Container will restart.");
       } else {
         const text = await res.text();
@@ -105,12 +151,28 @@ export function DatabasePage() {
           <CardTitle className="text-lg">Export</CardTitle>
         </CardHeader>
         <CardContent>
-          <a href="/admin/api/database/download">
-            <Button variant="outline">
+          <form onSubmit={handleDownload} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="db-download-password">Admin Password</Label>
+              <Input
+                id="db-download-password"
+                type="password"
+                autoComplete="current-password"
+                value={downloadPassword}
+                onChange={(e) => setDownloadPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" variant="outline" disabled={downloading}>
               <Download className="mr-2 h-4 w-4" />
-              Download Database
+              {downloading ? "Downloading..." : "Download Database"}
             </Button>
-          </a>
+            {downloadError && (
+              <p className="text-sm text-destructive">
+                Download failed: {downloadError}
+              </p>
+            )}
+          </form>
         </CardContent>
       </Card>
 
@@ -126,6 +188,17 @@ export function DatabasePage() {
                 id="db-file"
                 type="file"
                 accept=".db"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="db-import-password">Admin Password</Label>
+              <Input
+                id="db-import-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
               />
             </div>

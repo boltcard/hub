@@ -85,7 +85,9 @@ func (app *App) adminApiWithdraw(w http.ResponseWriter, r *http.Request) {
 
 	// Re-confirm the admin password on top of the session cookie.
 	if !app.verifyAdminPassword(req.Password) {
-		w.WriteHeader(http.StatusUnauthorized)
+		log.Warn("admin withdraw denied: invalid password")
+		// 403, not 401: the admin UI treats any 401 as an expired session
+		w.WriteHeader(http.StatusForbidden)
 		writeJSON(w, map[string]string{"error": "invalid password"})
 		return
 	}

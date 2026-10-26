@@ -2,6 +2,7 @@ package main
 
 import (
 	"card/db"
+	"card/web"
 	"database/sql"
 	"os"
 	"testing"
@@ -189,5 +190,47 @@ func TestProcessArgs_DispatchesProgramBatch(t *testing.T) {
 	conn.QueryRow("SELECT COUNT(*) FROM program_cards WHERE group_tag='batchX'").Scan(&count)
 	if count != 1 {
 		t.Fatalf("expected ProgramBatch dispatch to insert 1 row, got %d", count)
+	}
+}
+
+func TestResetAdminPassword_SetsNewPasswordAndEndsSession(t *testing.T) {
+	conn := openCliTestDB(t)
+	oldHash, _ := web.HashPassword("oldpass")
+	db.Db_set_setting(conn, "admin_password_hash", oldHash)
+	db.Db_set_setting(conn, "admin_session_token", "livesession")
+	db.Db_set_setting(conn, "admin_session_created", "123")
+
+	password, err := resetAdminPassword(conn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(password) < 32 {
+		t.Fatalf("expected a long random password, got %q", password)
+	}
+
+	hash := db.Db_get_setting(conn, "admin_password_hash")
+	if !web.CheckPassword(password, hash) {
+		t.Fatal("new password does not match the stored hash")
+	}
+	if web.CheckPassword("oldpass", hash) {
+		t.Fatal("old password still works")
+	}
+	// the hub must stay registered (never claimable) and sessions must end
+	if hash == "" {
+		t.Fatal("admin password hash cleared")
+	}
+	if tok := db.Db_get_setting(conn, "admin_session_token"); tok == "" || tok == "livesession" {
+		t.Fatalf("expected session token rotated, got %q", tok)
+	}
+	if c := db.Db_get_setting(conn, "admin_session_created"); c != "" {
+		t.Fatalf("expected session created cleared, got %q", c)
+	}
+}
+
+func TestProcessArgs_DispatchesResetAdminPassword(t *testing.T) {
+	conn := openCliTestDB(t)
+	processArgs(conn, []string{"ResetAdminPassword"})
+	if db.Db_get_setting(conn, "admin_password_hash") == "" {
+		t.Fatal("expected ResetAdminPassword dispatch to set a password hash")
 	}
 }

@@ -42,6 +42,11 @@ func Db_set_setting(db_conn *sql.DB, name string, value string) {
 func Db_set_tokens(db_conn *sql.DB, login string, password string,
 	access_token string, refresh_token string) error {
 
+	// never match a card on empty credentials
+	if login == "" || password == "" {
+		return errors.New("login not valid")
+	}
+
 	// update card record
 	sqlStatement := `UPDATE cards` +
 		` SET access_token = $1, refresh_token = $2` +

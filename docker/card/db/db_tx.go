@@ -47,6 +47,11 @@ var ErrBatchExhausted = errors.New("batch limit reached")
 func Db_dispense_batch_card(db_conn *sql.DB, secret string, uid string, keys CardKeys,
 	login string, password string) (cardId int, groupTag string, err error) {
 
+	// program_cards.secret defaults to '', so never match on an empty secret
+	if secret == "" {
+		return 0, "", ErrBatchNotFound
+	}
+
 	lnAddress := "c." + randomHex8()
 
 	err = withImmediateTx(db_conn, func(ctx context.Context, conn *sql.Conn) error {

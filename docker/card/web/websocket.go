@@ -3,11 +3,9 @@ package web
 import (
 	"card/db"
 	"card/phoenix"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
-	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -254,24 +252,9 @@ func (app *App) CreateHandler_Websocket() http.HandlerFunc {
 	hostDomain := db.Db_get_setting(app.db_read, "host_domain")
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Authenticate admin session cookie
-		c, err := r.Cookie("admin_session_token")
-		if err != nil {
+		if !app.adminSessionValid(r) {
 			http.Error(w, "not authenticated", http.StatusUnauthorized)
 			return
-		}
-		adminSessionToken := db.Db_get_setting(app.db_read, "admin_session_token")
-		if subtle.ConstantTimeCompare([]byte(c.Value), []byte(adminSessionToken)) != 1 {
-			http.Error(w, "invalid session", http.StatusUnauthorized)
-			return
-		}
-		sessionCreatedStr := db.Db_get_setting(app.db_read, "admin_session_created")
-		if sessionCreatedStr != "" {
-			sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
-			if err != nil || time.Now().Unix()-sessionCreated > 24*60*60 {
-				http.Error(w, "session expired", http.StatusUnauthorized)
-				return
-			}
 		}
 
 		var upgrader = websocket.Upgrader{

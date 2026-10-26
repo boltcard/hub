@@ -246,9 +246,11 @@ func TestAdminApiLogout(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
+	// logout replaces the token with a fresh random one (never ""), so
+	// neither the old cookie nor an empty cookie can match it
 	token := db.Db_get_setting(app.db_read, "admin_session_token")
-	if token != "" {
-		t.Fatal("expected session token to be cleared")
+	if token == "" || token == "sometoken" {
+		t.Fatalf("expected session token to be rotated, got %q", token)
 	}
 }
 
@@ -343,8 +345,8 @@ func TestAdminApiPhoenixSeed_WrongPassword(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, r)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401 for wrong password, got %d", w.Code)
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for wrong password, got %d", w.Code)
 	}
 }
 
@@ -592,7 +594,7 @@ func TestAdminApiAllocateFunds(t *testing.T) {
 	cardId := insertFundedCard(t, app.db_write, 10000)
 
 	handler := app.CreateHandler_AdminApi()
-	body := `{"amountSats":25000}`
+	body := `{"amountSats":25000,"password":"testpass"}`
 	r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/allocate",
 		strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
@@ -655,7 +657,7 @@ func TestAdminApiAllocateFunds_NotFound(t *testing.T) {
 
 	handler := app.CreateHandler_AdminApi()
 	r := httptest.NewRequest("POST", "/admin/api/cards/99999/allocate",
-		strings.NewReader(`{"amountSats":1000}`))
+		strings.NewReader(`{"amountSats":1000,"password":"testpass"}`))
 	r.Header.Set("Content-Type", "application/json")
 	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
 	w := httptest.NewRecorder()
@@ -675,7 +677,7 @@ func TestAdminApiAllocateFunds_Repeatable(t *testing.T) {
 	// Allocate twice — each must succeed despite the r_hash_hex UNIQUE constraint
 	for i := 0; i < 2; i++ {
 		r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/allocate",
-			strings.NewReader(`{"amountSats":5000}`))
+			strings.NewReader(`{"amountSats":5000,"password":"testpass"}`))
 		r.Header.Set("Content-Type", "application/json")
 		r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
 		w := httptest.NewRecorder()
@@ -856,7 +858,7 @@ func TestAdminApiCardTxs_AllocatedFlag(t *testing.T) {
 
 	// manual allocation records a receipt with empty ln_invoice
 	r := httptest.NewRequest("POST", "/admin/api/cards/"+strconv.Itoa(cardId)+"/allocate",
-		strings.NewReader(`{"amountSats":1234}`))
+		strings.NewReader(`{"amountSats":1234,"password":"testpass"}`))
 	r.Header.Set("Content-Type", "application/json")
 	r.AddCookie(&http.Cookie{Name: "admin_session_token", Value: token})
 	app.CreateHandler_AdminApi().ServeHTTP(httptest.NewRecorder(), r)
@@ -930,7 +932,7 @@ func TestAdminApiBatchCreate(t *testing.T) {
 	token := setupAdminSession(t, app)
 
 	handler := app.CreateHandler_AdminApi()
-	body := `{"groupTag":"test-batch","maxCards":5,"initialBalance":1000,"expiryHours":24}`
+	body := `{"groupTag":"test-batch","maxCards":5,"initialBalance":1000,"expiryHours":24,"password":"testpass"}`
 	r := httptest.NewRequest("POST", "/admin/api/batch/create",
 		strings.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
@@ -1123,8 +1125,8 @@ func TestAdminApiWithdraw_WrongPassword(t *testing.T) {
 	w := httptest.NewRecorder()
 	handler.ServeHTTP(w, r)
 
-	if w.Code != http.StatusUnauthorized {
-		t.Fatalf("expected 401, got %d: %s", w.Code, w.Body.String())
+	if w.Code != http.StatusForbidden {
+		t.Fatalf("expected 403, got %d: %s", w.Code, w.Body.String())
 	}
 }
 

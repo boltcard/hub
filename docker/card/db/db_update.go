@@ -8,6 +8,12 @@ import (
 
 func Db_update_tokens(db_conn *sql.DB, initial_refresh_token string, new_refresh_token string, access_token string) (success bool) {
 
+	// refresh_token defaults to '' for cards that never authenticated, so an
+	// empty token would match (and overwrite the tokens of) all of them
+	if initial_refresh_token == "" {
+		return false
+	}
+
 	// update record
 	sqlStatement := `UPDATE cards SET access_token = $1, refresh_token = $2` +
 		` WHERE refresh_token = $3 AND wiped = 'N';`

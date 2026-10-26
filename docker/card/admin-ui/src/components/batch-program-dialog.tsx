@@ -26,6 +26,7 @@ const DEFAULTS = {
   maxCards: "1",
   initialBalance: "0",
   expiryHours: "24",
+  password: "",
 };
 
 export function BatchProgramDialog() {
@@ -35,6 +36,9 @@ export function BatchProgramDialog() {
   const [form, setForm] = useState(DEFAULTS);
 
   const multiple = (Number(form.maxCards) || 0) > 1;
+  // a funded batch credits each card out of node funds, so the server
+  // re-checks the admin password
+  const funded = (Number(form.initialBalance) || 0) > 0;
 
   const mutation = useMutation({
     mutationFn: (data: {
@@ -42,7 +46,10 @@ export function BatchProgramDialog() {
       maxCards: number;
       initialBalance: number;
       expiryHours: number;
+      password?: string;
     }) => apiPost<BatchResult>("/batch/create", data),
+    // don't keep the password around after an attempt
+    onSettled: () => setForm((f) => ({ ...f, password: "" })),
   });
 
   function handleSubmit(e: React.FormEvent) {
@@ -52,6 +59,7 @@ export function BatchProgramDialog() {
       maxCards: Number(form.maxCards) || 0,
       initialBalance: Number(form.initialBalance) || 0,
       expiryHours: Number(form.expiryHours) || 0,
+      ...(funded ? { password: form.password } : {}),
     });
   }
 
@@ -151,10 +159,25 @@ export function BatchProgramDialog() {
                 One link programs up to this many cards. Leave at 1 for a single card.
               </p>
             )}
-            {Number(form.initialBalance) > 0 && (
-              <p className="text-xs text-muted-foreground">
-                Each card is credited with this balance as it is programmed.
-              </p>
+            {funded && (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Each card is credited with this balance as it is programmed.
+                </p>
+                <div className="space-y-2">
+                  <Label htmlFor="batch-password">Admin Password</Label>
+                  <Input
+                    id="batch-password"
+                    type="password"
+                    autoComplete="current-password"
+                    value={form.password}
+                    onChange={(e) =>
+                      setForm({ ...form, password: e.target.value })
+                    }
+                    required
+                  />
+                </div>
+              </>
             )}
 
             <button

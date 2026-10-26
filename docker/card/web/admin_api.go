@@ -13,34 +13,47 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// adminSessionMaxAge is how long an admin session stays valid after login.
+const adminSessionMaxAge = 24 * 60 * 60
+
+// adminSessionValid reports whether the request carries the current admin
+// session cookie. It fails closed: an empty cookie, an empty or missing stored
+// token (never logged in, or logged out), or a missing, unparseable or expired
+// creation time all mean "not authenticated". Every admin auth check must use
+// this; an empty cookie must never match an empty stored token.
+func (app *App) adminSessionValid(r *http.Request) bool {
+	c, err := r.Cookie("admin_session_token")
+	if err != nil || c.Value == "" {
+		return false
+	}
+
+	adminSessionToken := db.Db_get_setting(app.db_read, "admin_session_token")
+	if adminSessionToken == "" {
+		return false
+	}
+	if subtle.ConstantTimeCompare([]byte(c.Value), []byte(adminSessionToken)) != 1 {
+		return false
+	}
+
+	sessionCreated, err := strconv.ParseInt(
+		db.Db_get_setting(app.db_read, "admin_session_created"), 10, 64)
+	if err != nil {
+		return false
+	}
+	age := time.Now().Unix() - sessionCreated
+	return age >= 0 && age <= adminSessionMaxAge
+}
+
 // adminApiAuth is middleware that validates the admin session cookie.
 // Returns 401 JSON on failure (not a redirect like the HTML admin handler).
 func (app *App) adminApiAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		c, err := r.Cookie("admin_session_token")
-		if err != nil {
+		if !app.adminSessionValid(r) {
 			w.WriteHeader(http.StatusUnauthorized)
 			writeJSON(w, map[string]string{"error": "not authenticated"})
 			return
-		}
-
-		adminSessionToken := db.Db_get_setting(app.db_read, "admin_session_token")
-		if subtle.ConstantTimeCompare([]byte(c.Value), []byte(adminSessionToken)) != 1 {
-			w.WriteHeader(http.StatusUnauthorized)
-			writeJSON(w, map[string]string{"error": "invalid session"})
-			return
-		}
-
-		sessionCreatedStr := db.Db_get_setting(app.db_read, "admin_session_created")
-		if sessionCreatedStr != "" {
-			sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
-			if err != nil || time.Now().Unix()-sessionCreated > 24*60*60 {
-				w.WriteHeader(http.StatusUnauthorized)
-				writeJSON(w, map[string]string{"error": "session expired"})
-				return
-			}
 		}
 
 		next(w, r)
@@ -147,7 +160,7 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 		case path == "/admin/api/database/stats" && r.Method == "GET":
 			app.adminApiAuth(app.adminApiDatabaseStats)(w, r)
 
-		case path == "/admin/api/database/download" && r.Method == "GET":
+		case path == "/admin/api/database/download" && r.Method == "POST":
 			app.adminApiAuth(app.adminApiDatabaseDownload)(w, r)
 
 		case path == "/admin/api/database/import" && r.Method == "POST":
@@ -172,20 +185,7 @@ func (app *App) CreateHandler_AdminApi() http.HandlerFunc {
 func (app *App) adminApiAuthCheck(w http.ResponseWriter, r *http.Request) {
 	registered := db.Db_get_setting(app.db_read, "admin_password_hash") != ""
 
-	authenticated := false
-	c, err := r.Cookie("admin_session_token")
-	if err == nil {
-		adminSessionToken := db.Db_get_setting(app.db_read, "admin_session_token")
-		if subtle.ConstantTimeCompare([]byte(c.Value), []byte(adminSessionToken)) == 1 {
-			sessionCreatedStr := db.Db_get_setting(app.db_read, "admin_session_created")
-			if sessionCreatedStr != "" {
-				sessionCreated, err := strconv.ParseInt(sessionCreatedStr, 10, 64)
-				if err == nil && time.Now().Unix()-sessionCreated <= 24*60*60 {
-					authenticated = true
-				}
-			}
-		}
-	}
+	authenticated := app.adminSessionValid(r)
 
 	writeJSON(w, map[string]interface{}{
 		"authenticated": authenticated,
@@ -292,7 +292,13 @@ func (app *App) adminApiRegister(w http.ResponseWriter, r *http.Request) {
 
 func (app *App) adminApiLogout(w http.ResponseWriter, r *http.Request) {
 	ClearAdminSessionToken(w)
-	db.Db_set_setting(app.db_write, "admin_session_token", "")
-	db.Db_set_setting(app.db_write, "admin_session_created", "")
+	// Only the session holder can end the session; otherwise anyone could
+	// log the admin out at will. Reply ok either way.
+	if app.adminSessionValid(r) {
+		// Replace the token with a fresh random value nobody holds rather
+		// than clearing it, so no cookie value can match after logout.
+		db.Db_set_setting(app.db_write, "admin_session_token", util.Random_hex())
+		db.Db_set_setting(app.db_write, "admin_session_created", "")
+	}
 	writeJSON(w, map[string]bool{"ok": true})
 }

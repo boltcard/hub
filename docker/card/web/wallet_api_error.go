@@ -48,7 +48,14 @@ func getBearerToken(w http.ResponseWriter, r *http.Request) (string, bool) {
 		sendError(w, "Bad auth", 1, "missing or invalid Authorization header")
 		return "", false
 	}
-	return authToken[7:], true
+	// cards that never called /auth have access_token '', so an empty
+	// token must never be looked up
+	token := strings.TrimSpace(authToken[7:])
+	if token == "" {
+		sendError(w, "Bad auth", 1, "missing or invalid Authorization header")
+		return "", false
+	}
+	return token, true
 }
 
 func generateCardKeys() (key0, key1, k2, key3, key4 string) {
